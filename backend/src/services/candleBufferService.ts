@@ -1,6 +1,6 @@
-import { cacheService } from './cacheService';
-import { redisService, RedisCandle, RedisLatestQuote } from './redisService';
-import { databaseService, StockCandle, LatestQuote } from './databaseService';
+import { cacheService } from './cacheService.js';
+import { redisService, RedisCandle, RedisLatestQuote } from './redisService.js';
+import { databaseService, StockCandle, LatestQuote } from './databaseService.js';
 
 export interface CandleBuffer {
   symbol: string;

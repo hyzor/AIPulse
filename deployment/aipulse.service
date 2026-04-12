@@ -1,0 +1,22 @@
+[Unit]
+Description=AIPulse - AI Stock Monitoring API
+After=network.target
+
+[Service]
+Type=simple
+User=nodejs
+WorkingDirectory=/opt/aipulse
+ExecStart=/usr/bin/node backend/dist/server.js
+Restart=on-failure
+RestartSec=10
+Environment=NODE_ENV=production
+Environment=PORT=3001
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/aipulse/logs
+
+[Install]
+WantedBy=multi-user.target

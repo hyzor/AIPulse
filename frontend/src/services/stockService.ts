@@ -40,8 +40,8 @@ class StockService {
     const response = await fetch(`${API_URL}/api/health`);
     const data = await response.json();
     return {
-      finnhubConfigured: data.finnhubConfigured,
-      cacheStats: data.cacheStats,
+      finnhubConfigured: data.services?.finnhub?.configured ?? data.finnhubConfigured ?? false,
+      cacheStats: data.cacheStats ?? { keys: 0 },
     };
   }
 

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { StockQuote, TRACKED_STOCKS } from '../types';
+import { StockQuote } from '../types';
 import { useTimeRange } from '../contexts/TimeRangeContext';
 import { StockCard } from './StockCard';
 
@@ -12,16 +12,21 @@ interface StockGridProps {
 export function StockGrid({ quotes, realtimeQuotes, onStockClick }: StockGridProps) {
   const { fetchAllHistory, timeRange } = useTimeRange();
 
+  // Get symbols from the quotes prop (respects category filtering)
+  const symbols = quotes.map(q => q.symbol);
+
   // Fetch historical data when time range changes
   useEffect(() => {
-    fetchAllHistory([...TRACKED_STOCKS]);
-  }, [timeRange, fetchAllHistory]);
+    if (symbols.length > 0) {
+      fetchAllHistory(symbols);
+    }
+  }, [timeRange, fetchAllHistory, symbols.join(',')]);
 
   // Create a map for quick lookup
   const quotesMap = new Map(quotes.map(q => [q.symbol, q]));
   
-  // Merge with real-time updates
-  const mergedQuotes = [...TRACKED_STOCKS].map(symbol => {
+  // Merge with real-time updates (only for symbols in this grid)
+  const mergedQuotes = symbols.map(symbol => {
     const realtime = realtimeQuotes.get(symbol);
     const base = quotesMap.get(symbol);
     return realtime || base || {

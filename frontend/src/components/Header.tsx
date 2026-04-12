@@ -50,6 +50,7 @@ export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
               onClick={onRefresh}
               disabled={isLoading}
               className="flex items-center gap-2 px-3 py-2 bg-neon-blue/10 hover:bg-neon-blue/20 text-neon-blue rounded-lg border border-neon-blue/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Manually refresh all stock data from Finnhub API"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
               <span className="text-sm font-medium hidden sm:inline">Refresh</span>

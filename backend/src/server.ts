@@ -33,6 +33,12 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 
+// Stale data threshold - refresh if data is older than this (seconds)
+// Default: 300s (5min) for production
+// For development: 60s (1min) or 30s for frequent redeploys
+const STALE_DATA_THRESHOLD = parseInt(process.env.STALE_DATA_THRESHOLD_SECONDS || '300', 10);
+console.log(`[Config] Stale data threshold: ${STALE_DATA_THRESHOLD}s`);
+
 // Rate limit optimized refresh intervals (Finnhub free tier: 60 calls/min)
 // Default: 120s (2min) = 30 calls/min for 12 stocks - leaves 30 calls for other operations
 const AUTO_REFRESH_INTERVAL = parseInt(process.env.AUTO_REFRESH_INTERVAL_MS || '120000', 10);
@@ -208,7 +214,7 @@ wss.on('connection', (ws) => {
           }));
           
           // If this is cached (not fresh) data, also queue for API refresh
-          if (cachedQuote.isCached || cachedQuote.timestamp < Date.now()/1000 - 300) {
+          if (cachedQuote.isCached || cachedQuote.timestamp < Date.now()/1000 - STALE_DATA_THRESHOLD) {
             queueSubscription(symbol);
           }
         } else {
@@ -391,7 +397,7 @@ async function initializeServer(): Promise<void> {
 ╠════════════════════════════════════════════════════════════╣
 ║  Tracked Stocks: ${TRACKED_STOCKS.length} companies                         ║
 ║  CORS Origin: ${CORS_ORIGIN}          ║
-║  Rate Limit: 50/60 calls/min (conservative)              ║
+║  Rate Limit: ${process.env.FINNHUB_MAX_CALLS_PER_MINUTE || '58'}/60 calls/min (limit: ${process.env.FINNHUB_MAX_CALLS_PER_MINUTE || '58'})      ║
 ║  Auto-refresh: ${(AUTO_REFRESH_INTERVAL/1000).toFixed(0)}s interval + ${RATE_LIMIT_BUFFER} call buffer     ║
 ╚════════════════════════════════════════════════════════════╝
     `);
@@ -402,8 +408,23 @@ async function initializeServer(): Promise<void> {
       console.warn('   Get a free API key at: https://finnhub.io\n');
     } else {
       console.log('\n✅ Finnhub API configured');
-      console.log('   Rate limit tracking enabled');
+      console.log(`   Rate limit: ${finnhubService.getRateLimitStatus().callsRemaining}/${process.env.FINNHUB_MAX_CALLS_PER_MINUTE || '58'} calls available`);
       console.log('   Three-tier cache: L1 (memory) → L2 (Redis AOF) → L3 (TimescaleDB)\n');
+      
+      // Startup cache warm-up for development (fetch fresh data immediately)
+      if (process.env.WARM_CACHE_ON_STARTUP === 'true') {
+        console.log('[Startup] Warming cache with fresh data...');
+        // Wait a moment for any existing connections to stabilize
+        setTimeout(async () => {
+          const rateStatus = finnhubService.getRateLimitStatus();
+          if (rateStatus.callsRemaining >= TRACKED_STOCKS.length) {
+            const quotes = await finnhubService.getQuotes([...TRACKED_STOCKS], { batchSize: 6, delayMs: 500 });
+            console.log(`[Startup] Cache warmed with ${quotes.length} fresh quotes`);
+          } else {
+            console.log(`[Startup] Skipping warm-up - rate limit too low (${rateStatus.callsRemaining} remaining)`);
+          }
+        }, 2000);
+      }
     }
   });
 }

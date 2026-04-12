@@ -117,11 +117,6 @@ function AppContent() {
       <CategoryPerformance stocks={mergedStocks} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Data Collection Status */}
-        <section className="mb-8">
-          <DataCollectionStatus />
-        </section>
-
         {/* All Stocks Grid */}
         <section className="mb-12">
           <div className="flex items-center justify-between mb-6">
@@ -189,6 +184,11 @@ function AppContent() {
             </section>
           );
         })}
+
+        {/* Data Collection Status - Bottom of page */}
+        <section className="mt-12 mb-8">
+          <DataCollectionStatus />
+        </section>
 
         {/* Info Footer */}
         <footer className="mt-12 pt-8 border-t border-dark-600">

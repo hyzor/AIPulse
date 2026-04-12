@@ -90,12 +90,16 @@ export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
   return (
     <div className="bg-dark-800 border-b border-dark-600">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <h3 className="text-sm font-medium text-gray-400 mb-3">Category Performance</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium text-gray-400">Category Performance</h3>
+          <span className="text-xs text-gray-500" title="Based on daily change from previous close to current price">Today</span>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {categoryStats.map((category) => (
             <div
               key={category.name}
               className="bg-dark-700 rounded-lg border border-dark-600 p-3 hover:border-dark-500 transition-colors"
+              title={`${category.name}: Average daily performance across ${category.stockCount} stocks. ${category.upStocks} up, ${category.downStocks} down today.`}
             >
               <div className="flex items-center gap-2 mb-2">
                 <span className={category.color}>{category.icon}</span>

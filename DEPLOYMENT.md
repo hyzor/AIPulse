@@ -44,8 +44,8 @@ For production deployment with all services containerized:
 # Create .env file with your API key
 echo "FINNHUB_API_KEY=your_api_key_here" > .env
 
-# Start all services
-docker compose -f docker-compose.prod.yml up -d
+# Start all services (build first if code changed)
+docker compose -f docker-compose.prod.yml up -d --build
 
 # View logs
 docker compose -f docker-compose.prod.yml logs -f
@@ -53,6 +53,9 @@ docker compose -f docker-compose.prod.yml logs -f
 # Stop services
 docker compose -f docker-compose.prod.yml down
 ```
+
+> ⚠️ **Important:** The `--build` flag ensures the image is rebuilt with your latest code.
+> Without it, Docker uses the cached image from previous runs.
 
 **Services in production mode:**
 - AIPulse app on **port 3001** → http://localhost:3001
@@ -96,15 +99,20 @@ docker compose -f docker-compose.prod.yml logs -f app
 curl http://localhost:3001/api/health
 ```
 
-6. **Update deployment:**
+6. **Update deployment (after code changes):**
 ```bash
 # Pull latest changes
 git pull
 
-# Rebuild and restart
+# IMPORTANT: Always use --build to rebuild with new code
+docker compose -f docker-compose.prod.yml up -d --build
+
+# Or if you want to clean restart:
 docker compose -f docker-compose.prod.yml down
 docker compose -f docker-compose.prod.yml up -d --build
 ```
+
+> **Why `--build` is required:** Docker caches images. Without `--build`, your changes won't be included.
 
 ### Option 2: Manual Docker Build
 
@@ -250,6 +258,58 @@ server {
 
 ```bash
 certbot --nginx -d your-domain.com
+```
+
+## Rebuilding After Code Changes
+
+Docker caches images to speed up deployments. This means **your code changes won't be included** unless you explicitly rebuild.
+
+### Standard Update Workflow
+
+When pulling changes and redeploying:
+
+```bash
+# 1. Pull latest code
+git pull
+
+# 2. Rebuild and restart (this is the crucial step!)
+docker compose -f docker-compose.prod.yml up -d --build
+
+# 3. Verify it's running
+docker compose -f docker-compose.prod.yml ps
+curl http://localhost:3001/api/health
+```
+
+### Why `--build` is Essential
+
+| Command | Rebuilds Image? | Code Changes Applied? |
+|---------|-----------------|----------------------|
+| `docker compose up -d` | ❌ No | ❌ No (uses cached image) |
+| `docker compose up -d --build` | ✅ Yes | ✅ Yes (fresh build) |
+
+### Forcing a Clean Rebuild
+
+If you suspect cache issues or want a completely fresh build:
+
+```bash
+# Stop and remove containers + volumes
+docker compose -f docker-compose.prod.yml down -v
+
+# Remove old images to force rebuild
+docker rmi aipulse-aipulse:latest
+
+# Build from scratch
+docker compose -f docker-compose.prod.yml up -d --build --no-cache
+```
+
+### Checking What Version is Running
+
+```bash
+# See image creation date
+docker inspect aipulse-aipulse:latest | grep -i created
+
+# Check git commit in container (if exposed via API)
+curl http://localhost:3001/api/health
 ```
 
 ## Monitoring & Health Checks

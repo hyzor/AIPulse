@@ -155,11 +155,20 @@ export function DataCollectionStatus() {
             );
           })}
         </div>
-        {stats.symbols && stats.symbols.length < TRACKED_STOCKS.length && (
-          <p className="text-xs text-gray-500 mt-2">
-            {TRACKED_STOCKS.length - stats.symbols.length} symbols waiting for first data...
-          </p>
-        )}
+        {(() => {
+          const symbolsWithData = stats.symbols || [];
+          const waitingSymbols = TRACKED_STOCKS.filter((s) => !symbolsWithData.includes(s));
+          const waitingCount = waitingSymbols.length;
+
+          if (waitingCount > 0) {
+            return (
+              <p className="text-xs text-gray-500 mt-2">
+                {waitingCount} symbol{waitingCount === 1 ? '' : 's'} waiting for first data...
+              </p>
+            );
+          }
+          return null;
+        })()}
       </div>
 
       {/* Help text */}

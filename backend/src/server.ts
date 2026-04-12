@@ -31,6 +31,7 @@ import { databaseService } from './services/databaseService';
 import { redisService } from './services/redisService';
 import { candleBufferService } from './services/candleBufferService';
 import { TRACKED_STOCKS } from './constants';
+import { isMarketOpen, getMarketStatus } from './utils/marketHours';
 import type { WebSocketMessage, StockQuote, HealthStatus } from './types';
 import type WebSocket from 'ws';
 
@@ -139,16 +140,21 @@ console.log(`[Config] WebSocket subscription batch delay: ${SUBSCRIPTION_BATCH_D
 // Process batched subscriptions
 const processBatchedSubscriptions = async () => {
   if (pendingSubscriptions.size === 0) return;
-  
+
   const symbols = [...pendingSubscriptions];
   pendingSubscriptions.clear();
   subscriptionBatchTimer = null;
-  
-  console.log(`[WebSocket] Processing batched subscriptions for ${symbols.length} symbols`);
-  
-  // Fetch all in one batch using getQuotes (which has rate limit awareness)
+
+  const marketStatus = getMarketStatus();
+  if (!isMarketOpen()) {
+    console.log(`[WebSocket] Market closed (${marketStatus.message}) - serving ${symbols.length} symbols from cache`);
+  } else {
+    console.log(`[WebSocket] Market open - processing batched subscriptions for ${symbols.length} symbols`);
+  }
+
+  // Fetch all in one batch using getQuotes (which has rate limit and market hours awareness)
   const quotes = await finnhubService.getQuotes(symbols, { batchSize: 3, delayMs: 1000 });
-  
+
   // Broadcast to all clients
   quotes.forEach(quote => {
     broadcastToSymbol(quote.symbol, quote);
@@ -265,30 +271,37 @@ console.log(`[Config] Rate limit buffer: ${RATE_LIMIT_BUFFER} calls reserved for
 
 setInterval(async () => {
   if (clients.size === 0) return;
-  
+
+  // Skip auto-refresh when market is closed to preserve API quota
+  if (!isMarketOpen()) {
+    const marketStatus = getMarketStatus();
+    console.log(`[Auto-refresh] Market closed (${marketStatus.message}) - skipping auto-refresh to preserve API quota`);
+    return;
+  }
+
   const activeSymbols = new Set<string>();
   clients.forEach((symbols) => {
     symbols.forEach(symbol => activeSymbols.add(symbol));
   });
-  
+
   if (activeSymbols.size === 0) return;
-  
+
   const rateLimitStatus = finnhubService.getRateLimitStatus();
   // Be more conservative: reserve buffer calls for user-initiated requests
   if (rateLimitStatus.callsRemaining < activeSymbols.size + RATE_LIMIT_BUFFER) {
     console.log(`[Auto-refresh] Skipping update - rate limit low (${rateLimitStatus.callsRemaining} remaining, need ${activeSymbols.size + RATE_LIMIT_BUFFER})`);
     return;
   }
-  
-  console.log(`[Auto-refresh] Fetching updates for ${activeSymbols.size} symbols (${rateLimitStatus.callsRemaining} calls remaining)`);
-  
+
+  console.log(`[Auto-refresh] Market open - fetching updates for ${activeSymbols.size} symbols (${rateLimitStatus.callsRemaining} calls remaining)`);
+
   const symbols = [...activeSymbols];
   // Use larger delays between batches to spread load across the minute
   const quotes = await finnhubService.getQuotes(symbols, { batchSize: 3, delayMs: 1000 });
-  
+
   quotes.forEach(quote => {
     broadcastToSymbol(quote.symbol, quote);
-    
+
     // Update candle buffer with new price data
     candleBufferService.updatePrice(quote.symbol, quote.currentPrice, 0, Date.now());
   });

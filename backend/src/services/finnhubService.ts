@@ -3,6 +3,7 @@ import { cacheService } from './cacheService';
 import { redisService } from './redisService';
 import { databaseService } from './databaseService';
 import { finnhubRateLimiter, profileRateLimiter, UsageStats } from './rateLimiter';
+import { isMarketOpen, getMarketStatus } from '../utils/marketHours';
 
 const FINNHUB_API_URL = 'https://finnhub.io/api/v1';
 
@@ -142,6 +143,66 @@ class FinnhubService {
       }
     }
 
+    // Check if market is closed - if so and we have cached data, serve it without API call
+    // This preserves API quota during weekends, holidays, and after-hours
+    if (!isMarketOpen()) {
+      // Try to get any cached data (even expired) since prices don't change when market is closed
+      const l1Cached = cacheService.get<StockQuote>(cacheKey);
+      if (l1Cached) {
+        console.log(`[Finnhub] Market closed - serving L1 cached data for ${symbol} without API call`);
+        return { ...l1Cached, isCached: true };
+      }
+
+      // Check L2 (Redis) for cached data
+      try {
+        const redisQuote = await redisService.getLatestQuote(symbol);
+        if (redisQuote) {
+          const quote: StockQuote = {
+            symbol,
+            currentPrice: redisQuote.currentPrice,
+            change: redisQuote.change,
+            changePercent: redisQuote.changePercent,
+            highPrice: redisQuote.high,
+            lowPrice: redisQuote.low,
+            openPrice: redisQuote.open,
+            previousClose: redisQuote.previousClose,
+            timestamp: redisQuote.timestamp,
+          };
+          cacheService.set(cacheKey, quote, 60);
+          console.log(`[Finnhub] Market closed - serving Redis cached data for ${symbol} without API call`);
+          return { ...quote, isCached: true };
+        }
+      } catch (error) {
+        // Redis error, continue
+      }
+
+      // Check L3 (database) for cached data
+      try {
+        const dbQuote = await databaseService.getLatestQuote(symbol);
+        if (dbQuote) {
+          const quote: StockQuote = {
+            symbol,
+            currentPrice: dbQuote.currentPrice,
+            change: dbQuote.change,
+            changePercent: dbQuote.changePercent,
+            highPrice: dbQuote.highPrice || 0,
+            lowPrice: dbQuote.lowPrice || 0,
+            openPrice: dbQuote.openPrice || 0,
+            previousClose: dbQuote.previousClose || 0,
+            timestamp: new Date(dbQuote.timestamp).getTime() / 1000,
+          };
+          cacheService.set(cacheKey, quote, 60);
+          console.log(`[Finnhub] Market closed - serving database cached data for ${symbol} without API call`);
+          return { ...quote, isCached: true };
+        }
+      } catch (error) {
+        // DB error, continue
+      }
+
+      // Market is closed but we have no cached data - we must fetch
+      console.log(`[Finnhub] Market closed but no cached data for ${symbol} - fetching from API`);
+    }
+
     // Check rate limit before making request
     if (!finnhubRateLimiter.canMakeCall()) {
       console.log(`[Finnhub] Rate limit reached, serving cached data for ${symbol}`);
@@ -220,29 +281,142 @@ class FinnhubService {
 
   /**
    * Get multiple quotes with rate limit awareness and batching
+   * Respects market hours - skips API calls when market is closed and cached data exists
    */
   async getQuotes(symbols: string[], options: { batchSize?: number; delayMs?: number } = {}): Promise<StockQuote[]> {
     const { batchSize = 5, delayMs = 200 } = options;
     const results: StockQuote[] = [];
     let rateLimitReached = false;
-    
+
+    // Check if market is closed - if so, serve all from cache to preserve API quota
+    if (!isMarketOpen()) {
+      const marketStatus = getMarketStatus();
+      console.log(`[Finnhub] Market closed (${marketStatus.message}). Serving ${symbols.length} symbols from cache to preserve API quota.`);
+
+      let fromL1 = 0, fromL2 = 0, fromL3 = 0, missing = 0;
+
+      for (const symbol of symbols) {
+        const cacheKey = `quote:${symbol}`;
+
+        // Check L1 cache first
+        const l1Cached = cacheService.get<StockQuote>(cacheKey);
+        if (l1Cached) {
+          results.push({ ...l1Cached, isCached: true });
+          fromL1++;
+          continue;
+        }
+
+        // Try L2 (Redis)
+        try {
+          const redisQuote = await redisService.getLatestQuote(symbol);
+          if (redisQuote) {
+            const quote: StockQuote = {
+              symbol,
+              currentPrice: redisQuote.currentPrice,
+              change: redisQuote.change,
+              changePercent: redisQuote.changePercent,
+              highPrice: redisQuote.high,
+              lowPrice: redisQuote.low,
+              openPrice: redisQuote.open,
+              previousClose: redisQuote.previousClose,
+              timestamp: redisQuote.timestamp,
+            };
+            cacheService.set(cacheKey, quote, 60);
+            results.push({ ...quote, isCached: true });
+            fromL2++;
+            continue;
+          }
+        } catch (error) {
+          // Redis error, continue to L3
+        }
+
+        // Try L3 (database)
+        try {
+          const dbQuote = await databaseService.getLatestQuote(symbol);
+          if (dbQuote) {
+            const quote: StockQuote = {
+              symbol,
+              currentPrice: dbQuote.currentPrice,
+              change: dbQuote.change,
+              changePercent: dbQuote.changePercent,
+              highPrice: dbQuote.highPrice || 0,
+              lowPrice: dbQuote.lowPrice || 0,
+              openPrice: dbQuote.openPrice || 0,
+              previousClose: dbQuote.previousClose || 0,
+              timestamp: new Date(dbQuote.timestamp).getTime() / 1000,
+            };
+            cacheService.set(cacheKey, quote, 60);
+            results.push({ ...quote, isCached: true });
+            fromL3++;
+            continue;
+          }
+        } catch (error) {
+          // DB error
+        }
+
+        // No cached data found - must fetch even though market is closed
+        missing++;
+        console.log(`[Finnhub] No cached data for ${symbol} - will fetch from API despite market being closed`);
+      }
+
+      // If we got all symbols from cache, return early
+      if (results.length === symbols.length) {
+        console.log(`[Finnhub] All ${symbols.length} symbols served from cache (L1: ${fromL1}, L2: ${fromL2}, L3: ${fromL3}). API quota preserved.`);
+        return results;
+      }
+
+      // Otherwise, we need to fetch the missing symbols directly
+      const fetchedSymbols = results.map(r => r.symbol);
+      const missingSymbols = symbols.filter(s => !fetchedSymbols.includes(s));
+      console.log(`[Finnhub] ${missingSymbols.length} symbols missing from cache, fetching from API despite market being closed...`);
+
+      // Fetch missing symbols directly (don't recurse - that would cause infinite loop)
+      // Process in batches with rate limiting
+      for (let i = 0; i < missingSymbols.length; i += batchSize) {
+        const batch = missingSymbols.slice(i, i + batchSize);
+
+        // Check rate limit before fetching
+        const stats = finnhubRateLimiter.getStats();
+        if (stats.callsRemaining < batch.length) {
+          console.warn(`[Finnhub] Rate limit too low for missing symbols batch. Skipping ${batch.length} symbols.`);
+          break;
+        }
+
+        const batchPromises = batch.map(async symbol => {
+          const quote = await this.getQuote(symbol);
+          return quote;
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+        results.push(...batchResults.filter((q): q is StockQuote => q !== null));
+
+        // Delay between batches
+        if (i + batchSize < missingSymbols.length && delayMs > 0) {
+          await this.sleep(delayMs);
+        }
+      }
+
+      return results;
+    }
+
+    // Market is open - process normally with rate limiting
     // Process in batches to avoid rate limit spikes
     for (let i = 0; i < symbols.length; i += batchSize) {
       const batch = symbols.slice(i, i + batchSize);
-      
+
       // Check if we can make these calls
       const stats = finnhubRateLimiter.getStats();
-      
+
       if (rateLimitReached || stats.callsRemaining < batch.length) {
         if (!rateLimitReached) {
           console.warn(`[Finnhub] Rate limit reached. Remaining: ${stats.callsRemaining}, Needed for batch: ${batch.length}. Serving cached data for remaining symbols.`);
           rateLimitReached = true;
         }
-        
+
         // Try to get ALL remaining symbols from cache
         const remainingSymbols = symbols.slice(i);
         console.log(`[Finnhub] Fetching ${remainingSymbols.length} symbols from cache...`);
-        
+
         for (const symbol of remainingSymbols) {
           const cached = cacheService.get<StockQuote>(`quote:${symbol}`);
           if (cached) {
@@ -252,25 +426,25 @@ class FinnhubService {
             console.warn(`[Finnhub] No cached data available for ${symbol}`);
           }
         }
-        
+
         break; // Stop processing more batches - we've handled all remaining symbols from cache
       }
-      
+
       // Process this batch normally
       const batchPromises = batch.map(async symbol => {
         const quote = await this.getQuote(symbol);
         return quote;
       });
-      
+
       const batchResults = await Promise.all(batchPromises);
       results.push(...batchResults.filter((q): q is StockQuote => q !== null));
-      
+
       // Delay between batches to smooth out requests
       if (i + batchSize < symbols.length && delayMs > 0) {
         await this.sleep(delayMs);
       }
     }
-    
+
     return results;
   }
 

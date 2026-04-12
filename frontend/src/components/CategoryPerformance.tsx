@@ -119,35 +119,50 @@ export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const marketIsOpen = useMemo(() => isMarketOpen(), []);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Fetch historical data when time range changes
   useEffect(() => {
-    if (timeRange !== '1d') {
+    if (timeRange !== '1d' && !fetchError) {
       const symbols = [...TRACKED_STOCKS];
-      fetchAllHistory(symbols).then(() => {
-        // Calculate changes from historical data
-        const changes = new Map<string, HistoricalChange>();
-
-        symbols.forEach((symbol) => {
-          const data = historicalData[symbol]?.[timeRange]?.candles;
-          if (data && data.length >= 2) {
-            const firstCandle = data[0];
-            const lastCandle = data[data.length - 1];
-            const change = lastCandle.c - firstCandle.o;
-            const changePercent = (change / firstCandle.o) * 100;
-
-            changes.set(symbol, {
-              symbol,
-              change,
-              changePercent,
-            });
-          }
+      fetchAllHistory(symbols)
+        .then(() => {
+          // Calculate changes from the newly fetched historical data
+          // Note: We need to access the context data after the fetch completes
+          setFetchError(null);
+        })
+        .catch((err) => {
+          setFetchError(err instanceof Error ? err.message : 'Failed to fetch historical data');
         });
-
-        setHistoricalChanges(changes);
-      });
     }
-  }, [timeRange, fetchAllHistory, historicalData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeRange, fetchAllHistory]);
+
+  // Calculate changes when historical data updates
+  useEffect(() => {
+    if (timeRange !== '1d') {
+      const changes = new Map<string, HistoricalChange>();
+      const symbols = [...TRACKED_STOCKS];
+
+      symbols.forEach((symbol) => {
+        const data = historicalData[symbol]?.[timeRange]?.candles;
+        if (data && data.length >= 2) {
+          const firstCandle = data[0];
+          const lastCandle = data[data.length - 1];
+          const change = lastCandle.c - firstCandle.o;
+          const changePercent = (change / firstCandle.o) * 100;
+
+          changes.set(symbol, {
+            symbol,
+            change,
+            changePercent,
+          });
+        }
+      });
+
+      setHistoricalChanges(changes);
+    }
+  }, [historicalData, timeRange]);
 
   // Calculate stats for each category
   const calculateCategoryStats = (categoryName: string, symbols: string[]): CategoryStats => {
@@ -298,6 +313,12 @@ export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
           <div className="flex items-center justify-center py-4">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-neon-blue"></div>
             <span className="ml-2 text-xs text-gray-400">Loading historical data...</span>
+          </div>
+        )}
+
+        {fetchError && (
+          <div className="flex items-center justify-center py-3 px-4 bg-neon-red/10 border border-neon-red/30 rounded-lg mb-3">
+            <span className="text-xs text-neon-red">{fetchError} - Using daily data</span>
           </div>
         )}
 

@@ -36,12 +36,13 @@ class StockService {
     return data.data;
   }
 
-  async checkHealth(): Promise<{ finnhubConfigured: boolean; cacheStats: { keys: number } }> {
+  async checkHealth(): Promise<{ finnhubConfigured: boolean; cacheStats: { keys: number }; dataStats?: any }> {
     const response = await fetch(`${API_URL}/api/health`);
     const data = await response.json();
     return {
       finnhubConfigured: data.services?.finnhub?.configured ?? data.finnhubConfigured ?? false,
       cacheStats: data.cacheStats ?? { keys: 0 },
+      dataStats: data.dataStats,
     };
   }
 

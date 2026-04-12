@@ -189,22 +189,8 @@ function AppContent() {
 
         {/* Info Footer */}
         <footer className="mt-12 pt-8 border-t border-dark-600">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-500">
+          <div className="text-center text-sm text-gray-500">
             <p>Data provided by Finnhub API. Real-time updates via WebSocket.</p>
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-neon-green"></span>
-                Positive
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-neon-red"></span>
-                Negative
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-neon-blue animate-pulse"></span>
-                Real-time
-              </span>
-            </div>
           </div>
         </footer>
       </main>

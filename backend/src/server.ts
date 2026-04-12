@@ -1,9 +1,14 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get the directory of this file to reliably find project root
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables from project root FIRST before any other imports
-// This works for both local dev (tsx) and Docker (compiled to dist/)
-const envPath = path.resolve(process.cwd(), '.env');
+// This works for both local dev (tsx from backend/) and Docker (compiled to dist/)
+const envPath = path.resolve(__dirname, '../../.env');
 dotenv.config({ path: envPath });
 
 // Debug: Log environment status (mask API key for security)

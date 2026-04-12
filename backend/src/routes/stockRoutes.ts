@@ -155,8 +155,47 @@ router.get('/stocks/:symbol/history', async (req, res) => {
     // Check what data range we have in DB
     const dataRange = await databaseService.getDataRange(uppercaseSymbol);
     
-    // Fetch from database
-    const dbCandles = await databaseService.getCandles(uppercaseSymbol, from, now, resolution);
+    // Fetch from database first
+    let dbCandles = await databaseService.getCandles(uppercaseSymbol, from, now, resolution);
+    
+    // If no data in DB and Finnhub is configured, fetch from API
+    let fetchedFromApi = false;
+    if (dbCandles.length === 0 && finnhubService.isConfigured()) {
+      console.log(`[API] No data in DB for ${uppercaseSymbol}, fetching from Finnhub...`);
+      
+      // Map resolution to Finnhub format
+      const finnhubResolution: '60' | 'D' = resolution === '1d' ? 'D' : '60';
+      
+      // Fetch from Finnhub
+      const apiCandles = await finnhubService.getHistoricalCandles(
+        uppercaseSymbol,
+        finnhubResolution,
+        from.getTime() / 1000,
+        now.getTime() / 1000
+      );
+      
+      if (apiCandles && apiCandles.length > 0) {
+        // Convert to database format and store
+        const dbFormatCandles = apiCandles.map(c => ({
+          time: new Date(c.t),
+          symbol: uppercaseSymbol,
+          open: c.o,
+          high: c.h,
+          low: c.l,
+          close: c.c,
+          volume: c.v,
+          source: 'finnhub' as const,
+        }));
+        
+        await databaseService.insertCandles1m(dbFormatCandles);
+        
+        // Re-fetch from DB to get the stored data
+        dbCandles = await databaseService.getCandles(uppercaseSymbol, from, now, resolution);
+        fetchedFromApi = true;
+        
+        console.log(`[API] Stored ${dbCandles.length} candles for ${uppercaseSymbol}`);
+      }
+    }
     
     // Check if we have recent data in Redis (for the "partial" flag)
     const redisLatest = await redisService.getLatestTimestamp(uppercaseSymbol);
@@ -181,7 +220,7 @@ router.get('/stocks/:symbol/history', async (req, res) => {
       from: from.toISOString(),
       to: now.toISOString(),
       candles,
-      cached: true, // All data came from DB (no API calls made)
+      cached: !fetchedFromApi, // True if came from DB, false if fetched from API
       partial: isPartial,
     };
 
@@ -191,6 +230,7 @@ router.get('/stocks/:symbol/history', async (req, res) => {
       meta: {
         dbRange: dataRange,
         totalCandles: candles.length,
+        fetchedFromApi,
       },
       timestamp: Date.now(),
     });

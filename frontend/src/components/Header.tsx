@@ -1,15 +1,14 @@
-import { Activity, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { Activity, RefreshCw } from 'lucide-react';
 
 import { TimeRangeToggle } from './TimeRangeToggle';
 
 interface HeaderProps {
-  isConnected: boolean;
   lastUpdate: Date | null;
   onRefresh: () => void;
   isLoading: boolean;
 }
 
-export function Header({ isConnected, lastUpdate, onRefresh, isLoading }: HeaderProps) {
+export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
   return (
     <header className="bg-dark-800 border-b border-dark-600 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -45,23 +44,6 @@ export function Header({ isConnected, lastUpdate, onRefresh, isLoading }: Header
                 </p>
               </div>
             )}
-
-            {/* Connection Status */}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-dark-700 rounded-lg border border-dark-600">
-              {isConnected
-                ? (
-                  <>
-                    <Wifi className="w-4 h-4 text-neon-green" />
-                    <span className="text-sm text-neon-green font-medium hidden sm:inline">Connected</span>
-                  </>
-                )
-                : (
-                  <>
-                    <WifiOff className="w-4 h-4 text-neon-red" />
-                    <span className="text-sm text-neon-red font-medium hidden sm:inline">Disconnected</span>
-                  </>
-                )}
-            </div>
 
             {/* Refresh Button */}
             <button

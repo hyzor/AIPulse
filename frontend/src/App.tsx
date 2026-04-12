@@ -100,7 +100,6 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-dark-900 text-white">
       <Header
-        isConnected={isConnected}
         lastUpdate={lastUpdate}
         onRefresh={fetchStocks}
         isLoading={isLoading}
@@ -108,6 +107,7 @@ function AppContent() {
 
       <StatusBar
         totalStocks={stocks.size}
+        isConnected={isConnected}
         apiConfigured={apiConfigured}
         error={error || wsError}
         rateLimit={rateLimit}

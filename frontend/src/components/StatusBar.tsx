@@ -1,10 +1,11 @@
-import { AlertCircle, CheckCircle2, Brain, Gauge, Clock } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Brain, Gauge, Clock, Wifi, WifiOff } from 'lucide-react';
 import { useMemo } from 'react';
 
 import type { RateLimitStatus } from '../types';
 
 interface StatusBarProps {
   totalStocks: number;
+  isConnected: boolean;
   apiConfigured: boolean | null;
   error: string | null;
   rateLimit?: RateLimitStatus | null;
@@ -99,7 +100,7 @@ function getMarketStatus() {
   };
 }
 
-export function StatusBar({ totalStocks, apiConfigured, error, rateLimit }: StatusBarProps) {
+export function StatusBar({ totalStocks, isConnected, apiConfigured, error, rateLimit }: StatusBarProps) {
   // Determine rate limit color based on usage
   const getRateLimitColor = (percent: number) => {
     if (percent >= 80) { return 'text-neon-red'; }
@@ -141,24 +142,44 @@ export function StatusBar({ totalStocks, apiConfigured, error, rateLimit }: Stat
             </div>
           )}
 
-          {/* API Status */}
-          {apiConfigured !== null && (
-            <div className="flex items-center gap-2">
-              {apiConfigured
+          {/* Connection & API Status */}
+          <div className="flex items-center gap-2">
+            {/* WebSocket Connection */}
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${isConnected ? 'bg-neon-green/10 border-neon-green/30' : 'bg-neon-red/10 border-neon-red/30'}`}>
+              {isConnected
                 ? (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-neon-green/10 rounded-lg border border-neon-green/30">
-                    <CheckCircle2 className="w-4 h-4 text-neon-green" />
-                    <span className="text-sm text-neon-green font-medium">API Ready</span>
-                  </div>
+                  <>
+                    <Wifi className="w-4 h-4 text-neon-green" />
+                    <span className="text-sm text-neon-green font-medium">Connected</span>
+                  </>
                 )
                 : (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-neon-red/10 rounded-lg border border-neon-red/30">
-                    <AlertCircle className="w-4 h-4 text-neon-red" />
-                    <span className="text-sm text-neon-red font-medium">API Not Configured</span>
-                  </div>
+                  <>
+                    <WifiOff className="w-4 h-4 text-neon-red" />
+                    <span className="text-sm text-neon-red font-medium">Disconnected</span>
+                  </>
                 )}
             </div>
-          )}
+
+            {/* API Status */}
+            {apiConfigured !== null && (
+              <>
+                {apiConfigured
+                  ? (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-neon-green/10 rounded-lg border border-neon-green/30">
+                      <CheckCircle2 className="w-4 h-4 text-neon-green" />
+                      <span className="text-sm text-neon-green font-medium">API Ready</span>
+                    </div>
+                  )
+                  : (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-neon-red/10 rounded-lg border border-neon-red/30">
+                      <AlertCircle className="w-4 h-4 text-neon-red" />
+                      <span className="text-sm text-neon-red font-medium">API Not Configured</span>
+                    </div>
+                  )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Error Message */}

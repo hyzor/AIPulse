@@ -9,7 +9,8 @@ COPY backend/package*.json ./backend/
 COPY frontend/package*.json ./frontend/
 
 # Install all dependencies using workspaces (single install for all)
-RUN npm ci
+# Using npm install (not ci) for fresh clones without package-lock.json
+RUN npm install
 
 # Copy source code
 COPY backend/src ./backend/src
@@ -40,7 +41,8 @@ COPY package*.json ./
 COPY backend/package*.json ./backend/
 
 # Install production dependencies only (omit dev dependencies)
-RUN npm ci --omit=dev
+# Using npm install (not ci) for fresh clones without package-lock.json
+RUN npm install --omit=dev
 
 # Copy built backend
 COPY --from=builder /app/backend/dist ./backend/dist

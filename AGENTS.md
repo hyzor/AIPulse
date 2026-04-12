@@ -1,526 +1,588 @@
 # AIPulse - Agent Instructions
 
-This document provides comprehensive context for AI agents working on the AIPulse project.
-
-## Project Overview
-
-**AIPulse** is a real-time AI stock monitoring web application with a dark theme UI, server-side caching, WebSocket-based live updates, and rate limiting for the Finnhub API free tier.
-
-### Purpose
-Monitor stock prices for AI/tech companies (NVDA, AMD, TSM, ASML, etc.) with real-time updates and intelligent caching to minimize API costs.
+This document provides comprehensive technical context for AI agents working on the AIPulse project. For user-facing documentation, see `README.md`.
 
 ---
 
-## Architecture
+## Agent's Role
 
-### Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| **Backend** | Node.js 20+, Express 4.x, TypeScript 5.x |
-| **Frontend** | React 18, TypeScript 5.x, Vite 5.x |
-| **Styling** | Tailwind CSS 3.4 (dark theme) |
-| **Real-time** | WebSocket (ws library) |
-| **Caching** | node-cache |
-| **API** | Finnhub API (free tier: 60 calls/min) |
-| **Icons** | Lucide React |
-
-### Project Structure
-
-```
-AIPulse/
-├── backend/
-│   ├── src/
-│   │   ├── constants.ts          # Stock symbols, display names
-│   │   ├── server.ts             # Express + WebSocket server
-│   │   ├── routes/
-│   │   │   └── stockRoutes.ts    # API endpoints
-│   │   ├── services/
-│   │   │   ├── cacheService.ts   # Server-side caching
-│   │   │   ├── finnhubService.ts  # Finnhub API integration
-│   │   │   └── rateLimiter.ts    # Rate limiting (60 calls/min)
-│   │   └── types/
-│   │       └── index.ts          # TypeScript types
-│   ├── .env.example
-│   ├── package.json
-│   └── tsconfig.json
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── Header.tsx        # Top navigation bar
-│   │   │   ├── StockCard.tsx     # Stock display card
-│   │   │   └── StatusBar.tsx     # Status indicators
-│   │   ├── hooks/
-│   │   │   └── useWebSocket.ts   # WebSocket hook
-│   │   ├── services/
-│   │   │   └── stockService.ts   # API client
-│   │   ├── types/
-│   │   ├── utils/
-│   │   ├── App.tsx
-│   │   └── index.css
-│   ├── index.html
-│   ├── vite.config.ts
-│   └── tailwind.config.js
-└── deployment/                   # Deployment configs
-    ├── aipulse.service           # Systemd
-    └── nginx.conf                # Nginx reverse proxy
-```
+When working on this codebase:
+1. **Preserve the dark theme UI** - Always use Tailwind classes like `bg-dark-900`, `text-white`, `neon-blue/green/red`
+2. **Respect rate limits** - Any new API calls must go through the rate limiter
+3. **Cache aggressively** - Check cache before external API calls
+4. **Maintain type safety** - Use strict TypeScript, no `any` types
+5. **Follow existing patterns** - Look at how similar features are implemented
 
 ---
 
-## Getting Started
+## System Architecture
 
-### Prerequisites
-- Node.js 20 or higher
-- npm 10 or higher
-- Git
-- Finnhub API key (free at https://finnhub.io)
+### Data Flow Diagram
 
-### Installation
-
-```bash
-# Clone repository
-git clone <repo-url>
-cd AIPulse
-
-# Install root dependencies
-npm install
-
-# Install backend dependencies
-cd backend
-npm install
-cd ..
-
-# Install frontend dependencies
-cd frontend
-npm install
-cd ..
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           CLIENT (Browser)                               │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  │
+│  │   Header     │  │  StatusBar   │  │  StockCard   │  │    App     │  │
+│  │  (UI/Stats)  │  │ (Rate Limit) │  │ (Display)    │  │ (State)    │  │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └─────┬──────┘  │
+│         │                 │                 │                │        │
+│         └─────────────────┴─────────────────┘                │        │
+│                               │                              │        │
+│                    ┌──────────▼──────────┐                   │        │
+│                    │   useWebSocket Hook  │◄──────────────────┘        │
+│                    │  (WebSocket Client)  │                           │
+│                    └──────────┬──────────┘                           │
+└───────────────────────────────│────────────────────────────────────────┘
+                                │ WebSocket
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          SERVER (Node.js)                                │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │                     Express + WebSocket Server                      │ │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐ │ │
+│  │  │ stockRoutes │  │     WS      │  │      Auto-refresh Loop        │ │ │
+│  │  │  (HTTP)     │  │  (Socket)   │  │   (60s interval, batched)   │ │ │
+│  │  └──────┬──────┘  └──────┬──────┘  └─────────────┬───────────────┘ │ │
+│  │         │                │                       │                 │ │
+│  │         └────────────────┴───────────────────────┘                 │ │
+│  │                          │                                          │ │
+│  │         ┌────────────────▼──────────────────────┐                  │ │
+│  │         │         finnhubService                 │                  │ │
+│  │         │  ┌──────────────┐  ┌──────────────┐   │                  │ │
+│  │         │  │ cacheService │  │ rateLimiter  │   │                  │ │
+│  │         │  │   (60s TTL)  │  │(60 calls/min)│   │                  │ │
+│  │         │  └──────────────┘  └──────────────┘   │                  │ │
+│  │         └────────────────┬──────────────────────┘                  │ │
+│  └───────────────────────────│────────────────────────────────────────┘ │
+└──────────────────────────────│──────────────────────────────────────────┘
+                               │ HTTPS
+                               ▼
+                    ┌──────────────────────┐
+                    │    Finnhub API       │
+                    │  (Free: 60/min)      │
+                    └──────────────────────┘
 ```
 
-### Configuration
+### Component Relationships
 
-**Backend (backend/.env):**
 ```
-PORT=3001
-FINNHUB_API_KEY=your_finnhub_api_key_here
-CORS_ORIGIN=http://localhost:5173
-CACHE_TTL_SECONDS=60
-```
-
-**Frontend (frontend/.env):**
-```
-VITE_API_URL=              # Empty for proxy in dev
-VITE_WS_URL=ws://localhost:3001/ws
-```
-
-### Running Development Servers
-
-**Option 1: From root (recommended)**
-```bash
-npm run dev
-```
-Starts both backend (port 3001) and frontend (port 5173) with hot reload.
-
-**Option 2: Separate terminals**
-```bash
-# Terminal 1 - Backend
-cd backend
-npm run dev
-
-# Terminal 2 - Frontend
-cd frontend
-npm run dev
+App.tsx (Root State Container)
+├── State: stocks Map, rateLimit, isLoading, error, lastUpdate
+├── useWebSocket() → realtimeQuotes, isConnected
+├── stockService.getAllStocks() → Initial fetch
+├── stockService.getRateLimitStatus() → Every 15s
+│
+├── Header.tsx
+│   └── Props: isConnected, lastUpdate, onRefresh, isLoading
+│   └── Actions: Manual refresh button
+│
+├── StatusBar.tsx
+│   └── Props: totalStocks, apiConfigured, error, rateLimit
+│   └── Displays: Category badges, rate limit indicator, warnings
+│
+└── StockCard.tsx (×12)
+    └── Props: quote (StockQuote), isRealtime (boolean)
+    └── Displays: Price, change %, high/low/open
 ```
 
 ---
 
-## Development Commands
+## Service Layer Architecture
 
-### Backend
-```bash
-cd backend
-npm run dev          # Start with hot reload (tsx watch)
-npm run build        # Compile to dist/
-npm run start        # Run compiled code
-npm run typecheck    # TypeScript check (no emit)
-```
+### finnhubService
 
-### Frontend
-```bash
-cd frontend
-npm run dev          # Start Vite dev server
-npm run build        # Build for production
-npm run preview      # Preview production build
-npm run typecheck    # TypeScript check (no emit)
-```
-
-### Root
-```bash
-npm run dev          # Start both backend and frontend
-npm run build        # Build frontend
-npm run start        # Start production backend
-npm run typecheck    # TypeScript check for both
-```
-
----
-
-## API Endpoints
-
-| Endpoint | Method | Description | Cache |
-|----------|--------|-------------|-------|
-| `/` | GET | Server info | No |
-| `/api/stocks` | GET | Get all tracked stocks | 60s |
-| `/api/stocks/:symbol` | GET | Get specific stock | 60s |
-| `/api/profile/:symbol` | GET | Company profile | 1hr |
-| `/api/health` | GET | Health check | No |
-| `/api/rate-limit` | GET | Rate limit status | No |
-| `/api/cache/clear` | POST | Clear server cache | No |
-| `/ws` | WebSocket | Real-time updates | N/A |
-
-### WebSocket Protocol
-
-**Subscribe to stock:**
-```json
-{ "action": "subscribe", "symbol": "NVDA" }
-```
-
-**Unsubscribe:**
-```json
-{ "action": "unsubscribe", "symbol": "NVDA" }
-```
-
-**Incoming message:**
-```json
-{
-  "type": "quote",
-  "symbol": "NVDA",
-  "data": { /* StockQuote */ }
+```typescript
+// Core API interaction - ALWAYS check cache first
+class FinnhubService {
+  // Public methods
+  async getQuote(symbol: string): Promise<StockQuote | null>
+  async getQuotes(symbols: string[], options): Promise<StockQuote[]>
+  async getCompanyProfile(symbol: string): Promise<FinnhubProfile | null>
+  getRateLimitStatus(): RateLimitStats
+  
+  // Internal
+  private fetchFromApi<T>(): Promise<T | null>  // Rate-limited fetch
+  private getApiKey(): string  // Lazy env var read
 }
 ```
 
+**Key behaviors:**
+- Returns `null` on failure (never throws to caller)
+- Falls back to cached data on rate limit
+- Batches requests (6 stocks/batch, 500ms delay)
+- Exponential backoff on 429 errors
+
+### cacheService
+
+```typescript
+// Wrapper around node-cache
+class CacheService {
+  get<T>(key: string): T | undefined
+  set<T>(key: string, value: T, ttl?: number): boolean
+  del(key: string): number
+  flush(): void
+  getStats(): { hits, misses, keys }
+}
+```
+
+**TTL Strategy:**
+| Data Type | TTL | Rationale |
+|-----------|-----|-----------|
+| Stock quotes | 60s | Prices change frequently |
+| Company profiles | 3600s | Rarely change |
+| Rate limit status | 0 (no cache) | Must be real-time |
+
+### rateLimiter
+
+```typescript
+// Sliding window rate limiter
+class RateLimiter {
+  canMakeCall(): boolean        // Check before API call
+  getStats(): RateLimitStats    // Current usage
+  throttle(): Promise<void>     // Wait if needed
+}
+```
+
+**Important:** Default config is 55 calls/min (buffer under 60).
+
 ---
 
-## Key Types
+## State Management Patterns
 
-### Backend (backend/src/types/index.ts)
+### Frontend State Flow
+
+```
+Initial Load:
+  App mounts → fetchStocks() → stockService.getAllStocks()
+           → setStocks(Map) → render StockCards
+           → subscribeToWebSocket() for each symbol
+
+Real-time Updates:
+  Server pushes quote via WS → useWebSocket hook
+                           → updates realtimeQuotes Map
+                           → merged with stocks Map in App
+                           → triggers re-render of specific StockCard
+                           → shows "LIVE" indicator
+
+Rate Limit Polling:
+  useAutoRefresh(fetchRateLimit, 15000) → stockService.getRateLimitStatus()
+                                     → updates rateLimit state
+                                     → StatusBar displays indicator
+```
+
+### State Merging Strategy
+
 ```typescript
+// In App.tsx
+const mergedStocks = new Map(stocks);        // Polled data
+realtimeQuotes.forEach((quote, symbol) => {
+  mergedStocks.set(symbol, quote);           // Override with real-time
+});
+```
+
+**Why this works:**
+- `stocks` = baseline from HTTP API (fetched every 60s)
+- `realtimeQuotes` = WebSocket updates (immediate)
+- WebSocket data always takes precedence
+- If WS disconnects, falls back to polled data
+
+---
+
+## Custom Hooks Reference
+
+### useWebSocket
+
+```typescript
+interface UseWebSocketReturn {
+  quotes: Map<string, StockQuote>;  // Real-time updates
+  isConnected: boolean;
+  error: string | null;
+  subscribe: (symbol: string) => void;
+  unsubscribe: (symbol: string) => void;
+}
+```
+
+**Features:**
+- Auto-reconnect with 3s delay
+- Resubscribes to previous symbols on reconnect
+- Lazy subscription (only connects when symbols added)
+
+### useAutoRefresh
+
+```typescript
+function useAutoRefresh(
+  fetchFn: () => Promise<void>,
+  intervalMs: number,
+  enabled: boolean
+): void
+```
+
+**Usage:**
+```typescript
+useAutoRefresh(fetchStocks, 60000, true);      // Stocks every 60s
+useAutoRefresh(fetchRateLimit, 15000, true);   // Rate limit every 15s
+```
+
+---
+
+## Error Handling Patterns
+
+### Backend Error Strategy
+
+```typescript
+// Service methods return null on failure
+async getQuote(symbol: string): Promise<StockQuote | null> {
+  try {
+    // ... fetch logic
+  } catch (error) {
+    // Rate limit? Return cached
+    if (isRateLimit(error)) {
+      return cacheService.get(cacheKey) || null;
+    }
+    // Other errors? Log and return null
+    console.error(`[Finnhub] Error: ${error}`);
+    return null;
+  }
+}
+```
+
+### Frontend Error Strategy
+
+```typescript
+// Components show error state
+const [error, setError] = useState<string | null>(null);
+
+try {
+  await fetchStocks();
+} catch (err) {
+  setError(err.message);  // Display in StatusBar
+}
+
+// In render
+{error && <StatusBar error={error} />}
+```
+
+---
+
+## TypeScript Conventions
+
+### Interfaces (Backend)
+
+```typescript
+// backend/src/types/index.ts
 interface StockQuote {
   symbol: string;
-  currentPrice: number;
+  currentPrice: number;  // Not 'c' (Finnhub raw)
   change: number;
-  changePercent: number;
-  highPrice: number;
-  lowPrice: number;
-  openPrice: number;
-  previousClose: number;
-  timestamp: number;
+  changePercent: number; // Not 'dp'
+  // ... camelCase throughout
 }
 
+// Raw Finnhub response
 interface FinnhubQuote {
-  c: number;  // Current price
-  d: number;  // Change
-  dp: number; // Change percent
-  h: number;  // High
-  l: number;  // Low
-  o: number;  // Open
-  pc: number; // Previous close
-  t: number;  // Timestamp
+  c: number;  // Raw API field names
+  d: number;
+  dp: number;
+  // ...
 }
 ```
 
-### Frontend (frontend/src/types/index.ts)
-Matches backend types + `RateLimitStatus`, `WebSocketMessage`.
+**Pattern:** Transform raw API types to app types in service layer.
+
+### Type Safety Rules
+
+- ✅ Strict mode enabled (`strict: true` in tsconfig)
+- ✅ No `any` types (use `unknown` with type guards if needed)
+- ✅ Explicit return types on exported functions
+- ✅ Props interfaces for all components
+- ✅ Generic constraints for reusable types
 
 ---
 
-## Tracked Stocks
+## Testing Approach
 
-| Symbol | Company | Category |
-|--------|---------|----------|
-| NVDA | NVIDIA | AI Chips |
-| AMD | AMD | AI Chips |
-| AVGO | Broadcom | Semiconductors |
-| MRVL | Marvell | Semiconductors |
-| TSM | TSMC | Semiconductors |
-| ASML | ASML | Semiconductors |
-| ARM | ARM Holdings | Semiconductors |
-| PLTR | Palantir | AI Software |
-| MSFT | Microsoft | AI Software |
-| GOOGL | Alphabet | AI Software |
-| AMZN | Amazon | Tech Giants |
-| TSLA | Tesla | Tech Giants |
+### Unit Test Targets (Priority Order)
 
-Modify in `backend/src/constants.ts` and `frontend/src/types/index.ts`.
+1. **cacheService** - Cache hit/miss logic, TTL expiration
+2. **rateLimiter** - Window reset, throttling behavior
+3. **finnhubService** - Rate limit fallback, batch processing
+4. **useWebSocket** - Reconnect logic, message parsing
+5. **format utils** - Currency formatting, number display
 
----
+### Integration Test Scenarios
 
-## Rate Limiting (Important!)
-
-Finnhub free tier: **60 calls/minute**
-
-Our protection:
-- Max 55 calls/min (leaves buffer)
-- Warning at 45 calls (75%)
-- Batch processing: 6 stocks/batch with 500ms delays
-- Auto-refresh: 60s intervals (not 30s)
-- Pre-cache: 2min intervals (not 1min)
-- Graceful degradation to cached data when limit hit
-
-**Never exceed 12 stocks × 2 refreshes/min = 24 calls/min normal operation.**
-
----
-
-## Deployment
-
-### Docker (Recommended)
-```bash
-docker-compose up -d
+```typescript
+// Example test cases
+- "Fetching 12 stocks stays under rate limit"
+- "WebSocket reconnect resubscribes to symbols"
+- "Rate limit hit serves cached data"
+- "Cache expires after TTL"
 ```
-
-### PM2
-```bash
-npm install -g pm2
-pm2 start ecosystem.config.js
-pm2 save
-pm2 startup
-```
-
-### Vercel
-```bash
-npm i -g vercel
-vercel --prod
-```
-
-### Manual Server
-```bash
-# Build
-npm run build
-
-# Start
-cd backend
-npm start
-```
-
-See `DEPLOYMENT.md` for detailed instructions.
-
----
-
-## Testing
 
 ### Manual Testing Checklist
-- [ ] Server starts without errors
-- [ ] API key configured (no warning)
-- [ ] GET /api/stocks returns 12 stocks
-- [ ] GET /api/health returns healthy
-- [ ] WebSocket connects (check browser console)
-- [ ] Rate limit shows in StatusBar
-- [ ] Stock cards display with correct colors
-- [ ] Refresh button works
-- [ ] Cache hit logs appear
 
-### API Testing
-```bash
-# Test endpoints
-curl http://localhost:3001/api/health
-curl http://localhost:3001/api/stocks
-curl http://localhost:3001/api/rate-limit
-
-# Test WebSocket
-wscat -c ws://localhost:3001/ws
-> {"action":"subscribe","symbol":"NVDA"}
+```markdown
+- [ ] Server starts, no "API key not configured" warning
+- [ ] GET /api/stocks returns 12 valid StockQuote objects
+- [ ] GET /api/rate-limit shows callsRemaining < 60
+- [ ] WebSocket connects (browser console: "Connected to AIPulse")
+- [ ] Rate limit indicator shows in StatusBar ("XX/60 calls")
+- [ ] Stock cards show correct colors (green=up, red=down)
+- [ ] "LIVE" indicator appears on cards receiving WS updates
+- [ ] Manual refresh button works and updates timestamp
+- [ ] Cache hit logs appear in backend console
 ```
 
 ---
 
-## Environment Variables
+## Known Limitations & Considerations
 
-### Backend
-| Variable | Default | Required | Description |
-|----------|---------|----------|-------------|
-| `PORT` | 3001 | No | Server port |
-| `FINNHUB_API_KEY` | - | Yes | Finnhub API key |
-| `CORS_ORIGIN` | http://localhost:5173 | No | Frontend URL |
-| `CACHE_TTL_SECONDS` | 60 | No | Cache time-to-live |
+### Current Constraints
 
-### Frontend
-| Variable | Default | Required | Description |
-|----------|---------|----------|-------------|
-| `VITE_API_URL` | (empty) | No | API base URL |
-| `VITE_WS_URL` | ws://localhost:3001/ws | No | WebSocket URL |
+1. **Rate Limit**: Hard ceiling at 60 calls/min (Finnhub free tier)
+   - Adding more stocks requires longer refresh intervals
+   - Consider tier upgrade or multiple API keys if scaling
 
----
+2. **WebSocket Scalability**: Single server instance
+   - No horizontal scaling support currently
+   - Redis/WebSocket adapter needed for multi-server
 
-## Common Issues & Solutions
+3. **No Persistent Storage**: In-memory cache only
+   - Cache lost on server restart
+   - Consider Redis for distributed caching
 
-### "FINNHUB_API_KEY not configured!"
-- Ensure `.env` is in `backend/` folder
-- Check key has no spaces around `=`
-- Restart server after changing `.env`
+4. **Frontend State**: No global state manager
+   - Currently prop drilling + React Context not needed
+   - Zustand/Redux only if app grows significantly
 
-### WebSocket won't connect
-- Check port 3001 not blocked
-- Verify `VITE_WS_URL` matches backend
-- Check browser console for errors
+### Performance Bottlenecks
 
-### 429 Rate Limit errors
-- Normal - means protection is working
-- Check `/api/rate-limit` for status
-- Cached data will be served automatically
+1. **Batch Size**: Currently 6 stocks/batch
+   - Could increase if API allows
+   - Monitor rate limit usage
 
-### Frontend can't reach backend
-- Check CORS_ORIGIN matches frontend URL
-- Verify Vite proxy config in `vite.config.ts`
+2. **Re-renders**: All StockCards re-render on any quote update
+   - React.memo() could help if performance degrades
+   - Currently fine with 12 stocks
 
-### TypeScript errors
-```bash
-npm run typecheck  # Check both
-```
-
----
-
-## Code Style
-
-### TypeScript
-- Strict mode enabled
-- No `any` types
-- Explicit return types on functions
-- Interface names: PascalCase
-- Variable names: camelCase
-- Constants: UPPER_SNAKE_CASE
-
-### React
-- Functional components with hooks
-- Props interfaces defined
-- No class components
-- Custom hooks for shared logic
-
-### CSS (Tailwind)
-- Dark theme: `bg-dark-900`, `text-white`
-- Neon accents: `neon-blue`, `neon-green`, `neon-red`
-- No custom CSS files (use Tailwind)
-- Responsive: `sm:`, `md:`, `lg:`, `xl:` prefixes
-
-### Backend
-- Async/await (no callbacks)
-- Try-catch with specific error messages
-- Services for business logic
-- Routes for HTTP handling
-- Caching on all external API calls
+3. **WebSocket Message Volume**: One message per quote update
+   - Could batch WS messages if needed
+   - Currently fine for 12 stocks × 60s refresh
 
 ---
 
 ## Adding New Features
 
-### Adding a New Stock
-1. Add symbol to `TRACKED_STOCKS` in `backend/src/constants.ts`
-2. Add display name to `STOCK_DISPLAY_NAMES`
-3. Add to appropriate `STOCK_CATEGORIES`
-4. Sync changes to `frontend/src/types/index.ts`
-5. Restart both servers
+### Checklist for New Features
 
-### Adding a New API Endpoint
-1. Add route in `backend/src/routes/stockRoutes.ts`
-2. Add service method if needed
-3. Add type to `backend/src/types/index.ts`
-4. Add frontend service method
-5. Add frontend type
-6. Test with curl/browser
+Before implementing:
+- [ ] Does it require new API calls? → Check rate limit impact
+- [ ] Does it need real-time updates? → WebSocket integration needed
+- [ ] Does it store data? → Cache strategy defined
+- [ ] Are there similar features? → Copy existing patterns
 
-### Adding WebSocket Events
-1. Add message type to `WebSocketMessage` interface
-2. Handle in `server.ts` WebSocket `on('message')`
-3. Update `useWebSocket.ts` hook
-4. Handle in component
+### Example: Adding Historical Data
 
----
+```typescript
+// 1. Add to backend/src/types/index.ts
+interface StockHistory {
+  symbol: string;
+  candles: { date: string; open: number; close: number }[];
+}
 
-## Performance Guidelines
+// 2. Add to finnhubService
+async getHistory(symbol: string, days: number): Promise<StockHistory> {
+  // Check rate limit first!
+  if (!rateLimiter.canMakeCall()) {
+    throw new Error('Rate limit exceeded');
+  }
+  // Fetch from Finnhub
+  // Cache with longer TTL (1 day)
+}
 
-### Backend
-- Always check cache before API calls
-- Batch external requests
-- Use rate limiter for all external APIs
-- Set appropriate cache TTLs (quotes: 60s, profiles: 1hr)
+// 3. Add endpoint in stockRoutes.ts
+router.get('/history/:symbol', async (req, res) => {
+  // Implementation
+});
 
-### Frontend
-- Use WebSocket for real-time (not polling)
-- Memoize expensive calculations
-- Lazy load components if app grows
-- Virtualize lists if tracking 100+ stocks
+// 4. Add frontend service method
+async getHistory(symbol: string): Promise<StockHistory>
 
----
-
-## Security Notes
-
-- API keys in `.env` (never commit!)
-- `.gitignore` excludes `.env` files
-- CORS configured for specific origin
-- No SQL injection risk (no SQL database)
-- Input validation on all routes
-
----
-
-## Documentation
-
-- `README.md` - User-facing setup and usage
-- `DEPLOYMENT.md` - Deployment instructions
-- `AGENTS.md` - This file (agent context)
-- Inline JSDoc for complex functions
-
----
-
-## Git Workflow
-
-```bash
-# Feature branch
-git checkout -b feature/my-feature
-
-# Commit
-git add .
-git commit -m "feat: add new feature
-
-Description of what and why"
-
-# Push
-git push origin feature/my-feature
-
-# Merge via PR
+// 5. Add component
+// HistoryChart.tsx with recharts
 ```
 
-### Commit Message Style
-- `feat:` New feature
-- `fix:` Bug fix
-- `docs:` Documentation
-- `refactor:` Code refactoring
-- `perf:` Performance
-- `test:` Tests
+---
+
+## Refactoring Guidelines
+
+### When to Refactor
+
+- **Duplicated logic** appears in 3+ places
+- **Component exceeds 200 lines** (consider splitting)
+- **Function has 4+ parameters** (use options object)
+- **Type definitions scattered** (consolidate to types/)
+
+### Safe Refactoring Patterns
+
+```typescript
+// Extract helper
+// Before: Inline in component
+// After: utils/stockHelpers.ts
+
+// Extract hook
+// Before: useEffect + useState in component
+// After: hooks/useStockData.ts
+
+// Extract component
+// Before: Conditional render inline
+// After: components/EmptyState.tsx
+```
+
+### Testing After Refactor
+
+1. Run TypeScript check: `npm run typecheck`
+2. Test affected endpoints with curl
+3. Verify UI still renders correctly
+4. Check console for errors/warnings
 
 ---
 
-## License
+## Debugging Tips
 
-MIT License - See `LICENSE` file
+### Backend Debugging
+
+```bash
+# Enable verbose logging
+# In server.ts, set: console.log('[Debug]', variable)
+
+# Check rate limit status
+curl http://localhost:3001/api/rate-limit
+
+# Test specific endpoint
+curl http://localhost:3001/api/stocks/NVDA
+
+# Clear cache to test fresh fetch
+curl -X POST http://localhost:3001/api/cache/clear
+```
+
+### Frontend Debugging
+
+```typescript
+// Add to component for debugging
+useEffect(() => {
+  console.log('[Debug] Component mounted', props);
+  return () => console.log('[Debug] Component unmounted');
+}, []);
+
+// Check WebSocket connection
+// Browser DevTools → Network → WS tab
+
+// Check React renders
+// React DevTools Profiler
+```
 
 ---
 
-## Resources
+## Dependencies to Know
 
-- **Finnhub API Docs**: https://finnhub.io/docs/api
-- **React Docs**: https://react.dev
-- **Express Docs**: https://expressjs.com
-- **Tailwind Docs**: https://tailwindcss.com
-- **Vite Docs**: https://vitejs.dev
+### Backend
+
+| Package | Purpose | When to Update |
+|---------|---------|----------------|
+| `express` | Web framework | Security patches only |
+| `ws` | WebSocket server | Security patches only |
+| `node-cache` | In-memory caching | Feature updates OK |
+| `dotenv` | Environment variables | Security patches only |
+| `cors` | CORS handling | Security patches only |
+
+### Frontend
+
+| Package | Purpose | When to Update |
+|---------|---------|----------------|
+| `react` | UI library | Major versions carefully |
+| `lucide-react` | Icons | Any time |
+| `recharts` | Charts (future) | Feature updates OK |
+| `tailwindcss` | Styling | Any time |
 
 ---
 
-## Need Help?
+## Resources for Agents
 
-1. Check `README.md` for setup issues
-2. Check `DEPLOYMENT.md` for deployment issues
-3. Check server logs for backend errors
-4. Check browser console for frontend errors
-5. Verify all env vars are set
-6. Test API endpoints with curl
+### Internal Documentation
+- `README.md` - User setup guide
+- `DEPLOYMENT.md` - Server deployment details
+- `AGENTS.md` - This file (technical context)
+
+### External References
+- [Finnhub API Docs](https://finnhub.io/docs/api)
+- [Express Best Practices](https://expressjs.com/en/advanced/best-practice-performance.html)
+- [React Patterns](https://react.dev/learn/thinking-in-react)
+- [Tailwind Dark Mode](https://tailwindcss.com/docs/dark-mode)
+
+---
+
+## Questions to Ask Before Coding
+
+1. **Does this feature impact rate limits?**
+   - If yes: Can we batch, cache, or defer?
+
+2. **Does this need real-time updates?**
+   - If yes: WebSocket integration needed
+   - If no: HTTP polling with useAutoRefresh
+
+3. **Where does the data live?**
+   - External API → Service layer + cache
+   - User input → React state
+   - Server state → HTTP/WebSocket
+
+4. **What happens on error?**
+   - Fallback to cached data?
+   - Show error message?
+   - Retry with backoff?
+
+5. **Is there a similar feature?**
+   - Copy patterns from existing code
+   - Consistency > novelty
+
+---
+
+## Quick Reference
+
+### File Purposes
+
+| File | Responsibility |
+|------|----------------|
+| `backend/src/server.ts` | Express setup, WebSocket server, auto-refresh loops |
+| `backend/src/routes/stockRoutes.ts` | HTTP endpoint definitions |
+| `backend/src/services/*.ts` | Business logic, external API calls, caching |
+| `backend/src/constants.ts` | Configuration (stocks, display names) |
+| `frontend/src/App.tsx` | Root component, state management |
+| `frontend/src/components/*.tsx` | Presentational components |
+| `frontend/src/hooks/*.ts` | Custom React hooks |
+| `frontend/src/services/*.ts` | API client functions |
+
+### Common Tasks
+
+```bash
+# Add new stock
+# 1. Edit backend/src/constants.ts → TRACKED_STOCKS
+# 2. Edit backend/src/constants.ts → STOCK_DISPLAY_NAMES
+# 3. Edit frontend/src/types/index.ts → TRACKED_STOCKS
+# 4. Restart servers
+
+# Add new endpoint
+# 1. Add to stockRoutes.ts
+# 2. Add service method if needed
+# 3. Add frontend service method
+# 4. Add types to both backend and frontend
+
+# Debug WebSocket
+# 1. Check browser DevTools → Network → WS
+# 2. Look for "Connected to AIPulse" message
+# 3. Watch for incoming quote messages
+```
 
 ---
 

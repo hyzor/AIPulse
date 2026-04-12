@@ -46,3 +46,61 @@ export interface WebSocketMessage {
   symbol?: string;
   error?: string;
 }
+
+// Historical candle data (OHLCV)
+export interface StockCandle {
+  time: Date;
+  symbol: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  source?: string;
+}
+
+// API response for historical data
+export interface HistoryResponse {
+  symbol: string;
+  resolution: '1m' | '1h' | '1d';
+  from: string;
+  to: string;
+  candles: CandleData[];
+  cached: boolean;
+  partial: boolean;
+}
+
+// Individual candle data point (for JSON serialization)
+export interface CandleData {
+  t: number; // Unix timestamp
+  o: number; // Open
+  h: number; // High
+  l: number; // Low
+  c: number; // Close
+  v: number; // Volume
+}
+
+// System health status
+export interface HealthStatus {
+  status: 'ok' | 'degraded' | 'error';
+  timestamp: string;
+  services: {
+    database: { connected: boolean; latency: number };
+    redis: { connected: boolean; latency: number };
+    finnhub: { configured: boolean; rateLimitRemaining: number };
+  };
+  dataStats: {
+    total1mCandles: number;
+    total1hCandles: number;
+    total1dCandles: number;
+    symbols: string[];
+  };
+}
+
+// Flush operation result
+export interface FlushResult {
+  l1ToRedis: number;
+  redisToDb: number;
+  timestamp: string;
+  message: string;
+}

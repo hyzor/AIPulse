@@ -1,0 +1,70 @@
+version: '3.8'
+
+# Production: Full stack with all services
+# Run with: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  aipulse:
+    build: .
+    container_name: aipulse
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - FINNHUB_API_KEY=${FINNHUB_API_KEY}
+      - CACHE_TTL_SECONDS=60
+      - DATABASE_URL=postgresql://postgres:postgres@timescaledb:5432/aipulse
+      - REDIS_URL=redis://redis:6379
+      - L1_TO_REDIS_INTERVAL=30
+      - REDIS_TO_DB_INTERVAL=300
+      - MAX_BUFFER_SIZE=100
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: aipulse-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: aipulse
+    # No port mapping in prod - internal only
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ./backend/src/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d aipulse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: aipulse-redis
+    command: redis-server --appendonly yes --appendfsync everysec --save 60 1000
+    # No port mapping in prod - internal only
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  timescale_data:
+  redis_data:

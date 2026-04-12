@@ -9,7 +9,7 @@ interface RateLimitConfig {
   warningThreshold: number;
 }
 
-interface UsageStats {
+export interface UsageStats {
   callsInCurrentWindow: number;
   windowStart: number;
   totalCalls: number;

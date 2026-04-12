@@ -1,6 +1,6 @@
 import { StockQuote, FinnhubQuote, FinnhubProfile } from '../types';
 import { cacheService } from './cacheService';
-import { finnhubRateLimiter, profileRateLimiter } from './rateLimiter';
+import { finnhubRateLimiter, profileRateLimiter, UsageStats } from './rateLimiter';
 
 const FINNHUB_API_URL = 'https://finnhub.io/api/v1';
 
@@ -71,7 +71,7 @@ class FinnhubService {
       // Reset consecutive errors on success
       this.consecutiveErrors = 0;
 
-      return response.json();
+      return await response.json() as T;
     } catch (error) {
       throw error;
     }
@@ -224,7 +224,7 @@ class FinnhubService {
   /**
    * Get current rate limit status
    */
-  getRateLimitStatus() {
+  getRateLimitStatus(): UsageStats & { percentUsed: number; callsRemaining: number } {
     return finnhubRateLimiter.getStats();
   }
 

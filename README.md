@@ -115,6 +115,24 @@ npm run preview      # Preview production build
 npm run typecheck    # Check types
 ```
 
+### Testing the Three-Tier Cache
+
+To verify the persistence system works (data survives restarts):
+
+```bash
+# 1. Start databases
+docker-compose -f docker-compose.dev.yml up -d
+
+# 2. Start backend (keep running)
+cd backend && npm run dev
+
+# 3. In another terminal, run tests
+.\scripts\test-persistence.ps1        # Windows
+./scripts/test-persistence.sh         # Linux/Mac
+```
+
+**See [Testing Guide](docs/testing-guide.md) for detailed documentation.**
+
 ## Project Structure
 
 ```

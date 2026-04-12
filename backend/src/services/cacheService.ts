@@ -11,7 +11,7 @@ class CacheService {
     });
 
     // Listen for cache events
-    this.cache.on('expired', (key, value) => {
+    this.cache.on('expired', (key) => {
       console.log(`[Cache] Key expired: ${key}`);
     });
   }
@@ -21,7 +21,7 @@ class CacheService {
   }
 
   set<T>(key: string, value: T, ttl?: number): boolean {
-    return this.cache.set(key, value, ttl);
+    return this.cache.set(key, value, ttl as number | string);
   }
 
   del(key: string): number {

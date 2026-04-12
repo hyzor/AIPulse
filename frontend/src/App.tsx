@@ -1,18 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
-import { StockCard } from './components/StockCard';
 import { Header } from './components/Header';
 import { StatusBar } from './components/StatusBar';
+import { StockGrid } from './components/StockGrid';
+import { ExpandedChartModal } from './components/ExpandedChartModal';
+import { TimeRangeProvider } from './contexts/TimeRangeContext';
 import { stockService } from './services/stockService';
 import { useWebSocket, useAutoRefresh } from './hooks/useWebSocket';
-import { StockQuote, TRACKED_STOCKS, STOCK_CATEGORIES, RateLimitStatus } from './types';
+import { StockQuote, RateLimitStatus } from './types';
 
-function App() {
+function AppContent() {
   const [stocks, setStocks] = useState<Map<string, StockQuote>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [apiConfigured, setApiConfigured] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rateLimit, setRateLimit] = useState<RateLimitStatus | null>(null);
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
 
   const { quotes: realtimeQuotes, isConnected, error: wsError, subscribe } = useWebSocket();
 
@@ -20,7 +23,6 @@ function App() {
   const fetchRateLimit = useCallback(async () => {
     try {
       const status = await stockService.getRateLimitStatus();
-      console.log('[Rate Limit] Fetched:', status);
       setRateLimit(status);
     } catch (err) {
       console.error('Failed to fetch rate limit status:', err);
@@ -64,20 +66,15 @@ function App() {
     fetchStocks();
   }, [fetchStocks]);
 
-  // Merge real-time quotes with polled data
-  const mergedStocks = new Map(stocks);
-  realtimeQuotes.forEach((quote, symbol) => {
-    mergedStocks.set(symbol, quote);
-  });
-
-  // Get stocks by category
-  const getStocksByCategory = (symbols: string[]) => {
-    return symbols
-      .map(symbol => mergedStocks.get(symbol))
-      .filter((quote): quote is StockQuote => quote !== undefined);
+  const handleStockClick = (symbol: string) => {
+    setSelectedSymbol(symbol);
   };
 
-  const allStocks = [...mergedStocks.values()].sort((a, b) => a.symbol.localeCompare(b.symbol));
+  const handleCloseModal = () => {
+    setSelectedSymbol(null);
+  };
+
+  const selectedQuote = selectedSymbol ? stocks.get(selectedSymbol) || realtimeQuotes.get(selectedSymbol) || null : null;
 
   return (
     <div className="min-h-screen bg-dark-900 text-white">
@@ -89,7 +86,7 @@ function App() {
       />
 
       <StatusBar
-        totalStocks={allStocks.length}
+        totalStocks={stocks.size}
         apiConfigured={apiConfigured}
         error={error || wsError}
         rateLimit={rateLimit}
@@ -101,7 +98,7 @@ function App() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-white flex items-center gap-2">
               <span className="w-1 h-6 bg-neon-blue rounded-full"></span>
-              All AI Stocks
+              AI Market Overview
             </h2>
             <span className="text-sm text-gray-500">
               {isConnected 
@@ -117,46 +114,18 @@ function App() {
                 <span className="text-gray-400">Loading stock data...</span>
               </div>
             </div>
-          ) : allStocks.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {allStocks.map(quote => (
-                <StockCard
-                  key={quote.symbol}
-                  quote={quote}
-                  isRealtime={realtimeQuotes.has(quote.symbol)}
-                />
-              ))}
-            </div>
+          ) : stocks.size > 0 ? (
+            <StockGrid
+              quotes={[...stocks.values()]}
+              realtimeQuotes={realtimeQuotes}
+              onStockClick={handleStockClick}
+            />
           ) : (
             <div className="text-center py-12">
               <p className="text-gray-400">No stock data available. Check your API configuration.</p>
             </div>
           )}
         </section>
-
-        {/* Categories */}
-        {Object.entries(STOCK_CATEGORIES).map(([category, symbols]) => {
-          const categoryStocks = getStocksByCategory(symbols);
-          if (categoryStocks.length === 0) return null;
-
-          return (
-            <section key={category} className="mb-12">
-              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <span className="w-1 h-5 bg-neon-purple rounded-full"></span>
-                {category}
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {categoryStocks.map(quote => (
-                  <StockCard
-                    key={quote.symbol}
-                    quote={quote}
-                    isRealtime={realtimeQuotes.has(quote.symbol)}
-                  />
-                ))}
-              </div>
-            </section>
-          );
-        })}
 
         {/* Info Footer */}
         <footer className="mt-12 pt-8 border-t border-dark-600">
@@ -179,7 +148,22 @@ function App() {
           </div>
         </footer>
       </main>
+
+      {/* Expanded Chart Modal */}
+      <ExpandedChartModal
+        symbol={selectedSymbol}
+        quote={selectedQuote}
+        onClose={handleCloseModal}
+      />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <TimeRangeProvider>
+      <AppContent />
+    </TimeRangeProvider>
   );
 }
 

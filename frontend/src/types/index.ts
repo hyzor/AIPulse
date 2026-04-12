@@ -75,3 +75,42 @@ export interface RateLimitStatus {
   maxPerMinute: number;
   tier: string;
 }
+
+// Historical candle data (OHLCV)
+export interface CandleData {
+  t: number; // Unix timestamp in milliseconds
+  o: number; // Open price
+  h: number; // High price
+  l: number; // Low price
+  c: number; // Close price
+  v: number; // Volume
+}
+
+// API response for historical data
+export interface HistoryResponse {
+  symbol: string;
+  resolution: '1m' | '1h' | '1d';
+  from: string;
+  to: string;
+  candles: CandleData[];
+  cached: boolean;
+  partial: boolean;
+}
+
+// Time range options
+export type TimeRange = '1d' | '7d' | '30d';
+
+// Historical data state for a symbol
+export interface SymbolHistoryState {
+  candles: CandleData[];
+  loading: boolean;
+  error: string | null;
+  lastUpdated: number;
+}
+
+// Historical data cache structure
+export type HistoricalDataCache = {
+  [symbol: string]: {
+    [range in TimeRange]?: SymbolHistoryState;
+  };
+};

@@ -1,4 +1,4 @@
-import { ApiResponse, StockQuote, StockProfile, RateLimitStatus } from '../types';
+import { ApiResponse, StockQuote, StockProfile, RateLimitStatus, HistoryResponse, TimeRange } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -51,6 +51,24 @@ class StockService {
     
     if (!data.success) {
       throw new Error(data.error || 'Failed to fetch rate limit status');
+    }
+    
+    return data.data;
+  }
+
+  async getHistory(symbol: string, range: TimeRange, resolution?: '1m' | '1h' | '1d'): Promise<HistoryResponse> {
+    // Auto-determine resolution if not provided
+    if (!resolution) {
+      resolution = range === '30d' ? '1d' : '1h';
+    }
+    
+    const response = await fetch(
+      `${API_URL}/api/stocks/${symbol}/history?range=${range}&resolution=${resolution}`
+    );
+    const data: ApiResponse<HistoryResponse> = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.error || `Failed to fetch history for ${symbol}`);
     }
     
     return data.data;

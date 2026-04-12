@@ -1,4 +1,5 @@
 import { Activity, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { TimeRangeToggle } from './TimeRangeToggle';
 
 interface HeaderProps {
   isConnected: boolean;
@@ -30,9 +31,12 @@ export function Header({ isConnected, lastUpdate, onRefresh, isLoading }: Header
 
           {/* Status & Controls */}
           <div className="flex items-center gap-4">
+            {/* Time Range Toggle */}
+            <TimeRangeToggle />
+
             {/* Last Update */}
             {lastUpdate && (
-              <div className="hidden sm:block text-right">
+              <div className="hidden md:block text-right">
                 <p className="text-xs text-gray-500">Last Update</p>
                 <p className="text-sm font-mono text-gray-300">
                   {lastUpdate.toLocaleTimeString()}
@@ -45,12 +49,12 @@ export function Header({ isConnected, lastUpdate, onRefresh, isLoading }: Header
               {isConnected ? (
                 <>
                   <Wifi className="w-4 h-4 text-neon-green" />
-                  <span className="text-sm text-neon-green font-medium">Connected</span>
+                  <span className="text-sm text-neon-green font-medium hidden sm:inline">Connected</span>
                 </>
               ) : (
                 <>
                   <WifiOff className="w-4 h-4 text-neon-red" />
-                  <span className="text-sm text-neon-red font-medium">Disconnected</span>
+                  <span className="text-sm text-neon-red font-medium hidden sm:inline">Disconnected</span>
                 </>
               )}
             </div>
@@ -59,10 +63,10 @@ export function Header({ isConnected, lastUpdate, onRefresh, isLoading }: Header
             <button
               onClick={onRefresh}
               disabled={isLoading}
-              className="flex items-center gap-2 px-4 py-2 bg-neon-blue/10 hover:bg-neon-blue/20 text-neon-blue rounded-lg border border-neon-blue/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-3 py-2 bg-neon-blue/10 hover:bg-neon-blue/20 text-neon-blue rounded-lg border border-neon-blue/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              <span className="text-sm font-medium">Refresh</span>
+              <span className="text-sm font-medium hidden sm:inline">Refresh</span>
             </button>
           </div>
         </div>

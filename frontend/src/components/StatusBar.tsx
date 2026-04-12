@@ -137,7 +137,10 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
           {/* Connection, API, Rate Limit - Right side, grouped together */}
           <div className="flex items-center gap-2 shrink-0">
             {/* WebSocket Connection */}
-            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${isConnected ? 'bg-neon-green/10 border-neon-green/30' : 'bg-neon-red/10 border-neon-red/30'}`}>
+            <div
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${isConnected ? 'bg-neon-green/10 border-neon-green/30' : 'bg-neon-red/10 border-neon-red/30'}`}
+              title={isConnected ? 'WebSocket connected to server - receiving real-time updates' : 'WebSocket disconnected - updates temporarily paused'}
+            >
               {isConnected
                 ? (
                   <>
@@ -158,13 +161,19 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
               <>
                 {apiConfigured
                   ? (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-neon-green/10 rounded-lg border border-neon-green/30">
+                    <div
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-neon-green/10 rounded-lg border border-neon-green/30"
+                      title="Finnhub API key configured - able to fetch fresh stock data"
+                    >
                       <CheckCircle2 className="w-3.5 h-3.5 text-neon-green" />
                       <span className="text-xs text-neon-green font-medium">API</span>
                     </div>
                   )
                   : (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-neon-red/10 rounded-lg border border-neon-red/30">
+                    <div
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-neon-red/10 rounded-lg border border-neon-red/30"
+                      title="Finnhub API key not configured - check FINNHUB_API_KEY environment variable"
+                    >
                       <AlertCircle className="w-3.5 h-3.5 text-neon-red" />
                       <span className="text-xs text-neon-red font-medium">No API</span>
                     </div>
@@ -174,7 +183,10 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
 
             {/* Rate Limit Indicator */}
             {rateLimit && (
-              <div className={`flex items-center gap-1.5 px-2.5 py-1.5 bg-dark-700 rounded-lg border border-dark-600 ${getRateLimitColor(rateLimit.percentUsed)}`}>
+              <div
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 bg-dark-700 rounded-lg border border-dark-600 ${getRateLimitColor(rateLimit.percentUsed)}`}
+                title={`API calls remaining: ${rateLimit.callsRemaining} of ${rateLimit.maxPerMinute} per minute (Finnhub free tier limit). When exceeded, cached data is served.`}
+              >
                 <Gauge className="w-3.5 h-3.5" />
                 <span className="text-xs font-medium">
                   {rateLimit.callsRemaining}/{rateLimit.maxPerMinute}

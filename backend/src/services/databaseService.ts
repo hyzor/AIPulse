@@ -157,10 +157,10 @@ class DatabaseService {
     
     switch (resolution) {
       case '1h':
-        table = 'stock_candles_1h_aggregation';
+        table = 'stock_candles_1h';
         break;
       case '1d':
-        table = 'stock_candles_1d_aggregation';
+        table = 'stock_candles_1d';
         break;
       default:
         table = 'stock_candles_1m';
@@ -382,8 +382,8 @@ class DatabaseService {
     try {
       const [candles1m, candles1h, candles1d, symbols] = await Promise.all([
         this.pool.query('SELECT COUNT(*) FROM stock_candles_1m'),
-        this.pool.query('SELECT COUNT(*) FROM stock_candles_1h_aggregation'),
-        this.pool.query('SELECT COUNT(*) FROM stock_candles_1d_aggregation'),
+        this.pool.query('SELECT COUNT(*) FROM stock_candles_1h'),
+        this.pool.query('SELECT COUNT(*) FROM stock_candles_1d'),
         this.pool.query('SELECT DISTINCT symbol FROM stock_candles_1m ORDER BY symbol'),
       ]);
 

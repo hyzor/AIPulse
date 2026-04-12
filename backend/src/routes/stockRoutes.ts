@@ -86,23 +86,6 @@ router.get('/profile/:symbol', async (req, res) => {
   }
 });
 
-// Health check
-router.get('/health', (_req, res) => {
-  const stats = cacheService.getStats();
-  
-  res.json({
-    success: true,
-    status: 'healthy',
-    finnhubConfigured: finnhubService.isConfigured(),
-    cacheStats: {
-      keys: cacheService.keys().length,
-      hits: stats.hits,
-      misses: stats.misses,
-    },
-    timestamp: Date.now(),
-  });
-});
-
 // Clear cache (admin endpoint)
 router.post('/cache/clear', (_req, res) => {
   cacheService.flush();

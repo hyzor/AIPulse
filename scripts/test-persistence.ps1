@@ -66,10 +66,17 @@ function Invoke-Api($Endpoint, $Method = "GET", $Body = $null) {
     }
 }
 
-# Docker Helper
+# Docker Helper - uses array to preserve argument grouping
 function Invoke-Docker($Command) {
     try {
-        return docker $Command.Split(" ") 2>&1
+        # Split by spaces but handle quoted strings
+        $cmdArray = $Command -split ' (?=(?:[^"]*"[^"]*")*[^"]*$)' | ForEach-Object { $_ -replace '"', '' }
+        $output = & docker $cmdArray 2>&1
+        # Convert to string
+        if ($output -is [array]) {
+            return $output -join "`n"
+        }
+        return [string]$output
     } catch {
         Write-Error "Docker command failed: $Command"
         return $null
@@ -175,8 +182,10 @@ function Test-DataCollection {
 function Test-L1ToRedis {
     Write-Header "Test 3: L1 → Redis Flush"
     
-    # Get Redis memory before
-    $memBefore = Invoke-Docker "exec $DockerRedis redis-cli info memory" | Select-String "used_memory_human" | ForEach-Object { $_ -replace "used_memory_human:", "" }
+    # Get Redis memory before - use direct docker command
+    $memOutput = docker exec $DockerRedis redis-cli info memory 2>$null
+    if ($memOutput -is [array]) { $memOutput = $memOutput -join "`n" }
+    $memBefore = ($memOutput -split "`n" | Select-String "used_memory_human:" | ForEach-Object { ($_ -split ":")[1] }) | Select-Object -First 1
     Write-Info "Redis memory before: $memBefore"
     
     # Flush L1 to Redis
@@ -189,14 +198,17 @@ function Test-L1ToRedis {
     Write-Success "Flush complete: $($flush.data.l1ToRedis) L1 buffers, $($flush.data.redisToDb) to DB"
     Write-Info "Message: $($flush.data.message)"
     
-    # Check Redis memory after
-    $memAfter = Invoke-Docker "exec $DockerRedis redis-cli info memory" | Select-String "used_memory_human" | ForEach-Object { $_ -replace "used_memory_human:", "" }
+    # Check Redis memory after - use direct docker command
+    $memOutput = docker exec $DockerRedis redis-cli info memory 2>$null
+    if ($memOutput -is [array]) { $memOutput = $memOutput -join "`n" }
+    $memAfter = ($memOutput -split "`n" | Select-String "used_memory_human:" | ForEach-Object { ($_ -split ":")[1] }) | Select-Object -First 1
     Write-Info "Redis memory after: $memAfter"
     
     # Check Redis has keys
-    $keys = Invoke-Docker "exec $DockerRedis redis-cli keys 'quotes:*'"
+    $keys = docker exec $DockerRedis redis-cli keys "quotes:*" 2>$null
     if ($keys) {
-        Write-Success "Redis has $($keys.Count) quote keys"
+        $keyCount = ($keys -split "`n" | Where-Object { $_ -match "^quotes:" }).Count
+        Write-Success "Redis has $keyCount quote keys"
     } else {
         Write-Warning "No quote keys in Redis yet (may need more collection time)"
     }
@@ -208,26 +220,29 @@ function Test-L1ToRedis {
 function Test-Database {
     Write-Header "Test 4: TimescaleDB Persistence"
     
-    # Count candles
-    $count = Invoke-Docker "exec $DockerDb psql -U postgres -d aipulse -t -c 'SELECT COUNT(*) FROM stock_candles_1m;'"
-    if (-not $count) {
+    # Count candles - use direct docker command
+    $countOutput = docker exec $DockerDb psql -U postgres -d aipulse -t -c "SELECT COUNT(*) FROM stock_candles_1m;" 2>$null
+    if (-not $countOutput) {
         Write-Error "Failed to query TimescaleDB"
         return $false
     }
     
-    $count = $count.Trim()
-    if ($count -match '^\d+$' -and [int]$count -gt 0) {
-        Write-Success "TimescaleDB has $count 1-minute candles"
+    # Convert output to string if it's an array
+    if ($countOutput -is [array]) {
+        $countOutput = $countOutput -join ""
+    }
+    
+    # Extract just the number from output
+    $countValue = ($countOutput -replace '\D', '').Trim()
+    if ($countValue -match '^\d+$' -and [int]$countValue -gt 0) {
+        Write-Success "TimescaleDB has $countValue 1-minute candles"
     } else {
         Write-Warning "No candles in TimescaleDB yet (may need more time or flush)"
     }
     
-    # Show per-symbol stats
-    $symbolStats = Invoke-Docker "exec $DockerDb psql -U postgres -d aipulse -c 'SELECT symbol, COUNT(*) as count, MIN(time) as earliest, MAX(time) as latest FROM stock_candles_1m GROUP BY symbol ORDER BY symbol;'"
-    if ($symbolStats) {
-        Write-Info "Per-symbol candle counts:"
-        $symbolStats | ForEach-Object { Write-Host "  $_" }
-    }
+    # Show per-symbol stats - use direct docker command
+    Write-Info "Per-symbol candle counts:"
+    docker exec $DockerDb psql -U postgres -d aipulse -c "SELECT symbol, COUNT(*) as count FROM stock_candles_1m GROUP BY symbol ORDER BY symbol;" 2>$null | ForEach-Object { Write-Host "  $_" }
     
     return $true
 }
@@ -280,8 +295,9 @@ function Test-RestartRecovery {
     }
     
     # Step 3: Get current DB count
-    $dbCountBefore = Invoke-Docker "exec $DockerDb psql -U postgres -d aipulse -t -c 'SELECT COUNT(*) FROM stock_candles_1m;'"
-    $dbCountBefore = [int]($dbCountBefore.Trim())
+    $dbCountBefore = docker exec $DockerDb psql -U postgres -d aipulse -t -c "SELECT COUNT(*) FROM stock_candles_1m;" 2>$null
+    if ($dbCountBefore -is [array]) { $dbCountBefore = $dbCountBefore -join "" }
+    $dbCountBefore = if ($dbCountBefore) { [int](($dbCountBefore -replace '\D', '')) } else { 0 }
     Write-Info "DB has $dbCountBefore candles before restart"
     
     # Step 4: Kill the backend (simulate crash)
@@ -299,9 +315,10 @@ function Test-RestartRecovery {
     
     # Step 5: Wait and check Redis still has data
     Start-Sleep -Seconds 2
-    $redisKeys = Invoke-Docker "exec $DockerRedis redis-cli keys 'quotes:*'"
+    $redisKeys = docker exec $DockerRedis redis-cli keys "quotes:*" 2>$null
     if ($redisKeys) {
-        Write-Success "Redis retained data: $($redisKeys.Count) keys"
+        $keyCount = ($redisKeys -split "`n" | Where-Object { $_ -match "^quotes:" }).Count
+        Write-Success "Redis retained data: $keyCount keys"
     } else {
         Write-Warning "No keys in Redis - data may have already been flushed"
     }
@@ -341,8 +358,9 @@ function Test-RestartRecovery {
     
     # Step 8: Verify DB has more data than before
     Start-Sleep -Seconds 5 # Give recovery time
-    $dbCountAfter = Invoke-Docker "exec $DockerDb psql -U postgres -d aipulse -t -c 'SELECT COUNT(*) FROM stock_candles_1m;'"
-    $dbCountAfter = [int]($dbCountAfter.Trim())
+    $dbCountAfter = docker exec $DockerDb psql -U postgres -d aipulse -t -c "SELECT COUNT(*) FROM stock_candles_1m;" 2>$null
+    if ($dbCountAfter -is [array]) { $dbCountAfter = $dbCountAfter -join "" }
+    $dbCountAfter = if ($dbCountAfter) { [int](($dbCountAfter -replace '\D', '')) } else { 0 }
     Write-Info "DB has $dbCountAfter candles after restart"
     
     if ($dbCountAfter -gt $dbCountBefore) {
@@ -384,8 +402,9 @@ function Test-GracefulShutdown {
     Write-Info "L1 has $($stats.data.l1TotalUpdates) updates to flush"
     
     # Get DB count before
-    $dbCountBefore = Invoke-Docker "exec $DockerDb psql -U postgres -d aipulse -t -c 'SELECT COUNT(*) FROM stock_candles_1m;'"
-    $dbCountBefore = [int]($dbCountBefore.Trim())
+    $dbCountBefore = docker exec $DockerDb psql -U postgres -d aipulse -t -c "SELECT COUNT(*) FROM stock_candles_1m;" 2>$null
+    if ($dbCountBefore -is [array]) { $dbCountBefore = $dbCountBefore -join "" }
+    $dbCountBefore = if ($dbCountBefore) { [int](($dbCountBefore -replace '\D', '')) } else { 0 }
     
     Write-Info "`n⚠️  MANUAL ACTION REQUIRED:"
     Write-Info "   Press Ctrl+C in your backend terminal NOW!"
@@ -409,8 +428,9 @@ function Test-GracefulShutdown {
     
     # Check DB has more data
     Start-Sleep -Seconds 2
-    $dbCountAfter = Invoke-Docker "exec $DockerDb psql -U postgres -d aipulse -t -c 'SELECT COUNT(*) FROM stock_candles_1m;'"
-    $dbCountAfter = [int]($dbCountAfter.Trim())
+    $dbCountAfter = docker exec $DockerDb psql -U postgres -d aipulse -t -c "SELECT COUNT(*) FROM stock_candles_1m;" 2>$null
+    if ($dbCountAfter -is [array]) { $dbCountAfter = $dbCountAfter -join "" }
+    $dbCountAfter = if ($dbCountAfter) { [int](($dbCountAfter -replace '\D', '')) } else { 0 }
     
     if ($dbCountAfter -ge $dbCountBefore) {
         Write-Success "Graceful shutdown preserved all data"

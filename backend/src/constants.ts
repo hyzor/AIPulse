@@ -7,7 +7,9 @@ export const TRACKED_STOCKS = [
   'TSM',  // TSMC - chip manufacturing
   'ASML', // ASML - lithography equipment
   'ARM',  // ARM Holdings - chip architecture
-  
+  'MU',   // Micron - AI memory/HBM
+  'SNDK', // SanDisk - AI flash storage
+
   // AI Software / Tech
   'PLTR', // Palantir - AI/data analytics
   'MSFT', // Microsoft - Azure AI, OpenAI
@@ -24,6 +26,8 @@ export const STOCK_DISPLAY_NAMES: Record<string, string> = {
   TSM: 'TSMC',
   ASML: 'ASML',
   ARM: 'ARM Holdings',
+  MU: 'Micron',
+  SNDK: 'SanDisk',
   PLTR: 'Palantir',
   MSFT: 'Microsoft',
   GOOGL: 'Alphabet',

@@ -99,13 +99,13 @@ class FinnhubService {
         if (redisQuote) {
           const quote: StockQuote = {
             symbol,
-            currentPrice: redisQuote.price,
+            currentPrice: redisQuote.currentPrice,
             change: redisQuote.change,
             changePercent: redisQuote.changePercent,
-            highPrice: 0, // Not stored in Redis, will be updated on next API call
-            lowPrice: 0,
-            openPrice: 0,
-            previousClose: 0,
+            highPrice: redisQuote.high,
+            lowPrice: redisQuote.low,
+            openPrice: redisQuote.open,
+            previousClose: redisQuote.previousClose,
             timestamp: redisQuote.timestamp,
           };
           // Also cache in memory for faster access

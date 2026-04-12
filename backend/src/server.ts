@@ -103,10 +103,13 @@ const clients = new Map<WebSocket, Set<string>>();
 
 // Broadcast to all clients subscribed to a symbol
 const broadcastToSymbol = (symbol: string, data: StockQuote) => {
+  // Strip isCached flag for WebSocket - real-time updates are always "fresh"
+  const { isCached, ...cleanData } = data;
+  
   const message: WebSocketMessage = {
     type: 'quote',
     symbol,
-    data,
+    data: cleanData,
   };
   
   const messageStr = JSON.stringify(message);

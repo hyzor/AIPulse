@@ -98,7 +98,8 @@ class FinnhubService {
       // Return cached data even if expired, rather than fail
       const expired = cacheService.get<StockQuote>(cacheKey);
       if (expired) {
-        return expired;
+        // Mark as cached data
+        return { ...expired, isCached: true };
       }
       throw new Error('Rate limit exceeded and no cached data available');
     }
@@ -133,7 +134,8 @@ class FinnhubService {
         const cached = cacheService.get<StockQuote>(cacheKey);
         if (cached) {
           console.log(`[Finnhub] Returning cached data for ${symbol} due to rate limit`);
-          return cached;
+          // Mark as cached data
+          return { ...cached, isCached: true };
         }
       }
       
@@ -172,6 +174,7 @@ class FinnhubService {
   async getQuotes(symbols: string[], options: { batchSize?: number; delayMs?: number } = {}): Promise<StockQuote[]> {
     const { batchSize = 5, delayMs = 200 } = options;
     const results: StockQuote[] = [];
+    let rateLimitReached = false;
     
     // Process in batches to avoid rate limit spikes
     for (let i = 0; i < symbols.length; i += batchSize) {
@@ -179,31 +182,31 @@ class FinnhubService {
       
       // Check if we can make these calls
       const stats = finnhubRateLimiter.getStats();
-      if (stats.callsRemaining < batch.length) {
-        console.warn(`[Finnhub] Not enough rate limit for full batch. Remaining: ${stats.callsRemaining}, Needed: ${batch.length}`);
-        
-        // Only process what we can
-        const processableBatch = batch.slice(0, stats.callsRemaining);
-        
-        for (const symbol of processableBatch) {
-          const quote = await this.getQuote(symbol);
-          if (quote) results.push(quote);
+      
+      if (rateLimitReached || stats.callsRemaining < batch.length) {
+        if (!rateLimitReached) {
+          console.warn(`[Finnhub] Rate limit reached. Remaining: ${stats.callsRemaining}, Needed for batch: ${batch.length}. Serving cached data for remaining symbols.`);
+          rateLimitReached = true;
         }
         
-        // For remaining, try to get from cache
-        const remaining = batch.slice(stats.callsRemaining);
-        for (const symbol of remaining) {
+        // Try to get ALL remaining symbols from cache
+        const remainingSymbols = symbols.slice(i);
+        console.log(`[Finnhub] Fetching ${remainingSymbols.length} symbols from cache...`);
+        
+        for (const symbol of remainingSymbols) {
           const cached = cacheService.get<StockQuote>(`quote:${symbol}`);
           if (cached) {
-            console.log(`[Finnhub] Using cached data for ${symbol} (rate limit)`);
-            results.push(cached);
+            // Mark as cached data due to rate limiting
+            results.push({ ...cached, isCached: true });
+          } else {
+            console.warn(`[Finnhub] No cached data available for ${symbol}`);
           }
         }
         
-        break; // Stop processing more batches
+        break; // Stop processing more batches - we've handled all remaining symbols from cache
       }
       
-      // Process this batch
+      // Process this batch normally
       const batchPromises = batch.map(async symbol => {
         const quote = await this.getQuote(symbol);
         return quote;
@@ -219,6 +222,63 @@ class FinnhubService {
     }
     
     return results;
+  }
+
+  /**
+   * Get historical candles from Finnhub
+   * Used for backfilling when database has no data
+   */
+  async getHistoricalCandles(
+    symbol: string, 
+    resolution: '1' | '5' | '15' | '30' | '60' | 'D' | 'W' | 'M',
+    from: number,  // Unix timestamp
+    to: number     // Unix timestamp
+  ): Promise<Array<{ t: number; o: number; h: number; l: number; c: number; v: number }> | null> {
+    // Check rate limit first
+    if (!finnhubRateLimiter.canMakeCall()) {
+      console.log(`[Finnhub] Rate limit reached, skipping historical fetch for ${symbol}`);
+      return null;
+    }
+
+    try {
+      const fromStr = Math.floor(from);
+      const toStr = Math.floor(to);
+      
+      console.log(`[Finnhub] Fetching candles for ${symbol}: ${resolution} from ${new Date(fromStr * 1000).toISOString()} to ${new Date(toStr * 1000).toISOString()}`);
+      
+      const data = await this.fetchFromApi<{
+        c: number[];  // Close prices
+        h: number[];  // High prices
+        l: number[];  // Low prices
+        o: number[];  // Open prices
+        t: number[];  // Timestamps
+        v: number[];  // Volumes
+        s: string;    // Status
+      }>(`/stock/candle?symbol=${symbol}&resolution=${resolution}&from=${fromStr}&to=${toStr}`);
+
+      console.log(`[Finnhub] Response for ${symbol}: status=${data?.s}, candles=${data?.c?.length || 0}`);
+
+      if (!data || data.s === 'no_data' || !data.c || data.c.length === 0) {
+        console.log(`[Finnhub] No historical data for ${symbol}: ${data?.s || 'null response'}`);
+        return [];
+      }
+
+      // Transform array format to candle objects
+      const candles = data.t.map((timestamp, i) => ({
+        t: timestamp * 1000,  // Convert to milliseconds
+        o: data.o[i],
+        h: data.h[i],
+        l: data.l[i],
+        c: data.c[i],
+        v: data.v[i],
+      }));
+
+      console.log(`[Finnhub] Fetched ${candles.length} candles for ${symbol} (date range: ${new Date(candles[0].t).toISOString()} to ${new Date(candles[candles.length - 1].t).toISOString()})`);
+      return candles;
+    } catch (error) {
+      console.error(`[Finnhub] Error fetching historical candles for ${symbol}:`, error);
+      return null;
+    }
   }
 
   /**

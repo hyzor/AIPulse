@@ -8,6 +8,7 @@ export interface StockQuote {
   openPrice: number;
   previousClose: number;
   timestamp: number;
+  isCached?: boolean; // True if data came from cache due to rate limiting
 }
 
 export interface StockProfile {

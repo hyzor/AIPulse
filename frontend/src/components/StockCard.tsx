@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, Database } from 'lucide-react';
 import { StockQuote, STOCK_DISPLAY_NAMES, STOCK_CATEGORIES } from '../types';
 import { formatCurrency, formatChange, getChangeColor, getChangeBgColor } from '../utils/format';
 import { useTimeRange } from '../contexts/TimeRangeContext';
@@ -54,6 +54,14 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
             <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
           </span>
           <span className="text-xs font-semibold text-green-500">LIVE</span>
+        </div>
+      )}
+
+      {/* Cached data indicator */}
+      {quote.isCached && (
+        <div className="absolute top-3 right-3 flex items-center gap-1.5" title="Data from cache (rate limit reached)">
+          <Database className="w-3 h-3 text-yellow-500" />
+          <span className="text-xs font-semibold text-yellow-500">CACHED</span>
         </div>
       )}
 

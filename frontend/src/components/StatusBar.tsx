@@ -89,7 +89,9 @@ export function StatusBar({ totalStocks, apiConfigured, error, rateLimit }: Stat
           <div className="mt-3 flex items-center gap-2 px-4 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
             <AlertCircle className="w-4 h-4 text-yellow-400 flex-shrink-0" />
             <p className="text-sm text-yellow-400">
-              Approaching rate limit! ({rateLimit.percentUsed}% used) - Will use cached data
+              {rateLimit.percentUsed >= 100 
+                ? `Rate limit reached! (${rateLimit.percentUsed}% used) - Using cached data`
+                : `Approaching rate limit! (${rateLimit.percentUsed}% used) - Will use cached data`}
             </p>
           </div>
         )}

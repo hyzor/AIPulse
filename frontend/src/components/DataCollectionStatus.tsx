@@ -138,7 +138,7 @@ export function DataCollectionStatus() {
           AI stocks
         </p>
         <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-          {TRACKED_STOCKS.map((symbol) => {
+          {[...TRACKED_STOCKS].sort().map((symbol) => {
             const hasDataForSymbol = stats.symbols?.includes(symbol);
             return (
               <span

@@ -3,10 +3,11 @@ import { Header } from './components/Header';
 import { StatusBar } from './components/StatusBar';
 import { StockGrid } from './components/StockGrid';
 import { ExpandedChartModal } from './components/ExpandedChartModal';
+import { DataCollectionStatus } from './components/DataCollectionStatus';
 import { TimeRangeProvider } from './contexts/TimeRangeContext';
 import { stockService } from './services/stockService';
 import { useWebSocket, useAutoRefresh } from './hooks/useWebSocket';
-import { StockQuote, RateLimitStatus } from './types';
+import { StockQuote, RateLimitStatus, STOCK_CATEGORIES } from './types';
 
 function AppContent() {
   const [stocks, setStocks] = useState<Map<string, StockQuote>>(new Map());
@@ -76,6 +77,22 @@ function AppContent() {
 
   const selectedQuote = selectedSymbol ? stocks.get(selectedSymbol) || realtimeQuotes.get(selectedSymbol) || null : null;
 
+  // Merge real-time quotes with polled data
+  const mergedStocks = new Map(stocks);
+  realtimeQuotes.forEach((quote, symbol) => {
+    mergedStocks.set(symbol, quote);
+  });
+
+  // Get stocks by category
+  const getStocksByCategory = (symbols: string[]) => {
+    return symbols
+      .map(symbol => mergedStocks.get(symbol))
+      .filter((quote): quote is StockQuote => quote !== undefined);
+  };
+
+  // Get all stocks sorted
+  const allStocks = [...mergedStocks.values()].sort((a, b) => a.symbol.localeCompare(b.symbol));
+
   return (
     <div className="min-h-screen bg-dark-900 text-white">
       <Header
@@ -93,6 +110,11 @@ function AppContent() {
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Data Collection Status */}
+        <section className="mb-8">
+          <DataCollectionStatus />
+        </section>
+
         {/* All Stocks Grid */}
         <section className="mb-12">
           <div className="flex items-center justify-between mb-6">
@@ -116,7 +138,7 @@ function AppContent() {
             </div>
           ) : stocks.size > 0 ? (
             <StockGrid
-              quotes={[...stocks.values()]}
+              quotes={allStocks}
               realtimeQuotes={realtimeQuotes}
               onStockClick={handleStockClick}
             />
@@ -126,6 +148,26 @@ function AppContent() {
             </div>
           )}
         </section>
+
+        {/* Categories */}
+        {Object.entries(STOCK_CATEGORIES).map(([category, symbols]) => {
+          const categoryStocks = getStocksByCategory(symbols);
+          if (categoryStocks.length === 0) return null;
+
+          return (
+            <section key={category} className="mb-12">
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span className="w-1 h-5 bg-neon-purple rounded-full"></span>
+                {category}
+              </h2>
+              <StockGrid
+                quotes={categoryStocks}
+                realtimeQuotes={realtimeQuotes}
+                onStockClick={handleStockClick}
+              />
+            </section>
+          );
+        })}
 
         {/* Info Footer */}
         <footer className="mt-12 pt-8 border-t border-dark-600">

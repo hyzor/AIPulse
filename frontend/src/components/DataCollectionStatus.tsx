@@ -2,6 +2,7 @@ import { Database, Clock, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { stockService } from '../services/stockService';
+import { TRACKED_STOCKS, STOCK_COUNTRIES } from '../types';
 
 interface DataStats {
   total1mCandles: number;
@@ -127,36 +128,40 @@ export function DataCollectionStatus() {
         </div>
       </div>
 
-      {/* Symbol indicators */}
-      {hasData && (
-        <div className="mt-3 pt-3 border-t border-dark-700">
-          <p className="text-xs text-gray-500 mb-2">
-            Tracking
-            {' '}
-            {symbolCount}
-            {' '}
-            symbols
-          </p>
-          <div className="flex flex-wrap gap-1">
-            {stats.symbols?.slice(0, 8).map((symbol) => (
+      {/* Symbol indicators - All tracked symbols */}
+      <div className="mt-3 pt-3 border-t border-dark-700">
+        <p className="text-xs text-gray-500 mb-2">
+          Tracking
+          {' '}
+          {TRACKED_STOCKS.length}
+          {' '}
+          AI stocks
+        </p>
+        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+          {TRACKED_STOCKS.map((symbol) => {
+            const hasDataForSymbol = stats.symbols?.includes(symbol);
+            return (
               <span
                 key={symbol}
-                className="text-xs px-1.5 py-0.5 bg-dark-700 rounded text-gray-400"
+                className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${
+                  hasDataForSymbol
+                    ? 'bg-neon-blue/20 text-neon-blue border border-neon-blue/30'
+                    : 'bg-dark-700 text-gray-500 border border-dark-600'
+                }`}
+                title={STOCK_COUNTRIES[symbol]?.country || ''}
               >
-                {symbol}
+                <span>{STOCK_COUNTRIES[symbol]?.flag || ''}</span>
+                <span className="font-medium">{symbol}</span>
               </span>
-            ))}
-            {(stats.symbols?.length || 0) > 8 && (
-              <span className="text-xs px-1.5 py-0.5 text-gray-500">
-                +
-                {(stats.symbols?.length || 0) - 8}
-                {' '}
-                more
-              </span>
-            )}
-          </div>
+            );
+          })}
         </div>
-      )}
+        {stats.symbols && stats.symbols.length < TRACKED_STOCKS.length && (
+          <p className="text-xs text-gray-500 mt-2">
+            {TRACKED_STOCKS.length - stats.symbols.length} symbols waiting for first data...
+          </p>
+        )}
+      </div>
 
       {/* Help text */}
       <div className="mt-3 pt-3 border-t border-dark-700">

@@ -60,10 +60,11 @@ export function MiniAreaChart({
   if (chartData.length === 0) {
     return (
       <div
-        className="flex items-center justify-center bg-dark-800/50 rounded"
+        className="flex items-center justify-center bg-dark-800/50 rounded px-2"
         style={{ width, height }}
+        title="Historical chart data not available. Charts require time-series data which is collected over time or can be fetched from Finnhub API (requires paid tier)."
       >
-        <span className="text-gray-500 text-xs">No data</span>
+        <span className="text-gray-500 text-xs text-center">Collecting data...</span>
       </div>
     );
   }

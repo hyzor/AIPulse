@@ -132,6 +132,7 @@ export function DataCollectionStatus() {
       {totalCandles === 0 && (
         <div className="mt-3 py-2 px-3 bg-dark-700/50 border border-dark-600 rounded text-xs text-gray-400">
           📊 Data collection is initializing. Historical charts will populate as market data is collected over time.
+          Chart data requires either: (1) Time for auto-collection to build up candles, or (2) ENABLE_HISTORICAL_FETCH=true with paid Finnhub tier.
         </div>
       )}
 

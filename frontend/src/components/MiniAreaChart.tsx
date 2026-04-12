@@ -7,7 +7,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { CandleData } from '../types';
+
+import type { CandleData } from '../types';
 
 interface MiniAreaChartProps {
   data: CandleData[];
@@ -30,7 +31,7 @@ export function MiniAreaChart({
   height = 80,
 }: MiniAreaChartProps) {
   const chartData = useMemo<ChartPoint[]>(() => {
-    if (!data || data.length === 0) return [];
+    if (!data || data.length === 0) { return []; }
 
     return data.map((candle) => ({
       t: candle.t,
@@ -47,7 +48,7 @@ export function MiniAreaChart({
   }, [data]);
 
   const trend = useMemo(() => {
-    if (chartData.length < 2) return 'neutral';
+    if (chartData.length < 2) { return 'neutral'; }
     const first = chartData[0].c;
     const last = chartData[chartData.length - 1].c;
     return last >= first ? 'up' : 'down';
@@ -84,7 +85,7 @@ export function MiniAreaChart({
           <YAxis domain={['auto', 'auto']} hide />
           <Tooltip
             content={({ active, payload }) => {
-              if (active && payload && payload.length) {
+              if (active && payload?.length) {
                 const point = payload[0].payload as ChartPoint;
                 return (
                   <div className="bg-dark-800 px-3 py-2 rounded-lg border border-neon-blue shadow-lg">

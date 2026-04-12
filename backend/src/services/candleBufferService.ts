@@ -1,6 +1,9 @@
 import { cacheService } from './cacheService';
-import { redisService, RedisCandle, RedisLatestQuote } from './redisService';
-import { databaseService, StockCandle, LatestQuote } from './databaseService';
+import { databaseService } from './databaseService';
+import { redisService } from './redisService';
+
+import type { StockCandle, LatestQuote } from './databaseService';
+import type { RedisCandle, RedisLatestQuote } from './redisService';
 
 export interface CandleBuffer {
   symbol: string;
@@ -23,20 +26,20 @@ class CandleBufferService {
 
   constructor() {
     const isDev = process.env.NODE_ENV === 'development';
-    
+
     this.l1ToRedisInterval = parseInt(
       process.env.L1_TO_REDIS_INTERVAL || (isDev ? '15' : '30'),
-      10
+      10,
     ) * 1000;
-    
+
     this.redisToDbInterval = parseInt(
       process.env.REDIS_TO_DB_INTERVAL || (isDev ? '60' : '300'),
-      10
+      10,
     ) * 1000;
-    
+
     this.maxBufferSize = parseInt(
       process.env.MAX_BUFFER_SIZE || (isDev ? '10' : '100'),
-      10
+      10,
     );
 
     console.log(`[CandleBuffer] Initialized with L1→Redis: ${this.l1ToRedisInterval}ms, Redis→DB: ${this.redisToDbInterval}ms, Max buffer: ${this.maxBufferSize}`);
@@ -73,14 +76,14 @@ class CandleBufferService {
     symbol: string,
     price: number,
     volume: number = 0,
-    timestamp: number = Date.now()
+    timestamp: number = Date.now(),
   ): void {
     // Round timestamp to the minute (1m candles)
     const minuteTimestamp = Math.floor(timestamp / 60000) * 60000;
-    
+
     let buffer = this.buffers.get(symbol);
 
-    if (!buffer || buffer.startTime !== minuteTimestamp) {
+    if (buffer?.startTime !== minuteTimestamp) {
       // If we have an existing buffer from a different minute, flush it first
       if (buffer && buffer.startTime !== minuteTimestamp) {
         this.flushBufferToRedis(buffer);
@@ -93,7 +96,7 @@ class CandleBufferService {
         high: price,
         low: price,
         close: price,
-        volume: volume,
+        volume,
         startTime: minuteTimestamp,
         updates: 1,
       };
@@ -116,7 +119,7 @@ class CandleBufferService {
 
   // Flush a single buffer to Redis
   private async flushBufferToRedis(buffer: CandleBuffer): Promise<void> {
-    if (buffer.updates === 0) return;
+    if (buffer.updates === 0) { return; }
 
     const candle: RedisCandle = {
       time: buffer.startTime,
@@ -139,7 +142,7 @@ class CandleBufferService {
   // Flush all L1 buffers to Redis (called on timer or shutdown)
   async flushL1ToRedis(): Promise<void> {
     const promises: Promise<void>[] = [];
-    
+
     for (const [, buffer] of this.buffers.entries()) {
       if (buffer.updates > 0) {
         promises.push(this.flushBufferToRedis(buffer));
@@ -147,7 +150,7 @@ class CandleBufferService {
     }
 
     await Promise.all(promises);
-    
+
     // Clear buffers after flush
     this.buffers.clear();
     console.log(`[CandleBuffer] Flushed ${promises.length} buffers to Redis`);
@@ -161,14 +164,14 @@ class CandleBufferService {
 
       for (const symbol of symbols) {
         const candles = await redisService.getAllCandles(symbol);
-        
-        if (candles.length === 0) continue;
+
+        if (candles.length === 0) { continue; }
 
         // Store in pending first (for recovery safety)
         await redisService.setPendingFlush(symbol, candles);
 
         // Convert to database format
-        const dbCandles: StockCandle[] = candles.map(c => ({
+        const dbCandles: StockCandle[] = candles.map((c) => ({
           time: new Date(c.time),
           symbol: c.symbol,
           open: c.open,
@@ -217,7 +220,7 @@ class CandleBufferService {
       previousClose: number;
       volume: number;
     },
-    source: 'websocket' | 'api' | 'cache' = 'api'
+    source: 'websocket' | 'api' | 'cache' = 'api',
   ): Promise<void> {
     const timestamp = Date.now();
 
@@ -263,7 +266,7 @@ class CandleBufferService {
 
       for (const symbol of symbols) {
         const pending = await redisService.getPendingFlush(symbol);
-        
+
         if (!pending || pending.length === 0) {
           await redisService.clearPendingFlush(symbol);
           continue;
@@ -284,12 +287,12 @@ class CandleBufferService {
         // Filter out existing candles (simple timestamp-based dedup)
         const existingTimestamps = new Set<number>();
         const existingCandles = await databaseService.getCandles1m(symbol, from, to);
-        existingCandles.forEach(c => existingTimestamps.add(c.time.getTime()));
+        existingCandles.forEach((c) => existingTimestamps.add(c.time.getTime()));
 
-        const newCandles = pending.filter(c => !existingTimestamps.has(c.time));
+        const newCandles = pending.filter((c) => !existingTimestamps.has(c.time));
 
         if (newCandles.length > 0) {
-          const dbCandles: StockCandle[] = newCandles.map(c => ({
+          const dbCandles: StockCandle[] = newCandles.map((c) => ({
             time: new Date(c.time),
             symbol: c.symbol,
             open: c.open,
@@ -311,22 +314,22 @@ class CandleBufferService {
       // Also check for candles not in pending but in Redis
       const trackedSymbols = await redisService.getTrackedSymbols();
       for (const symbol of trackedSymbols) {
-        if (symbols.includes(symbol)) continue; // Already processed
+        if (symbols.includes(symbol)) { continue; } // Already processed
 
         const candles = await redisService.getAllCandles(symbol);
-        if (candles.length === 0) continue;
+        if (candles.length === 0) { continue; }
 
         const from = new Date(candles[0].time);
         const to = new Date(candles[candles.length - 1].time);
 
         const existingTimestamps = new Set<number>();
         const existingCandles = await databaseService.getCandles1m(symbol, from, to);
-        existingCandles.forEach(c => existingTimestamps.add(c.time.getTime()));
+        existingCandles.forEach((c) => existingTimestamps.add(c.time.getTime()));
 
-        const newCandles = candles.filter(c => !existingTimestamps.has(c.time));
+        const newCandles = candles.filter((c) => !existingTimestamps.has(c.time));
 
         if (newCandles.length > 0) {
-          const dbCandles: StockCandle[] = newCandles.map(c => ({
+          const dbCandles: StockCandle[] = newCandles.map((c) => ({
             time: new Date(c.time),
             symbol: c.symbol,
             open: c.open,
@@ -339,7 +342,7 @@ class CandleBufferService {
 
           const inserted = await databaseService.insertCandles1m(dbCandles);
           totalRecovered += inserted;
-          
+
           await redisService.clearCandles(symbol);
           console.log(`[Recovery] Recovered ${inserted} orphaned candles for ${symbol}`);
         }

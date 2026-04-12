@@ -47,5 +47,5 @@ class CacheService {
 }
 
 export const cacheService = new CacheService(
-  parseInt(process.env.CACHE_TTL_SECONDS || '60', 10)
+  parseInt(process.env.CACHE_TTL_SECONDS || '60', 10),
 );

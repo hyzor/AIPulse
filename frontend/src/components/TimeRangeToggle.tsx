@@ -1,5 +1,6 @@
 import { useTimeRange } from '../contexts/TimeRangeContext';
-import { TimeRange } from '../types';
+
+import type { TimeRange } from '../types';
 
 interface TimeRangeOption {
   value: TimeRange;
@@ -21,13 +22,13 @@ export function TimeRangeToggle() {
       {timeRangeOptions.map((option) => (
         <button
           key={option.value}
-          onClick={() => setTimeRange(option.value)}
+          onClick={() => { setTimeRange(option.value); }}
           className={`
             px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200
             ${timeRange === option.value
-              ? 'bg-neon-blue text-dark-900 shadow-lg shadow-neon-blue/20'
-              : 'text-gray-400 hover:text-white hover:bg-dark-700'
-            }
+          ? 'bg-neon-blue text-dark-900 shadow-lg shadow-neon-blue/20'
+          : 'text-gray-400 hover:text-white hover:bg-dark-700'
+        }
           `}
           title={option.description}
         >

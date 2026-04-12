@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
 import { Database, Clock, TrendingUp } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
 import { stockService } from '../services/stockService';
 
 interface DataStats {
@@ -23,7 +24,7 @@ export function DataCollectionStatus() {
           setStats((health as any).dataStats);
         }
         setLoading(false);
-      } catch (err) {
+      } catch (_err) {
         setError('Failed to load stats');
         setLoading(false);
       }
@@ -32,7 +33,7 @@ export function DataCollectionStatus() {
     fetchStats();
     // Refresh every 30 seconds
     const interval = setInterval(fetchStats, 30000);
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); };
   }, []);
 
   if (loading) {
@@ -55,15 +56,15 @@ export function DataCollectionStatus() {
   const totalCandles = stats.total1mCandles;
   const hasData = totalCandles > 0;
   const symbolCount = stats.symbols?.length || 0;
-  
+
   // Estimate hours of data (assuming 12 symbols, ~5 candles per hour per symbol)
   const estimatedHours = Math.floor(totalCandles / 12 / 5);
-  
+
   // Determine status
   let status = 'Collecting...';
   let statusColor = 'text-yellow-400';
   let progress = 0;
-  
+
   if (!hasData) {
     status = 'Starting collection...';
     statusColor = 'text-gray-400';
@@ -100,12 +101,13 @@ export function DataCollectionStatus() {
 
       {/* Progress bar */}
       <div className="w-full bg-dark-700 rounded-full h-2 mb-3">
-        <div 
+        <div
           className={`h-2 rounded-full transition-all duration-500 ${
             progress === 100 ? 'bg-neon-green' : 'bg-neon-blue'
           }`}
           style={{ width: `${Math.max(progress, 5)}%` }}
-        ></div>
+        >
+        </div>
       </div>
 
       {/* Stats */}
@@ -118,7 +120,10 @@ export function DataCollectionStatus() {
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4 text-gray-500" />
           <span className="text-gray-400">Est. Hours:</span>
-          <span className="text-white font-mono">{estimatedHours}h</span>
+          <span className="text-white font-mono">
+            {estimatedHours}
+            h
+          </span>
         </div>
       </div>
 
@@ -126,11 +131,15 @@ export function DataCollectionStatus() {
       {hasData && (
         <div className="mt-3 pt-3 border-t border-dark-700">
           <p className="text-xs text-gray-500 mb-2">
-            Tracking {symbolCount} symbols
+            Tracking
+            {' '}
+            {symbolCount}
+            {' '}
+            symbols
           </p>
           <div className="flex flex-wrap gap-1">
-            {stats.symbols?.slice(0, 8).map(symbol => (
-              <span 
+            {stats.symbols?.slice(0, 8).map((symbol) => (
+              <span
                 key={symbol}
                 className="text-xs px-1.5 py-0.5 bg-dark-700 rounded text-gray-400"
               >
@@ -139,7 +148,10 @@ export function DataCollectionStatus() {
             ))}
             {(stats.symbols?.length || 0) > 8 && (
               <span className="text-xs px-1.5 py-0.5 text-gray-500">
-                +{(stats.symbols?.length || 0) - 8} more
+                +
+                {(stats.symbols?.length || 0) - 8}
+                {' '}
+                more
               </span>
             )}
           </div>
@@ -149,15 +161,21 @@ export function DataCollectionStatus() {
       {/* Help text */}
       <div className="mt-3 pt-3 border-t border-dark-700">
         <p className="text-xs text-gray-500">
-          {!hasData ? (
-            "Data collection starts automatically. Charts will appear as data is collected."
-          ) : estimatedHours < 24 ? (
-            "1D view needs 24 hours to complete. Check back tomorrow for full charts!"
-          ) : estimatedHours < 168 ? (
-            "1D view complete! 7D view needs 7 days for full history."
-          ) : (
-            "All time ranges have complete data! Charts are fully populated."
-          )}
+          {!hasData
+            ? (
+              'Data collection starts automatically. Charts will appear as data is collected.'
+            )
+            : estimatedHours < 24
+              ? (
+                '1D view needs 24 hours to complete. Check back tomorrow for full charts!'
+              )
+              : estimatedHours < 168
+                ? (
+                  '1D view complete! 7D view needs 7 days for full history.'
+                )
+                : (
+                  'All time ranges have complete data! Charts are fully populated.'
+                )}
         </p>
       </div>
     </div>

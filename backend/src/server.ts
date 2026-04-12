@@ -1,6 +1,24 @@
-import dotenv from 'dotenv';
+import { createServer } from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+import cors from 'cors';
+import dotenv from 'dotenv';
+
+// Now import everything else
+import express from 'express';
+import { WebSocketServer } from 'ws';
+
+import { TRACKED_STOCKS } from './constants';
+import stockRoutes from './routes/stockRoutes';
+import { candleBufferService } from './services/candleBufferService';
+import { databaseService } from './services/databaseService';
+import { finnhubService } from './services/finnhubService';
+import { redisService } from './services/redisService';
+import { isMarketOpen, getMarketStatus } from './utils/marketHours';
+
+import type { WebSocketMessage, StockQuote, HealthStatus } from './types';
+import type WebSocket from 'ws';
 
 // Get the directory of this file to reliably find project root
 const __filename = fileURLToPath(import.meta.url);
@@ -17,23 +35,8 @@ console.log('[Config] Environment loaded from:', envPath);
 console.log('[Config] FINNHUB_API_KEY present:', apiKey ? 'Yes' : 'No');
 console.log('[Config] FINNHUB_API_KEY length:', apiKey ? apiKey.length : 0);
 if (apiKey) {
-  console.log('[Config] FINNHUB_API_KEY preview:', apiKey.substring(0, 4) + '...' + apiKey.substring(apiKey.length - 4));
+  console.log('[Config] FINNHUB_API_KEY preview:', `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}`);
 }
-
-// Now import everything else
-import express from 'express';
-import cors from 'cors';
-import { WebSocketServer } from 'ws';
-import { createServer } from 'http';
-import stockRoutes from './routes/stockRoutes';
-import { finnhubService } from './services/finnhubService';
-import { databaseService } from './services/databaseService';
-import { redisService } from './services/redisService';
-import { candleBufferService } from './services/candleBufferService';
-import { TRACKED_STOCKS } from './constants';
-import { isMarketOpen, getMarketStatus } from './utils/marketHours';
-import type { WebSocketMessage, StockQuote, HealthStatus } from './types';
-import type WebSocket from 'ws';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -66,7 +69,7 @@ app.use('/api', stockRoutes);
 app.get('/api/health', async (_req, res) => {
   const dbHealth = await databaseService.getHealthStatus();
   const redisHealth = { connected: redisService.getConnectionStatus(), latency: 0 };
-  
+
   if (redisHealth.connected) {
     const start = Date.now();
     await redisService.ping();
@@ -74,7 +77,7 @@ app.get('/api/health', async (_req, res) => {
   }
 
   const dbStats = await databaseService.getStats();
-  
+
   const status: HealthStatus = {
     status: dbHealth.connected && redisHealth.connected ? 'ok' : 'degraded',
     timestamp: new Date().toISOString(),
@@ -139,7 +142,7 @@ console.log(`[Config] WebSocket subscription batch delay: ${SUBSCRIPTION_BATCH_D
 
 // Process batched subscriptions
 const processBatchedSubscriptions = async () => {
-  if (pendingSubscriptions.size === 0) return;
+  if (pendingSubscriptions.size === 0) { return; }
 
   const symbols = [...pendingSubscriptions];
   pendingSubscriptions.clear();
@@ -156,7 +159,7 @@ const processBatchedSubscriptions = async () => {
   const quotes = await finnhubService.getQuotes(symbols, { batchSize: 3, delayMs: 1000 });
 
   // Broadcast to all clients
-  quotes.forEach(quote => {
+  quotes.forEach((quote) => {
     broadcastToSymbol(quote.symbol, quote);
   });
 };
@@ -164,7 +167,7 @@ const processBatchedSubscriptions = async () => {
 // Queue a symbol for batched fetching
 const queueSubscription = (symbol: string) => {
   pendingSubscriptions.add(symbol);
-  
+
   if (!subscriptionBatchTimer) {
     subscriptionBatchTimer = setTimeout(processBatchedSubscriptions, SUBSCRIPTION_BATCH_DELAY);
   }
@@ -174,15 +177,15 @@ const queueSubscription = (symbol: string) => {
 const broadcastToSymbol = (symbol: string, data: StockQuote) => {
   // Strip isCached flag for WebSocket - real-time updates are always "fresh"
   const { isCached, ...cleanData } = data;
-  
+
   const message: WebSocketMessage = {
     type: 'quote',
     symbol,
     data: cleanData,
   };
-  
+
   const messageStr = JSON.stringify(message);
-  
+
   clients.forEach((subscribedSymbols, ws) => {
     if (subscribedSymbols.has(symbol)) {
       ws.send(messageStr);
@@ -193,29 +196,29 @@ const broadcastToSymbol = (symbol: string, data: StockQuote) => {
 // WebSocket connection handler
 wss.on('connection', (ws) => {
   console.log('[WebSocket] New client connected');
-  
+
   const subscribedSymbols = new Set<string>();
   clients.set(ws, subscribedSymbols);
-  
+
   // Send welcome message
   ws.send(JSON.stringify({
     type: 'connected',
     message: 'Connected to AIPulse WebSocket',
     trackedStocks: TRACKED_STOCKS,
   }));
-  
+
   ws.on('message', async (message) => {
     try {
       const data = JSON.parse(message.toString());
-      
+
       if (data.action === 'subscribe' && data.symbol) {
         const symbol = data.symbol.toUpperCase();
         subscribedSymbols.add(symbol);
         console.log(`[WebSocket] Client subscribed to ${symbol}`);
-        
+
         // Try to get cached data first (Redis/DB survives restarts)
         const cachedQuote = await finnhubService.getQuote(symbol);
-        
+
         if (cachedQuote) {
           // Send cached data immediately
           ws.send(JSON.stringify({
@@ -223,15 +226,15 @@ wss.on('connection', (ws) => {
             symbol,
             data: cachedQuote,
           }));
-          
+
           // If this is cached (not fresh) data, also queue for API refresh
-          if (cachedQuote.isCached || cachedQuote.timestamp < Date.now()/1000 - STALE_DATA_THRESHOLD) {
+          if (cachedQuote.isCached || cachedQuote.timestamp < Date.now() / 1000 - STALE_DATA_THRESHOLD) {
             queueSubscription(symbol);
           }
         } else {
           // No cache available, queue for batched API fetch
           queueSubscription(symbol);
-          
+
           // Notify client that data is loading
           ws.send(JSON.stringify({
             type: 'loading',
@@ -240,25 +243,25 @@ wss.on('connection', (ws) => {
           }));
         }
       }
-      
+
       if (data.action === 'unsubscribe' && data.symbol) {
         const symbol = data.symbol.toUpperCase();
         subscribedSymbols.delete(symbol);
         console.log(`[WebSocket] Client unsubscribed from ${symbol}`);
       }
-    } catch (error) {
+    } catch (_error) {
       ws.send(JSON.stringify({
         type: 'error',
         error: 'Invalid message format',
       }));
     }
   });
-  
+
   ws.on('close', () => {
     console.log('[WebSocket] Client disconnected');
     clients.delete(ws);
   });
-  
+
   ws.on('error', (error) => {
     console.error('[WebSocket] Error:', error);
   });
@@ -266,11 +269,11 @@ wss.on('connection', (ws) => {
 
 // Auto-refresh interval - optimized for Finnhub free tier (60 calls/min)
 // Default 120s = 30 calls/min for 12 stocks, leaving 30 calls for other operations
-console.log(`[Config] Auto-refresh interval: ${AUTO_REFRESH_INTERVAL}ms (${(AUTO_REFRESH_INTERVAL/1000).toFixed(0)}s)`);
+console.log(`[Config] Auto-refresh interval: ${AUTO_REFRESH_INTERVAL}ms (${(AUTO_REFRESH_INTERVAL / 1000).toFixed(0)}s)`);
 console.log(`[Config] Rate limit buffer: ${RATE_LIMIT_BUFFER} calls reserved for user requests`);
 
 setInterval(async () => {
-  if (clients.size === 0) return;
+  if (clients.size === 0) { return; }
 
   // Skip auto-refresh when market is closed to preserve API quota
   if (!isMarketOpen()) {
@@ -281,10 +284,10 @@ setInterval(async () => {
 
   const activeSymbols = new Set<string>();
   clients.forEach((symbols) => {
-    symbols.forEach(symbol => activeSymbols.add(symbol));
+    symbols.forEach((symbol) => activeSymbols.add(symbol));
   });
 
-  if (activeSymbols.size === 0) return;
+  if (activeSymbols.size === 0) { return; }
 
   const rateLimitStatus = finnhubService.getRateLimitStatus();
   // Be more conservative: reserve buffer calls for user-initiated requests
@@ -299,7 +302,7 @@ setInterval(async () => {
   // Use larger delays between batches to spread load across the minute
   const quotes = await finnhubService.getQuotes(symbols, { batchSize: 3, delayMs: 1000 });
 
-  quotes.forEach(quote => {
+  quotes.forEach((quote) => {
     broadcastToSymbol(quote.symbol, quote);
 
     // Update candle buffer with new price data
@@ -310,40 +313,40 @@ setInterval(async () => {
 // Graceful shutdown handler
 async function gracefulShutdown(signal: string): Promise<void> {
   console.log(`\n[Shutdown] Received ${signal}. Starting graceful shutdown...`);
-  
+
   // Stop candle buffer timers
   console.log('[Shutdown] Stopping candle buffer timers...');
   candleBufferService.stop();
-  
+
   // Flush L1 cache to Redis
   console.log('[Shutdown] Flushing L1 cache to Redis...');
   await candleBufferService.flushL1ToRedis();
-  
+
   // Flush Redis to TimescaleDB
   console.log('[Shutdown] Flushing Redis to TimescaleDB...');
   await candleBufferService.flushRedisToDatabase();
-  
+
   // Close WebSocket server
   console.log('[Shutdown] Closing WebSocket server...');
   wss.clients.forEach((ws) => {
     ws.terminate();
   });
   wss.close();
-  
+
   // Close HTTP server
   console.log('[Shutdown] Closing HTTP server...');
   server.close(() => {
     console.log('[Shutdown] HTTP server closed');
   });
-  
+
   // Disconnect from Redis
   console.log('[Shutdown] Disconnecting from Redis...');
   await redisService.disconnect();
-  
+
   // Disconnect from TimescaleDB
   console.log('[Shutdown] Disconnecting from TimescaleDB...');
   await databaseService.disconnect();
-  
+
   console.log('[Shutdown] All connections closed. Exiting.');
   process.exit(0);
 }
@@ -416,10 +419,10 @@ async function initializeServer(): Promise<void> {
 ║  Tracked Stocks: ${TRACKED_STOCKS.length} companies                         ║
 ║  CORS Origin: ${CORS_ORIGIN}          ║
 ║  Rate Limit: ${process.env.FINNHUB_MAX_CALLS_PER_MINUTE || '58'}/60 calls/min (limit: ${process.env.FINNHUB_MAX_CALLS_PER_MINUTE || '58'})      ║
-║  Auto-refresh: ${(AUTO_REFRESH_INTERVAL/1000).toFixed(0)}s interval + ${RATE_LIMIT_BUFFER} call buffer     ║
+║  Auto-refresh: ${(AUTO_REFRESH_INTERVAL / 1000).toFixed(0)}s interval + ${RATE_LIMIT_BUFFER} call buffer     ║
 ╚════════════════════════════════════════════════════════════╝
     `);
-    
+
     if (!finnhubService.isConfigured()) {
       console.warn('\n⚠️  WARNING: FINNHUB_API_KEY not configured!');
       console.warn('   Set your API key in backend/.env file');
@@ -428,7 +431,7 @@ async function initializeServer(): Promise<void> {
       console.log('\n✅ Finnhub API configured');
       console.log(`   Rate limit: ${finnhubService.getRateLimitStatus().callsRemaining}/${process.env.FINNHUB_MAX_CALLS_PER_MINUTE || '58'} calls available`);
       console.log('   Three-tier cache: L1 (memory) → L2 (Redis AOF) → L3 (TimescaleDB)\n');
-      
+
       // Startup cache warm-up for development (fetch fresh data immediately)
       if (process.env.WARM_CACHE_ON_STARTUP === 'true') {
         console.log('[Startup] Warming cache with fresh data...');

@@ -1,12 +1,12 @@
 export const TRACKED_STOCKS = [
   // AI / Semiconductor
   'NVDA', // NVIDIA - AI chips leader
-  'AMD',  // AMD - CPUs/GPUs
+  'AMD', // AMD - CPUs/GPUs
   'AVGO', // Broadcom - semiconductors
-  'TSM',  // TSMC - chip manufacturing
+  'TSM', // TSMC - chip manufacturing
   'ASML', // ASML - lithography equipment
-  'ARM',  // ARM Holdings - chip architecture
-  'MU',   // Micron - AI memory/HBM
+  'ARM', // ARM Holdings - chip architecture
+  'MU', // Micron - AI memory/HBM
   'SNDK', // SanDisk - AI flash storage
 
   // AI Software / Tech

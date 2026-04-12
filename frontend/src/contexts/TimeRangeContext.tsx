@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { TimeRange, HistoricalDataCache, SymbolHistoryState } from '../types';
+
 import { stockService } from '../services/stockService';
+
+import type { TimeRange, HistoricalDataCache, SymbolHistoryState } from '../types';
 
 interface TimeRangeContextType {
   timeRange: TimeRange;
@@ -34,7 +36,7 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
 
   const fetchHistory = useCallback(async (symbol: string) => {
     try {
-      setHistoricalData(prev => ({
+      setHistoricalData((prev) => ({
         ...prev,
         [symbol]: {
           ...prev[symbol],
@@ -49,7 +51,7 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
 
       const data = await stockService.getHistory(symbol, timeRange);
 
-      setHistoricalData(prev => ({
+      setHistoricalData((prev) => ({
         ...prev,
         [symbol]: {
           ...prev[symbol],
@@ -63,7 +65,7 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
       }));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch history';
-      setHistoricalData(prev => ({
+      setHistoricalData((prev) => ({
         ...prev,
         [symbol]: {
           ...prev[symbol],
@@ -84,7 +86,7 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
-      const promises = symbolsToFetch.map(symbol => fetchHistory(symbol));
+      const promises = symbolsToFetch.map((symbol) => fetchHistory(symbol));
       await Promise.allSettled(promises);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch historical data');
@@ -99,8 +101,8 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
       const interval = setInterval(() => {
         fetchAllHistory(symbols);
       }, 60000); // Refresh every 60 seconds
-      
-      return () => clearInterval(interval);
+
+      return () => { clearInterval(interval); };
     }
   }, [timeRange, symbols, fetchAllHistory]);
 

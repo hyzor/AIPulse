@@ -104,14 +104,14 @@ class RateLimiter {
       if (this.stats.callsInCurrentWindow > 0) {
         console.log(`[RateLimiter] Window reset. Used ${this.stats.callsInCurrentWindow}/${this.config.maxCallsPerMinute} calls`);
       }
-      
+
       this.stats.callsInCurrentWindow = 0;
       this.stats.windowStart = now;
     }
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -131,7 +131,7 @@ console.log(`[RateLimiter] Configured: ${maxCalls} calls/min (warning at ${warni
 
 export const finnhubRateLimiter = new RateLimiter({
   maxCallsPerMinute: maxCalls,
-  warningThreshold: warningThreshold,
+  warningThreshold,
 });
 
 // For profile data which changes less frequently

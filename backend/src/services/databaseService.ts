@@ -30,9 +30,9 @@ class DatabaseService {
   private isConnected: boolean = false;
 
   constructor() {
-    const connectionString = process.env.DATABASE_URL || 
-      'postgresql://postgres:postgres@localhost:5432/aipulse';
-    
+    const connectionString = process.env.DATABASE_URL
+      || 'postgresql://postgres:postgres@localhost:5432/aipulse';
+
     this.pool = new Pool({
       connectionString,
       max: 20, // Maximum number of clients in the pool
@@ -51,7 +51,7 @@ class DatabaseService {
       const client = await this.pool.connect();
       await client.query('SELECT NOW()');
       client.release();
-      
+
       this.isConnected = true;
       console.log('[Database] Connected to TimescaleDB');
       return true;
@@ -74,11 +74,11 @@ class DatabaseService {
 
   // Insert 1-minute candles (batch insert for efficiency)
   async insertCandles1m(candles: StockCandle[]): Promise<number> {
-    if (candles.length === 0) return 0;
+    if (candles.length === 0) { return 0; }
 
     const values: (string | number | Date)[] = [];
     const placeholders: string[] = [];
-    
+
     candles.forEach((candle, index) => {
       const offset = index * 8;
       placeholders.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8})`);
@@ -90,7 +90,7 @@ class DatabaseService {
         candle.low,
         candle.close,
         candle.volume,
-        candle.source || 'finnhub'
+        candle.source || 'finnhub',
       );
     });
 
@@ -117,9 +117,9 @@ class DatabaseService {
 
   // Get candles for a symbol in a time range
   async getCandles1m(
-    symbol: string, 
-    from: Date, 
-    to: Date
+    symbol: string,
+    from: Date,
+    to: Date,
   ): Promise<StockCandle[]> {
     const query = `
       SELECT time, symbol, open, high, low, close, volume, source
@@ -130,7 +130,7 @@ class DatabaseService {
 
     try {
       const result = await this.pool.query(query, [symbol, from, to]);
-      return result.rows.map(row => ({
+      return result.rows.map((row) => ({
         time: row.time,
         symbol: row.symbol,
         open: parseFloat(row.open),
@@ -151,10 +151,10 @@ class DatabaseService {
     symbol: string,
     from: Date,
     to: Date,
-    resolution: '1m' | '1h' | '1d'
+    resolution: '1m' | '1h' | '1d',
   ): Promise<StockCandle[]> {
     let table: string;
-    
+
     switch (resolution) {
       case '1h':
         table = 'stock_candles_1h';
@@ -175,7 +175,7 @@ class DatabaseService {
 
     try {
       const result = await this.pool.query(query, [symbol, from, to]);
-      return result.rows.map(row => ({
+      return result.rows.map((row) => ({
         time: row.time,
         symbol: row.symbol,
         open: parseFloat(row.open),
@@ -202,7 +202,7 @@ class DatabaseService {
 
     try {
       const result = await this.pool.query(query, [symbol]);
-      if (result.rows.length === 0) return null;
+      if (result.rows.length === 0) { return null; }
 
       const row = result.rows[0];
       return {
@@ -327,7 +327,7 @@ class DatabaseService {
   // Get system state value
   async getSystemState(key: string): Promise<string | null> {
     const query = 'SELECT value FROM system_state WHERE key = $1';
-    
+
     try {
       const result = await this.pool.query(query, [key]);
       return result.rows.length > 0 ? result.rows[0].value : null;
@@ -357,7 +357,7 @@ class DatabaseService {
   // Get health status
   async getHealthStatus(): Promise<{ connected: boolean; latency: number }> {
     const start = Date.now();
-    
+
     try {
       await this.pool.query('SELECT 1');
       return {
@@ -391,7 +391,7 @@ class DatabaseService {
         total1mCandles: parseInt(candles1m.rows[0].count, 10),
         total1hCandles: parseInt(candles1h.rows[0].count, 10),
         total1dCandles: parseInt(candles1d.rows[0].count, 10),
-        symbols: symbols.rows.map(r => r.symbol),
+        symbols: symbols.rows.map((r) => r.symbol),
       };
     } catch (error) {
       console.error('[Database] Error fetching stats:', error);

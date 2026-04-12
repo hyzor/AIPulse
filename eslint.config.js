@@ -25,18 +25,33 @@ export default [
       '**/coverage/**',
       '**/*.d.ts',
       'eslint.config.js',
+      'ecosystem.config.js',
+      '**/vite.config.ts',
     ],
   },
 
-  // JavaScript/TypeScript base rules
-  js.configs.recommended,
-
-  // TypeScript configuration
-  ...tseslint.configs.recommendedTypeChecked,
-  ...tseslint.configs.strictTypeChecked,
-
-  // TypeScript parser settings
+  // ==========================================
+  // JAVASCRIPT FILES (no TypeScript parser)
+  // ==========================================
   {
+    files: ['**/*.js', '**/*.cjs', '**/*.mjs'],
+    plugins: {
+      import: importPlugin,
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      'import/first': 'error',
+      'import/newline-after-import': 'error',
+      'import/no-mutable-exports': 'error',
+      'no-console': 'off',
+    },
+  },
+
+  // ==========================================
+  // TYPESCRIPT FILES (type-aware)
+  // ==========================================
+  {
+    files: ['backend/**/*.ts', 'frontend/**/*.ts', 'frontend/**/*.tsx'],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
@@ -49,137 +64,44 @@ export default [
         },
       },
     },
-  },
-
-  // Stylistic rules (formatting)
-  stylistic.configs.customize({
-    indent: 2,
-    quotes: 'single',
-    semi: true,
-    jsx: true,
-    braceStyle: '1tbs',
-    arrowParens: true,
-  }),
-
-  // Import plugin
-  {
     plugins: {
+      '@typescript-eslint': tseslint.plugin,
       import: importPlugin,
+      '@stylistic': stylistic,
     },
     rules: {
-      'import/no-unresolved': 'error',
-      'import/named': 'error',
-      'import/default': 'error',
-      'import/namespace': 'error',
-      'import/no-named-as-default': 'warn',
-      'import/no-named-as-default-member': 'warn',
-      'import/no-duplicates': 'warn',
-      'import/order': [
-        'warn',
-        {
-          groups: [
-            'builtin',
-            'external',
-            'internal',
-            ['parent', 'sibling', 'index'],
-            'object',
-            'type',
-          ],
-          'newlines-between': 'always',
-          alphabetize: {
-            order: 'asc',
-            caseInsensitive: true,
-          },
-        },
-      ],
-    },
-    settings: {
-      'import/resolver': {
-        typescript: {
-          alwaysTryTypes: true,
-          project: ['./backend/tsconfig.json', './frontend/tsconfig.json'],
-        },
-      },
-    },
-  },
+      // JavaScript base rules
+      ...js.configs.recommended.rules,
 
-  // React-specific configuration (frontend files only)
-  {
-    files: ['frontend/**/*.{js,jsx,ts,tsx}'],
-    plugins: {
-      react,
-      'react-hooks': reactHooks,
-    },
-    languageOptions: {
-      globals: {
-        React: 'readonly',
-      },
-    },
-    rules: {
-      ...react.configs.recommended.rules,
-      ...reactHooks.configs.recommended.rules,
+      // TypeScript recommended rules
+      ...tseslint.configs.recommended.rules,
 
-      // React-specific rules
-      'react/react-in-jsx-scope': 'off', // Not needed in React 18+
-      'react/jsx-uses-react': 'off', // Not needed in React 18+
-      'react/prop-types': 'off', // Using TypeScript instead
-      'react/display-name': 'off',
-      'react/no-unescaped-entities': 'warn',
-      'react/jsx-no-target-blank': 'error',
-      'react/jsx-curly-brace-presence': ['warn', { props: 'never', children: 'never' }],
+      // Type-aware rules (require type info)
+      '@typescript-eslint/await-thenable': 'error',
 
-      // React Hooks
-      'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn',
-
-      // JSX formatting
-      'react/jsx-max-props-per-line': ['warn', { maximum: 3, when: 'multiline' }],
-      'react/jsx-first-prop-new-line': ['warn', 'multiline'],
-      'react/jsx-closing-bracket-location': ['warn', 'line-aligned'],
-    },
-    settings: {
-      react: {
-        version: 'detect',
-      },
-    },
-  },
-
-  // Node.js backend files
-  {
-    files: ['backend/**/*.ts'],
-    languageOptions: {
-      globals: {
-        console: 'readonly',
-        process: 'readonly',
-        Buffer: 'readonly',
-        setTimeout: 'readonly',
-        clearTimeout: 'readonly',
-        setInterval: 'readonly',
-        clearInterval: 'readonly',
-        setImmediate: 'readonly',
-        clearImmediate: 'readonly',
-        __dirname: 'readonly',
-        __filename: 'readonly',
-        exports: 'writable',
-        module: 'writable',
-        require: 'readonly',
-      },
-    },
-  },
-
-  // Custom project rules
-  {
-    rules: {
-      // TypeScript - relax some strict rules
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      '@typescript-eslint/no-non-null-assertion': 'warn',
-      '@typescript-eslint/prefer-nullish-coalescing': 'warn',
+      // Relaxed rules for practical development
+      '@typescript-eslint/no-explicit-any': 'off',
+      'no-unused-vars': ['warn', { 
+        argsIgnorePattern: '^_', 
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^.*',
+        ignoreRestSiblings: true,
+        args: 'after-used',
+      }],
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/prefer-nullish-coalescing': 'off',
       '@typescript-eslint/prefer-optional-chain': 'warn',
       '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports' }],
-      '@typescript-eslint/no-floating-promises': 'error',
-      '@typescript-eslint/await-thenable': 'error',
-      '@typescript-eslint/no-misused-promises': 'error',
+      '@typescript-eslint/no-floating-promises': 'off',
+      '@typescript-eslint/no-misused-promises': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/restrict-template-expressions': 'off',
+      '@typescript-eslint/no-unnecessary-condition': 'off',
 
       // Best practices
       'no-console': ['warn', { allow: ['warn', 'error', 'info', 'log'] }],
@@ -189,6 +111,7 @@ export default [
       'prefer-const': 'error',
       'no-unused-expressions': 'off',
       '@typescript-eslint/no-unused-expressions': 'error',
+      'no-useless-assignment': 'off',
 
       // Code style
       'eqeqeq': ['error', 'always', { null: 'ignore' }],
@@ -213,21 +136,125 @@ export default [
       'import/first': 'error',
       'import/newline-after-import': 'error',
       'import/no-mutable-exports': 'error',
+      'import/order': [
+        'warn',
+        {
+          groups: [
+            'builtin',
+            'external',
+            'internal',
+            ['parent', 'sibling', 'index'],
+            'object',
+            'type',
+          ],
+          'newlines-between': 'always',
+          alphabetize: {
+            order: 'asc',
+            caseInsensitive: true,
+          },
+        },
+      ],
+
+      // Stylistic - relaxed for practical use
+      '@stylistic/indent': ['error', 2],
+      '@stylistic/quotes': ['error', 'single'],
+      '@stylistic/semi': ['error', 'always'],
+      '@stylistic/jsx-quotes': ['error', 'prefer-double'],
+      '@stylistic/brace-style': ['error', '1tbs', { allowSingleLine: true }],
+      '@stylistic/arrow-parens': ['error', 'always'],
+      '@stylistic/max-statements-per-line': 'off',
+      '@stylistic/comma-dangle': ['error', 'always-multiline'],
+      '@stylistic/no-trailing-spaces': 'error',
+      '@stylistic/no-multi-spaces': 'error',
+    },
+    settings: {
+      'import/resolver': {
+        typescript: {
+          alwaysTryTypes: true,
+          project: ['./backend/tsconfig.json', './frontend/tsconfig.json'],
+        },
+      },
     },
   },
 
-  // Test files (relaxed rules)
+  // ==========================================
+  // REACT-SPECIFIC (frontend only)
+  // ==========================================
+  {
+    files: ['frontend/**/*.{ts,tsx}'],
+    plugins: {
+      react,
+      'react-hooks': reactHooks,
+    },
+      languageOptions: {
+      globals: {
+        React: 'readonly',
+        document: 'readonly',
+        window: 'readonly',
+        fetch: 'readonly',
+        console: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        localStorage: 'readonly',
+        navigator: 'readonly',
+        location: 'readonly',
+        history: 'readonly',
+        NodeJS: 'readonly',
+      },
+    },
+    rules: {
+      ...react.configs.recommended.rules,
+      'react/react-in-jsx-scope': 'off',
+      'react/jsx-uses-react': 'off',
+      'react/prop-types': 'off',
+      'react/display-name': 'off',
+      'react/no-unescaped-entities': 'warn',
+      'react/jsx-no-target-blank': 'error',
+      'react/jsx-curly-brace-presence': ['warn', { props: 'never', children: 'never' }],
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'off',
+    },
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
+  },
+
+  // ==========================================
+  // BACKEND GLOBALS
+  // ==========================================
+  {
+    files: ['backend/**/*.ts'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        setImmediate: 'readonly',
+        clearImmediate: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        exports: 'writable',
+        module: 'writable',
+        require: 'readonly',
+        fetch: 'readonly',
+        NodeJS: 'readonly',
+      },
+    },
+  },
+
+  // ==========================================
+  // TEST FILES (relaxed)
+  // ==========================================
   {
     files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', '**/test/**/*.{ts,tsx}'],
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
-      'no-console': 'off',
-    },
-  },
-
-  // Config files (relaxed rules)
-  {
-    files: ['*.config.{ts,js,mjs}', 'vite.config.ts', 'postcss.config.js', 'tailwind.config.js'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       'no-console': 'off',

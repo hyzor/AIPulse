@@ -1,6 +1,6 @@
 /**
  * Market hours utility for backend
- * 
+ *
  * Determines when US stock markets (NASDAQ/NYSE) are open.
  * Used to skip unnecessary API calls when markets are closed,
  * preserving Finnhub API quota.
@@ -118,12 +118,12 @@ function getTimeInET(date: Date): { hour: number; minute: number; timeDecimal: n
 
 /**
  * Check if the US stock market is currently open
- * 
+ *
  * Market is considered OPEN when:
  * - It's a weekday (Monday-Friday)
  * - It's not a market holiday
  * - Time is between 9:30 AM - 4:00 PM ET
- * 
+ *
  * @param now Optional date to check (defaults to current time)
  * @returns true if market is open, false otherwise
  */
@@ -150,7 +150,7 @@ export function isMarketOpen(now: Date = new Date()): boolean {
 
 /**
  * Check if today is a trading day (weekday that's not a holiday)
- * 
+ *
  * @param now Optional date to check (defaults to current time)
  * @returns true if today is a trading day, false otherwise
  */
@@ -226,5 +226,3 @@ export function getMarketStatus(now: Date = new Date()): MarketStatus {
     message,
   };
 }
-
-

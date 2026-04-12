@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { StockQuote, WebSocketMessage } from '../types';
+
+import type { StockQuote, WebSocketMessage } from '../types';
 
 // Dynamic WebSocket URL - works in both dev and production
 // Uses current host, automatically switches between ws:// (http) and wss:// (https)
 const getWebSocketUrl = (): string => {
   // Check for explicit env var first (useful for custom setups)
   const envUrl = import.meta.env.VITE_WS_URL;
-  if (envUrl) return envUrl;
+  if (envUrl) { return envUrl; }
 
   // In dev mode, connect directly to backend on port 3001
   if (import.meta.env.DEV) {
@@ -15,7 +16,7 @@ const getWebSocketUrl = (): string => {
 
   // In production, use current host (assumes frontend and backend are on same origin)
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = window.location.host;
+  const { host } = window.location;
   return `${protocol}//${host}/ws`;
 };
 
@@ -55,7 +56,7 @@ export function useWebSocket(): UseWebSocketReturn {
         setError(null);
 
         // Resubscribe to previously subscribed symbols
-        subscribedSymbols.current.forEach(symbol => {
+        subscribedSymbols.current.forEach((symbol) => {
           ws.send(JSON.stringify({ action: 'subscribe', symbol }));
         });
       };
@@ -67,7 +68,7 @@ export function useWebSocket(): UseWebSocketReturn {
           switch (message.type) {
             case 'quote':
               if (message.data) {
-                setQuotes(prev => {
+                setQuotes((prev) => {
                   const newQuotes = new Map(prev);
                   newQuotes.set(message.data!.symbol, message.data!);
                   return newQuotes;
@@ -163,10 +164,10 @@ export function useWebSocket(): UseWebSocketReturn {
 export function useAutoRefresh(
   fetchFn: () => Promise<void>,
   intervalMs: number = 30000,
-  enabled: boolean = true
+  enabled: boolean = true,
 ) {
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) { return; }
 
     // Initial fetch
     fetchFn();
@@ -175,6 +176,6 @@ export function useAutoRefresh(
       fetchFn();
     }, intervalMs);
 
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); };
   }, [fetchFn, intervalMs, enabled]);
 }

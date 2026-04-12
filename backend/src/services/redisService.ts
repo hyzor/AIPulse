@@ -1,4 +1,6 @@
-import { createClient, RedisClientType } from 'redis';
+import { createClient } from 'redis';
+
+import type { RedisClientType } from 'redis';
 
 export interface RedisCandle {
   time: number; // Unix timestamp in milliseconds
@@ -30,7 +32,7 @@ class RedisService {
   async connect(): Promise<boolean> {
     try {
       const url = process.env.REDIS_URL || 'redis://localhost:6379';
-      
+
       this.client = createClient({
         url,
         socket: {
@@ -76,7 +78,7 @@ class RedisService {
 
   // Add a 1m candle to the sorted set for a symbol
   async addCandle(symbol: string, candle: RedisCandle): Promise<void> {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) { throw new Error('Redis not connected'); }
 
     const key = `quotes:${symbol}`;
     const value = JSON.stringify({
@@ -93,10 +95,10 @@ class RedisService {
 
   // Add multiple candles (batch insert)
   async addCandles(symbol: string, candles: RedisCandle[]): Promise<void> {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) { throw new Error('Redis not connected'); }
 
     const key = `quotes:${symbol}`;
-    const members = candles.map(candle => ({
+    const members = candles.map((candle) => ({
       score: candle.time,
       value: JSON.stringify({
         o: candle.open,
@@ -114,7 +116,7 @@ class RedisService {
 
   // Get candles for a symbol in a time range
   async getCandles(symbol: string, from: number, to: number): Promise<RedisCandle[]> {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) { throw new Error('Redis not connected'); }
 
     const key = `quotes:${symbol}`;
     const results = await this.client.zRangeByScoreWithScores(key, from, to);
@@ -135,7 +137,7 @@ class RedisService {
 
   // Get candles by index range (more efficient for "last N candles" queries)
   async getCandlesByRange(symbol: string, start: number, stop: number): Promise<RedisCandle[]> {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) { throw new Error('Redis not connected'); }
 
     const key = `quotes:${symbol}`;
     const results = await this.client.zRangeWithScores(key, start, stop);
@@ -156,12 +158,12 @@ class RedisService {
 
   // Get the latest candle for a symbol
   async getLatestCandle(symbol: string): Promise<RedisCandle | null> {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) { throw new Error('Redis not connected'); }
 
     const key = `quotes:${symbol}`;
     const results = await this.client.zRangeWithScores(key, -1, -1);
 
-    if (results.length === 0) return null;
+    if (results.length === 0) { return null; }
 
     const result = results[0];
     const data = JSON.parse(result.value);
@@ -179,7 +181,7 @@ class RedisService {
 
   // Get all candles for a symbol (for flush to DB)
   async getAllCandles(symbol: string): Promise<RedisCandle[]> {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) { throw new Error('Redis not connected'); }
 
     const key = `quotes:${symbol}`;
     const results = await this.client.zRangeWithScores(key, 0, -1);
@@ -200,18 +202,18 @@ class RedisService {
 
   // Trim old candles (keep only last 7 days)
   async trimOldCandles(symbol: string, keepDays: number = 7): Promise<number> {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) { throw new Error('Redis not connected'); }
 
     const key = `quotes:${symbol}`;
     const cutoff = Date.now() - (keepDays * 24 * 60 * 60 * 1000);
 
     // Remove all entries with score < cutoff
-    return await this.client.zRemRangeByScore(key, 0, cutoff);
+    return this.client.zRemRangeByScore(key, 0, cutoff);
   }
 
   // Update latest quote (real-time price)
   async updateLatestQuote(symbol: string, quote: RedisLatestQuote): Promise<void> {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) { throw new Error('Redis not connected'); }
 
     const key = `latest:${symbol}`;
     await this.client.hSet(key, {
@@ -230,12 +232,12 @@ class RedisService {
 
   // Get latest quote
   async getLatestQuote(symbol: string): Promise<RedisLatestQuote | null> {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) { throw new Error('Redis not connected'); }
 
     const key = `latest:${symbol}`;
     const data = await this.client.hGetAll(key);
 
-    if (Object.keys(data).length === 0) return null;
+    if (Object.keys(data).length === 0) { return null; }
 
     return {
       currentPrice: parseFloat(data.currentPrice),
@@ -254,7 +256,7 @@ class RedisService {
   // Store pending candles that need to be flushed to TimescaleDB
   // Used for recovery if the server restarts before flush
   async setPendingFlush(symbol: string, candles: RedisCandle[]): Promise<void> {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) { throw new Error('Redis not connected'); }
 
     const key = `pending:timescale_flush:${symbol}`;
     const data = JSON.stringify(candles);
@@ -264,19 +266,19 @@ class RedisService {
 
   // Get pending candles for recovery
   async getPendingFlush(symbol: string): Promise<RedisCandle[] | null> {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) { throw new Error('Redis not connected'); }
 
     const key = `pending:timescale_flush:${symbol}`;
     const data = await this.client.get(key);
 
-    if (!data) return null;
+    if (!data) { return null; }
 
     return JSON.parse(data);
   }
 
   // Clear pending flush after successful DB write
   async clearPendingFlush(symbol: string): Promise<void> {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) { throw new Error('Redis not connected'); }
 
     const key = `pending:timescale_flush:${symbol}`;
     await this.client.del(key);
@@ -284,15 +286,15 @@ class RedisService {
 
   // Get all symbols with pending data (for recovery)
   async getPendingSymbols(): Promise<string[]> {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) { throw new Error('Redis not connected'); }
 
     const keys = await this.client.keys('pending:timescale_flush:*');
-    return keys.map(key => key.replace('pending:timescale_flush:', ''));
+    return keys.map((key) => key.replace('pending:timescale_flush:', ''));
   }
 
   // Clear all candles for a symbol (after successful DB flush)
   async clearCandles(symbol: string): Promise<void> {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) { throw new Error('Redis not connected'); }
 
     const key = `quotes:${symbol}`;
     await this.client.del(key);
@@ -300,15 +302,15 @@ class RedisService {
 
   // Get all tracked symbols (any symbol with data in Redis)
   async getTrackedSymbols(): Promise<string[]> {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) { throw new Error('Redis not connected'); }
 
     const keys = await this.client.keys('quotes:*');
-    return keys.map(key => key.replace('quotes:', ''));
+    return keys.map((key) => key.replace('quotes:', ''));
   }
 
   // Health check
   async ping(): Promise<boolean> {
-    if (!this.client) return false;
+    if (!this.client) { return false; }
 
     try {
       const result = await this.client.ping();
@@ -320,7 +322,7 @@ class RedisService {
 
   // Get Redis memory stats
   async getMemoryStats(): Promise<{ used: number; keys: number }> {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) { throw new Error('Redis not connected'); }
 
     const info = await this.client.info('memory');
     const usedMatch = info.match(/used_memory:(\d+)/);
@@ -333,12 +335,12 @@ class RedisService {
 
   // Get the last timestamp for a symbol (for gap detection)
   async getLatestTimestamp(symbol: string): Promise<number | null> {
-    if (!this.client) throw new Error('Redis not connected');
+    if (!this.client) { throw new Error('Redis not connected'); }
 
     const key = `quotes:${symbol}`;
     const results = await this.client.zRangeWithScores(key, -1, -1);
 
-    if (results.length === 0) return null;
+    if (results.length === 0) { return null; }
 
     return results[0].score;
   }

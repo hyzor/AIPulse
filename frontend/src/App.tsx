@@ -1,13 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
+
+import { DataCollectionStatus } from './components/DataCollectionStatus';
+import { ExpandedChartModal } from './components/ExpandedChartModal';
 import { Header } from './components/Header';
 import { StatusBar } from './components/StatusBar';
 import { StockGrid } from './components/StockGrid';
-import { ExpandedChartModal } from './components/ExpandedChartModal';
-import { DataCollectionStatus } from './components/DataCollectionStatus';
 import { TimeRangeProvider } from './contexts/TimeRangeContext';
-import { stockService } from './services/stockService';
 import { useWebSocket, useAutoRefresh } from './hooks/useWebSocket';
-import { StockQuote, RateLimitStatus, STOCK_CATEGORIES } from './types';
+import { stockService } from './services/stockService';
+import { STOCK_CATEGORIES } from './types';
+
+import type { StockQuote, RateLimitStatus } from './types';
 
 function AppContent() {
   const [stocks, setStocks] = useState<Map<string, StockQuote>>(new Map());
@@ -37,7 +40,7 @@ function AppContent() {
 
     try {
       const data = await stockService.getAllStocks();
-      const stocksMap = new Map(data.map(quote => [quote.symbol, quote]));
+      const stocksMap = new Map(data.map((quote) => [quote.symbol, quote]));
       setStocks(stocksMap);
       setLastUpdate(new Date());
 
@@ -47,7 +50,7 @@ function AppContent() {
       await fetchRateLimit();
 
       // Subscribe to all stocks via WebSocket
-      data.forEach(quote => subscribe(quote.symbol));
+      data.forEach((quote) => { subscribe(quote.symbol); });
     } catch (err) {
       console.error('Failed to fetch stocks:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch stock data');
@@ -86,7 +89,7 @@ function AppContent() {
   // Get stocks by category
   const getStocksByCategory = (symbols: string[]) => {
     return symbols
-      .map(symbol => mergedStocks.get(symbol))
+      .map((symbol) => mergedStocks.get(symbol))
       .filter((quote): quote is StockQuote => quote !== undefined);
   };
 
@@ -123,36 +126,40 @@ function AppContent() {
               AI Market Overview
             </h2>
             <span className="text-sm text-gray-500">
-              {isConnected 
-                ? `Real-time updates active ${rateLimit ? `(${rateLimit.callsRemaining} calls left)` : ''}` 
+              {isConnected
+                ? `Real-time updates active ${rateLimit ? `(${rateLimit.callsRemaining} calls left)` : ''}`
                 : 'Polling mode (60s refresh)'}
             </span>
           </div>
 
-          {isLoading && stocks.size === 0 ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="flex items-center gap-3">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neon-blue"></div>
-                <span className="text-gray-400">Loading stock data...</span>
+          {isLoading && stocks.size === 0
+            ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="flex items-center gap-3">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neon-blue"></div>
+                  <span className="text-gray-400">Loading stock data...</span>
+                </div>
               </div>
-            </div>
-          ) : stocks.size > 0 ? (
-            <StockGrid
-              quotes={allStocks}
-              realtimeQuotes={realtimeQuotes}
-              onStockClick={handleStockClick}
-            />
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-400">No stock data available. Check your API configuration.</p>
-            </div>
-          )}
+            )
+            : stocks.size > 0
+              ? (
+                <StockGrid
+                  quotes={allStocks}
+                  realtimeQuotes={realtimeQuotes}
+                  onStockClick={handleStockClick}
+                />
+              )
+              : (
+                <div className="text-center py-12">
+                  <p className="text-gray-400">No stock data available. Check your API configuration.</p>
+                </div>
+              )}
         </section>
 
         {/* Categories */}
         {Object.entries(STOCK_CATEGORIES).map(([category, symbols]) => {
           const categoryStocks = getStocksByCategory(symbols);
-          if (categoryStocks.length === 0) return null;
+          if (categoryStocks.length === 0) { return null; }
 
           return (
             <section key={category} className="mb-12">

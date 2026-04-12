@@ -1,9 +1,12 @@
 import { TrendingUp, TrendingDown, Activity, Database } from 'lucide-react';
-import { StockQuote, STOCK_DISPLAY_NAMES, STOCK_CATEGORIES, STOCK_COUNTRIES } from '../types';
-import { formatCurrency, formatChange, getChangeColor, getChangeBgColor, getChangeLabel, checkMarketOpen, getExchangeForSymbol, isSameTradingDay } from '../utils/format';
-import { useTimeRange } from '../contexts/TimeRangeContext';
-import { MiniAreaChart } from './MiniAreaChart';
+
+import { STOCK_DISPLAY_NAMES, STOCK_CATEGORIES, STOCK_COUNTRIES } from '../types';
 import { LoadingSkeleton } from './LoadingSkeleton';
+import { MiniAreaChart } from './MiniAreaChart';
+import { useTimeRange } from '../contexts/TimeRangeContext';
+import { formatCurrency, formatChange, getChangeColor, getChangeBgColor, getChangeLabel, checkMarketOpen, getExchangeForSymbol, isSameTradingDay } from '../utils/format';
+
+import type { StockQuote } from '../types';
 
 interface StockCardProps {
   quote: StockQuote;
@@ -15,14 +18,14 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
   const isPositive = quote.change >= 0;
   const displayName = STOCK_DISPLAY_NAMES[quote.symbol] || quote.symbol;
   const { getSymbolData, timeRange } = useTimeRange();
-  
+
   const historicalData = getSymbolData(quote.symbol);
   const isLoading = historicalData?.loading ?? true;
   const hasError = !!historicalData?.error;
-  
+
   // Find category for this stock
-  const category = Object.entries(STOCK_CATEGORIES).find(([_, symbols]) => 
-    symbols.includes(quote.symbol)
+  const category = Object.entries(STOCK_CATEGORIES).find(([_, symbols]) =>
+    symbols.includes(quote.symbol),
   )?.[0] || 'Other';
 
   // Check if market is currently open AND the quote is from today
@@ -36,7 +39,7 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
   const show1DLiveIndicator = isMarketOpen && isFromToday && timeRange === '1d' && !isRealtime;
 
   return (
-    <div 
+    <div
       onClick={onClick}
       className={`
         relative bg-dark-700 border border-dark-600 rounded-xl p-5 
@@ -86,11 +89,13 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
           <p className="text-sm text-gray-400 ml-7">{displayName}</p>
         </div>
         <div className={`flex items-center gap-1 px-3 py-1.5 rounded-lg ${getChangeBgColor(quote.change)}`}>
-          {isPositive ? (
-            <TrendingUp className="w-4 h-4 text-neon-green" />
-          ) : (
-            <TrendingDown className="w-4 h-4 text-neon-red" />
-          )}
+          {isPositive
+            ? (
+              <TrendingUp className="w-4 h-4 text-neon-green" />
+            )
+            : (
+              <TrendingDown className="w-4 h-4 text-neon-red" />
+            )}
           <span className={`text-sm font-bold ${getChangeColor(quote.change)}`}>
             {formatChange(quote.changePercent)}
           </span>
@@ -102,26 +107,33 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
           {formatCurrency(quote.currentPrice)}
         </p>
         <p className={`text-sm font-medium ${getChangeColor(quote.change)}`}>
-          {quote.change >= 0 ? '+' : ''}{formatCurrency(quote.change)} {getChangeLabel(quote.symbol, quote.timestamp)}
+          {quote.change >= 0 ? '+' : ''}
+          {formatCurrency(quote.change)}
+          {' '}
+          {getChangeLabel(quote.symbol, quote.timestamp)}
         </p>
       </div>
 
       {/* Chart Area */}
       <div className="mb-3 h-20">
-        {isLoading ? (
-          <LoadingSkeleton width={280} height={80} />
-        ) : hasError ? (
-          <div className="h-full flex items-center justify-center bg-dark-800/50 rounded">
-            <span className="text-gray-500 text-xs">Chart unavailable</span>
-          </div>
-        ) : (
-          <MiniAreaChart 
-            data={historicalData?.candles || []} 
-            symbol={quote.symbol}
-            width={280}
-            height={80}
-          />
-        )}
+        {isLoading
+          ? (
+            <LoadingSkeleton width={280} height={80} />
+          )
+          : hasError
+            ? (
+              <div className="h-full flex items-center justify-center bg-dark-800/50 rounded">
+                <span className="text-gray-500 text-xs">Chart unavailable</span>
+              </div>
+            )
+            : (
+              <MiniAreaChart
+                data={historicalData?.candles || []}
+                symbol={quote.symbol}
+                width={280}
+                height={80}
+              />
+            )}
       </div>
 
       <div className="pt-3 border-t border-dark-600">

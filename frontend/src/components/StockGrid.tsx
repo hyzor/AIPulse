@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
-import { StockQuote } from '../types';
-import { useTimeRange } from '../contexts/TimeRangeContext';
+
 import { StockCard } from './StockCard';
+import { useTimeRange } from '../contexts/TimeRangeContext';
+
+import type { StockQuote } from '../types';
 
 interface StockGridProps {
   quotes: StockQuote[];
@@ -13,7 +15,7 @@ export function StockGrid({ quotes, realtimeQuotes, onStockClick }: StockGridPro
   const { fetchAllHistory, timeRange } = useTimeRange();
 
   // Get symbols from the quotes prop (respects category filtering)
-  const symbols = quotes.map(q => q.symbol);
+  const symbols = quotes.map((q) => q.symbol);
 
   // Fetch historical data when time range changes
   useEffect(() => {
@@ -23,10 +25,10 @@ export function StockGrid({ quotes, realtimeQuotes, onStockClick }: StockGridPro
   }, [timeRange, fetchAllHistory, symbols.join(',')]);
 
   // Create a map for quick lookup
-  const quotesMap = new Map(quotes.map(q => [q.symbol, q]));
-  
+  const quotesMap = new Map(quotes.map((q) => [q.symbol, q]));
+
   // Merge with real-time updates (only for symbols in this grid)
-  const mergedQuotes = symbols.map(symbol => {
+  const mergedQuotes = symbols.map((symbol) => {
     const realtime = realtimeQuotes.get(symbol);
     const base = quotesMap.get(symbol);
     return realtime || base || {
@@ -49,7 +51,7 @@ export function StockGrid({ quotes, realtimeQuotes, onStockClick }: StockGridPro
           key={quote.symbol}
           quote={quote}
           isRealtime={realtimeQuotes.has(quote.symbol)}
-          onClick={() => onStockClick(quote.symbol)}
+          onClick={() => { onStockClick(quote.symbol); }}
         />
       ))}
     </div>

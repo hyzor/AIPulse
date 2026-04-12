@@ -1,6 +1,8 @@
 import { TrendingUp, TrendingDown, BarChart3, Clock } from 'lucide-react';
-import { CandleData } from '../types';
+
 import { formatCurrency, formatNumber } from '../utils/format';
+
+import type { CandleData } from '../types';
 
 interface StatsPanelProps {
   candles: CandleData[];
@@ -33,8 +35,8 @@ export function StatsPanel({ candles, currentPrice: _currentPrice, change, chang
     );
   }
 
-  const high = Math.max(...candles.map(c => c.h));
-  const low = Math.min(...candles.map(c => c.l));
+  const high = Math.max(...candles.map((c) => c.h));
+  const low = Math.min(...candles.map((c) => c.l));
   const totalVolume = candles.reduce((sum, c) => sum + c.v, 0);
   const isPositive = change >= 0;
 
@@ -70,7 +72,9 @@ export function StatsPanel({ candles, currentPrice: _currentPrice, change, chang
           <p className="text-xs text-gray-500 uppercase">Change</p>
         </div>
         <p className={`text-lg font-mono ${isPositive ? 'text-neon-green' : 'text-neon-red'}`}>
-          {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
+          {isPositive ? '+' : ''}
+          {changePercent.toFixed(2)}
+          %
         </p>
       </div>
     </div>

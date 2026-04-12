@@ -1,9 +1,11 @@
-import { StockQuote, FinnhubQuote, FinnhubProfile } from '../types';
 import { cacheService } from './cacheService';
-import { redisService } from './redisService';
 import { databaseService } from './databaseService';
-import { finnhubRateLimiter, profileRateLimiter, UsageStats } from './rateLimiter';
+import { finnhubRateLimiter, profileRateLimiter } from './rateLimiter';
+import { redisService } from './redisService';
 import { isMarketOpen, getMarketStatus } from '../utils/marketHours';
+
+import type { UsageStats } from './rateLimiter';
+import type { StockQuote, FinnhubQuote, FinnhubProfile } from '../types';
 
 const FINNHUB_API_URL = 'https://finnhub.io/api/v1';
 
@@ -23,7 +25,7 @@ class FinnhubService {
 
   private async fetchFromApi<T>(endpoint: string, useRateLimiter: boolean = true): Promise<T | null> {
     const apiKey = this.getApiKey();
-    
+
     if (!apiKey) {
       throw new Error('FINNHUB_API_KEY not configured');
     }
@@ -31,7 +33,7 @@ class FinnhubService {
     // Apply rate limiting if enabled
     if (useRateLimiter) {
       const limiter = endpoint.includes('profile') ? profileRateLimiter : finnhubRateLimiter;
-      
+
       if (!limiter.canMakeCall()) {
         console.warn(`[Finnhub] Rate limit would be exceeded. Skipping ${endpoint}`);
         throw new Error('Rate limit exceeded - try again later');
@@ -45,55 +47,51 @@ class FinnhubService {
     }
 
     const url = `${this.baseUrl}${endpoint}${endpoint.includes('?') ? '&' : '?'}token=${apiKey}`;
-    
-    try {
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        if (response.status === 429) {
-          this.consecutiveErrors++;
-          console.error(`[Finnhub] Rate limit hit (429). Consecutive errors: ${this.consecutiveErrors}`);
-          
-          // Exponential backoff
-          if (this.consecutiveErrors < this.maxConsecutiveErrors) {
-            const delay = this.backoffMs * Math.pow(2, this.consecutiveErrors - 1);
-            console.log(`[Finnhub] Backing off for ${delay}ms`);
-            await this.sleep(delay);
-          }
-          
-          throw new Error('Rate limit exceeded. Please try again later.');
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        this.consecutiveErrors++;
+        console.error(`[Finnhub] Rate limit hit (429). Consecutive errors: ${this.consecutiveErrors}`);
+
+        // Exponential backoff
+        if (this.consecutiveErrors < this.maxConsecutiveErrors) {
+          const delay = this.backoffMs * Math.pow(2, this.consecutiveErrors - 1);
+          console.log(`[Finnhub] Backing off for ${delay}ms`);
+          await this.sleep(delay);
         }
-        
-        if (response.status === 401) {
-          throw new Error('Invalid API key. Please check your FINNHUB_API_KEY.');
-        }
-        
-        throw new Error(`Finnhub API error: ${response.status} - ${response.statusText}`);
+
+        throw new Error('Rate limit exceeded. Please try again later.');
       }
 
-      // Reset consecutive errors on success
-      this.consecutiveErrors = 0;
+      if (response.status === 401) {
+        throw new Error('Invalid API key. Please check your FINNHUB_API_KEY.');
+      }
 
-      return await response.json() as T;
-    } catch (error) {
-      throw error;
+      throw new Error(`Finnhub API error: ${response.status} - ${response.statusText}`);
     }
+
+    // Reset consecutive errors on success
+    this.consecutiveErrors = 0;
+
+    return await response.json() as T;
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   async getQuote(symbol: string, skipCache: boolean = false): Promise<StockQuote | null> {
     const cacheKey = `quote:${symbol}`;
-    
+
     // Check cache first (unless skipping)
     if (!skipCache) {
       const cached = cacheService.get<StockQuote>(cacheKey);
       if (cached) {
         return cached;
       }
-      
+
       // Check Redis (L2 cache) - survives server restarts
       try {
         const redisQuote = await redisService.getLatestQuote(symbol);
@@ -117,7 +115,7 @@ class FinnhubService {
       } catch (error) {
         // Redis error, continue to DB fallback
       }
-      
+
       // Check database (L3 cache) - latest_quotes table
       try {
         const dbQuote = await databaseService.getLatestQuote(symbol);
@@ -214,14 +212,14 @@ class FinnhubService {
       }
       throw new Error('Rate limit exceeded and no cached data available');
     }
-    
+
     try {
       const data = await this.fetchFromApi<FinnhubQuote>(`/quote?symbol=${symbol}`);
-      
+
       if (!data) {
         return null;
       }
-      
+
       const quote: StockQuote = {
         symbol,
         currentPrice: data.c,
@@ -237,7 +235,7 @@ class FinnhubService {
       // Cache the result
       const ttl = parseInt(process.env.CACHE_TTL_SECONDS || '60', 10);
       cacheService.set(cacheKey, quote, ttl);
-      
+
       return quote;
     } catch (error) {
       // If we hit rate limit, try to return cached data
@@ -249,7 +247,7 @@ class FinnhubService {
           return { ...cached, isCached: true };
         }
       }
-      
+
       console.error(`[Finnhub] Error fetching quote for ${symbol}:`, error);
       return null;
     }
@@ -257,7 +255,7 @@ class FinnhubService {
 
   async getCompanyProfile(symbol: string): Promise<FinnhubProfile | null> {
     const cacheKey = `profile:${symbol}`;
-    
+
     const cached = cacheService.get<FinnhubProfile>(cacheKey);
     if (cached) {
       return cached;
@@ -265,13 +263,13 @@ class FinnhubService {
 
     try {
       const data = await this.fetchFromApi<FinnhubProfile>(`/stock/profile2?symbol=${symbol}`, true);
-      
-      if (!data || !data.name) {
+
+      if (!data?.name) {
         return null;
       }
 
       cacheService.set(cacheKey, data, 3600); // Profile data changes less frequently
-      
+
       return data;
     } catch (error) {
       console.error(`[Finnhub] Error fetching profile for ${symbol}:`, error);
@@ -366,8 +364,8 @@ class FinnhubService {
       }
 
       // Otherwise, we need to fetch the missing symbols directly
-      const fetchedSymbols = results.map(r => r.symbol);
-      const missingSymbols = symbols.filter(s => !fetchedSymbols.includes(s));
+      const fetchedSymbols = results.map((r) => r.symbol);
+      const missingSymbols = symbols.filter((s) => !fetchedSymbols.includes(s));
       console.log(`[Finnhub] ${missingSymbols.length} symbols missing from cache, fetching from API despite market being closed...`);
 
       // Fetch missing symbols directly (don't recurse - that would cause infinite loop)
@@ -382,7 +380,7 @@ class FinnhubService {
           break;
         }
 
-        const batchPromises = batch.map(async symbol => {
+        const batchPromises = batch.map(async (symbol) => {
           const quote = await this.getQuote(symbol);
           return quote;
         });
@@ -431,7 +429,7 @@ class FinnhubService {
       }
 
       // Process this batch normally
-      const batchPromises = batch.map(async symbol => {
+      const batchPromises = batch.map(async (symbol) => {
         const quote = await this.getQuote(symbol);
         return quote;
       });
@@ -453,10 +451,10 @@ class FinnhubService {
    * Used for backfilling when database has no data
    */
   async getHistoricalCandles(
-    symbol: string, 
+    symbol: string,
     resolution: '1' | '5' | '15' | '30' | '60' | 'D' | 'W' | 'M',
-    from: number,  // Unix timestamp
-    to: number     // Unix timestamp
+    from: number, // Unix timestamp
+    to: number, // Unix timestamp
   ): Promise<Array<{ t: number; o: number; h: number; l: number; c: number; v: number }> | null> {
     // Check rate limit first
     if (!finnhubRateLimiter.canMakeCall()) {
@@ -467,17 +465,17 @@ class FinnhubService {
     try {
       const fromStr = Math.floor(from);
       const toStr = Math.floor(to);
-      
+
       console.log(`[Finnhub] Fetching candles for ${symbol}: ${resolution} from ${new Date(fromStr * 1000).toISOString()} to ${new Date(toStr * 1000).toISOString()}`);
-      
+
       const data = await this.fetchFromApi<{
-        c: number[];  // Close prices
-        h: number[];  // High prices
-        l: number[];  // Low prices
-        o: number[];  // Open prices
-        t: number[];  // Timestamps
-        v: number[];  // Volumes
-        s: string;    // Status
+        c: number[]; // Close prices
+        h: number[]; // High prices
+        l: number[]; // Low prices
+        o: number[]; // Open prices
+        t: number[]; // Timestamps
+        v: number[]; // Volumes
+        s: string; // Status
       }>(`/stock/candle?symbol=${symbol}&resolution=${resolution}&from=${fromStr}&to=${toStr}`);
 
       console.log(`[Finnhub] Response for ${symbol}: status=${data?.s}, candles=${data?.c?.length || 0}`);
@@ -489,7 +487,7 @@ class FinnhubService {
 
       // Transform array format to candle objects
       const candles = data.t.map((timestamp, i) => ({
-        t: timestamp * 1000,  // Convert to milliseconds
+        t: timestamp * 1000, // Convert to milliseconds
         o: data.o[i],
         h: data.h[i],
         l: data.l[i],

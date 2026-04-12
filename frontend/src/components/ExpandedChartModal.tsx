@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from 'react';
 import { X, RefreshCw } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
 import {
   AreaChart,
   Area,
@@ -9,10 +9,13 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts';
-import { StockQuote, STOCK_DISPLAY_NAMES } from '../types';
+
 import { useTimeRange } from '../contexts/TimeRangeContext';
+import { STOCK_DISPLAY_NAMES } from '../types';
 import { StatsPanel } from './StatsPanel';
 import { formatCurrency } from '../utils/format';
+
+import type { StockQuote } from '../types';
 
 interface ExpandedChartModalProps {
   symbol: string | null;
@@ -43,7 +46,7 @@ export function ExpandedChartModal({ symbol, quote, onClose }: ExpandedChartModa
   }, [symbol, fetchHistory, historicalData]);
 
   const chartData = useMemo<ChartPoint[]>(() => {
-    if (!candles || candles.length === 0) return [];
+    if (!candles || candles.length === 0) { return []; }
 
     return candles.map((candle) => ({
       t: candle.t,
@@ -60,7 +63,7 @@ export function ExpandedChartModal({ symbol, quote, onClose }: ExpandedChartModa
   }, [candles]);
 
   const trend = useMemo(() => {
-    if (chartData.length < 2) return 'neutral';
+    if (chartData.length < 2) { return 'neutral'; }
     const first = chartData[0].c;
     const last = chartData[chartData.length - 1].c;
     return last >= first ? 'up' : 'down';
@@ -69,19 +72,19 @@ export function ExpandedChartModal({ symbol, quote, onClose }: ExpandedChartModa
   const color = trend === 'up' ? '#22d3ee' : '#f43f5e';
   const gradientId = `modal-gradient-${symbol}`;
 
-  if (!symbol || !quote) return null;
+  if (!symbol || !quote) { return null; }
 
   const displayName = STOCK_DISPLAY_NAMES[symbol] || symbol;
   const isPositive = quote.change >= 0;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={onClose}
     >
-      <div 
+      <div
         className="bg-dark-800 rounded-2xl border border-dark-600 shadow-2xl w-full max-w-4xl mx-4 overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); }}
       >
         {/* Header */}
         <div className="px-6 py-4 border-b border-dark-700 flex justify-between items-start">
@@ -104,7 +107,12 @@ export function ExpandedChartModal({ symbol, quote, onClose }: ExpandedChartModa
                 {formatCurrency(quote.currentPrice)}
               </span>
               <span className={`text-lg font-medium ${isPositive ? 'text-neon-green' : 'text-neon-red'}`}>
-                {isPositive ? '+' : ''}{quote.change.toFixed(2)} ({quote.changePercent.toFixed(2)}%)
+                {isPositive ? '+' : ''}
+                {quote.change.toFixed(2)}
+                {' '}
+                (
+                {quote.changePercent.toFixed(2)}
+                %)
               </span>
             </div>
           </div>
@@ -128,91 +136,97 @@ export function ExpandedChartModal({ symbol, quote, onClose }: ExpandedChartModa
         {/* Chart */}
         <div className="px-6 py-4">
           <div className="h-80 md:h-96">
-            {isLoading ? (
-              <div className="h-full flex items-center justify-center">
-                <div className="animate-pulse flex flex-col items-center">
-                  <div className="h-4 w-32 bg-dark-600 rounded mb-2"></div>
-                  <div className="h-3 w-24 bg-dark-600 rounded"></div>
+            {isLoading
+              ? (
+                <div className="h-full flex items-center justify-center">
+                  <div className="animate-pulse flex flex-col items-center">
+                    <div className="h-4 w-32 bg-dark-600 rounded mb-2"></div>
+                    <div className="h-3 w-24 bg-dark-600 rounded"></div>
+                  </div>
                 </div>
-              </div>
-            ) : hasError ? (
-              <div className="h-full flex flex-col items-center justify-center">
-                <p className="text-gray-400 mb-4">Failed to load chart data</p>
-                <button
-                  onClick={() => fetchHistory(symbol)}
-                  className="px-4 py-2 bg-neon-blue text-dark-900 rounded-lg font-medium hover:bg-neon-blue/90 transition-colors"
-                >
-                  Retry
-                </button>
-              </div>
-            ) : chartData.length === 0 ? (
-              <div className="h-full flex items-center justify-center">
-                <p className="text-gray-400">No data available</p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={chartData}
-                  margin={{ top: 10, right: 10, bottom: 10, left: 10 }}
-                >
-                  <defs>
-                    <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-                      <stop offset="95%" stopColor={color} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.5} />
-                  <XAxis
-                    dataKey="t"
-                    tickFormatter={(value) => {
-                      const date = new Date(value);
-                      return timeRange === '30d'
-                        ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                        : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit' });
-                    }}
-                    stroke="#6b7280"
-                    fontSize={12}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    domain={['auto', 'auto']}
-                    tickFormatter={(value) => `$${value.toFixed(0)}`}
-                    stroke="#6b7280"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    width={60}
-                  />
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const point = payload[0].payload as ChartPoint;
-                        return (
-                          <div className="bg-dark-800 px-4 py-3 rounded-lg border border-neon-blue shadow-xl">
-                            <div className="text-white font-bold text-lg mb-1">
-                              {point.formattedPrice}
-                            </div>
-                            <div className="text-gray-400 text-sm">
-                              {point.formattedTime}
-                            </div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="c"
-                    stroke={color}
-                    strokeWidth={2}
-                    fill={`url(#${gradientId})`}
-                    isAnimationActive={true}
-                    animationDuration={1000}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
+              )
+              : hasError
+                ? (
+                  <div className="h-full flex flex-col items-center justify-center">
+                    <p className="text-gray-400 mb-4">Failed to load chart data</p>
+                    <button
+                      onClick={() => fetchHistory(symbol)}
+                      className="px-4 py-2 bg-neon-blue text-dark-900 rounded-lg font-medium hover:bg-neon-blue/90 transition-colors"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                )
+                : chartData.length === 0
+                  ? (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-gray-400">No data available</p>
+                    </div>
+                  )
+                  : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart
+                        data={chartData}
+                        margin={{ top: 10, right: 10, bottom: 10, left: 10 }}
+                      >
+                        <defs>
+                          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                            <stop offset="95%" stopColor={color} stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.5} />
+                        <XAxis
+                          dataKey="t"
+                          tickFormatter={(value) => {
+                            const date = new Date(value);
+                            return timeRange === '30d'
+                              ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                              : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit' });
+                          }}
+                          stroke="#6b7280"
+                          fontSize={12}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          domain={['auto', 'auto']}
+                          tickFormatter={(value) => `$${value.toFixed(0)}`}
+                          stroke="#6b7280"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                          width={60}
+                        />
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (active && payload?.length) {
+                              const point = payload[0].payload as ChartPoint;
+                              return (
+                                <div className="bg-dark-800 px-4 py-3 rounded-lg border border-neon-blue shadow-xl">
+                                  <div className="text-white font-bold text-lg mb-1">
+                                    {point.formattedPrice}
+                                  </div>
+                                  <div className="text-gray-400 text-sm">
+                                    {point.formattedTime}
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="c"
+                          stroke={color}
+                          strokeWidth={2}
+                          fill={`url(#${gradientId})`}
+                          isAnimationActive={true}
+                          animationDuration={1000}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )}
           </div>
         </div>
 

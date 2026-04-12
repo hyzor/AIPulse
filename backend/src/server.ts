@@ -33,6 +33,13 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 
+// Rate limit optimized refresh intervals (Finnhub free tier: 60 calls/min)
+// Default: 120s (2min) = 30 calls/min for 12 stocks - leaves 30 calls for other operations
+const AUTO_REFRESH_INTERVAL = parseInt(process.env.AUTO_REFRESH_INTERVAL_MS || '120000', 10);
+
+// Minimum calls to reserve for user-initiated requests (historical data, etc.)
+const RATE_LIMIT_BUFFER = parseInt(process.env.RATE_LIMIT_BUFFER || '20', 10);
+
 // Middleware
 app.use(cors({
   origin: CORS_ORIGIN,
@@ -193,8 +200,10 @@ wss.on('connection', (ws) => {
   });
 });
 
-// Auto-refresh interval (every 60 seconds - conservative for free tier)
-const AUTO_REFRESH_INTERVAL = 60000;
+// Auto-refresh interval - optimized for Finnhub free tier (60 calls/min)
+// Default 120s = 30 calls/min for 12 stocks, leaving 30 calls for other operations
+console.log(`[Config] Auto-refresh interval: ${AUTO_REFRESH_INTERVAL}ms (${(AUTO_REFRESH_INTERVAL/1000).toFixed(0)}s)`);
+console.log(`[Config] Rate limit buffer: ${RATE_LIMIT_BUFFER} calls reserved for user requests`);
 
 setInterval(async () => {
   if (clients.size === 0) return;
@@ -207,15 +216,17 @@ setInterval(async () => {
   if (activeSymbols.size === 0) return;
   
   const rateLimitStatus = finnhubService.getRateLimitStatus();
-  if (rateLimitStatus.callsRemaining < activeSymbols.size) {
-    console.log(`[Auto-refresh] Skipping update - rate limit low (${rateLimitStatus.callsRemaining} remaining)`);
+  // Be more conservative: reserve buffer calls for user-initiated requests
+  if (rateLimitStatus.callsRemaining < activeSymbols.size + RATE_LIMIT_BUFFER) {
+    console.log(`[Auto-refresh] Skipping update - rate limit low (${rateLimitStatus.callsRemaining} remaining, need ${activeSymbols.size + RATE_LIMIT_BUFFER})`);
     return;
   }
   
   console.log(`[Auto-refresh] Fetching updates for ${activeSymbols.size} symbols (${rateLimitStatus.callsRemaining} calls remaining)`);
   
   const symbols = [...activeSymbols];
-  const quotes = await finnhubService.getQuotes(symbols, { batchSize: 6, delayMs: 500 });
+  // Use larger delays between batches to spread load across the minute
+  const quotes = await finnhubService.getQuotes(symbols, { batchSize: 3, delayMs: 1000 });
   
   quotes.forEach(quote => {
     broadcastToSymbol(quote.symbol, quote);
@@ -224,24 +235,6 @@ setInterval(async () => {
     candleBufferService.updatePrice(quote.symbol, quote.currentPrice, 0, Date.now());
   });
 }, AUTO_REFRESH_INTERVAL);
-
-// Pre-cache refresh (every 2 minutes - only if rate limit allows)
-setInterval(async () => {
-  const rateLimitStatus = finnhubService.getRateLimitStatus();
-  
-  if (rateLimitStatus.callsRemaining < TRACKED_STOCKS.length + 10) {
-    console.log('[Pre-cache] Skipping - rate limit too low');
-    return;
-  }
-  
-  console.log(`[Pre-cache] Refreshing all tracked stocks (${rateLimitStatus.callsRemaining} calls remaining)`);
-  const quotes = await finnhubService.getQuotes([...TRACKED_STOCKS], { batchSize: 6, delayMs: 500 });
-  
-  // Update candle buffer with pre-cache data
-  quotes.forEach(quote => {
-    candleBufferService.updatePrice(quote.symbol, quote.currentPrice, 0, Date.now());
-  });
-}, 120000);
 
 // Graceful shutdown handler
 async function gracefulShutdown(signal: string): Promise<void> {
@@ -351,7 +344,8 @@ async function initializeServer(): Promise<void> {
 ╠════════════════════════════════════════════════════════════╣
 ║  Tracked Stocks: ${TRACKED_STOCKS.length} companies                         ║
 ║  CORS Origin: ${CORS_ORIGIN}          ║
-║  Rate Limit: 60 calls/min (Finnhub Free Tier)              ║
+║  Rate Limit: 50/60 calls/min (conservative)              ║
+║  Auto-refresh: ${(AUTO_REFRESH_INTERVAL/1000).toFixed(0)}s interval + ${RATE_LIMIT_BUFFER} call buffer     ║
 ╚════════════════════════════════════════════════════════════╝
     `);
     

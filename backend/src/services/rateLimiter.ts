@@ -123,9 +123,10 @@ class RateLimiter {
 }
 
 // Default rate limiter for Finnhub free tier (60 calls/min)
+// Using 50 max to leave room for burst traffic and clock skew
 export const finnhubRateLimiter = new RateLimiter({
-  maxCallsPerMinute: 55, // Stay under 60 to be safe
-  warningThreshold: 45,
+  maxCallsPerMinute: 50, // Conservative: leave 10 calls buffer
+  warningThreshold: 40,  // Warn when at 40/50 calls
 });
 
 // For profile data which changes less frequently

@@ -42,7 +42,7 @@ When working on this codebase:
 │  │                     Express + WebSocket Server                      │ │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐ │ │
 │  │  │ stockRoutes │  │     WS      │  │      Auto-refresh Loop        │ │ │
-│  │  │  (HTTP)     │  │  (Socket)   │  │   (60s interval, batched)   │ │ │
+│  │  │  (HTTP)     │  │  (Socket)   │  │   (120s interval, batched)   │ │ │
 │  │  └──────┬──────┘  └──────┬──────┘  └─────────────┬───────────────┘ │ │
 │  │         │                │                       │                 │ │
 │  │         └────────────────┴───────────────────────┘                 │ │
@@ -220,7 +220,7 @@ function useAutoRefresh(
 
 **Usage:**
 ```typescript
-useAutoRefresh(fetchStocks, 60000, true);      // Stocks every 60s
+useAutoRefresh(fetchStocks, 120000, true);      // Stocks every 120s (conservative)
 useAutoRefresh(fetchRateLimit, 15000, true);   // Rate limit every 15s
 ```
 
@@ -368,7 +368,7 @@ interface FinnhubQuote {
 
 3. **WebSocket Message Volume**: One message per quote update
    - Could batch WS messages if needed
-   - Currently fine for 12 stocks × 60s refresh
+   - Currently fine for 12 stocks × 120s refresh
 
 ---
 

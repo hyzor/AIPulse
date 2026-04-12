@@ -119,6 +119,40 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 // Store connected clients with their subscribed symbols
 const clients = new Map<WebSocket, Set<string>>();
 
+// Batched subscription handling (prevents API spike on redeployment)
+const pendingSubscriptions = new Set<string>();
+let subscriptionBatchTimer: NodeJS.Timeout | null = null;
+const SUBSCRIPTION_BATCH_DELAY = parseInt(process.env.WS_BATCH_DELAY_MS || '500', 10);
+console.log(`[Config] WebSocket subscription batch delay: ${SUBSCRIPTION_BATCH_DELAY}ms`);
+
+// Process batched subscriptions
+const processBatchedSubscriptions = async () => {
+  if (pendingSubscriptions.size === 0) return;
+  
+  const symbols = [...pendingSubscriptions];
+  pendingSubscriptions.clear();
+  subscriptionBatchTimer = null;
+  
+  console.log(`[WebSocket] Processing batched subscriptions for ${symbols.length} symbols`);
+  
+  // Fetch all in one batch using getQuotes (which has rate limit awareness)
+  const quotes = await finnhubService.getQuotes(symbols, { batchSize: 3, delayMs: 1000 });
+  
+  // Broadcast to all clients
+  quotes.forEach(quote => {
+    broadcastToSymbol(quote.symbol, quote);
+  });
+};
+
+// Queue a symbol for batched fetching
+const queueSubscription = (symbol: string) => {
+  pendingSubscriptions.add(symbol);
+  
+  if (!subscriptionBatchTimer) {
+    subscriptionBatchTimer = setTimeout(processBatchedSubscriptions, SUBSCRIPTION_BATCH_DELAY);
+  }
+};
+
 // Broadcast to all clients subscribed to a symbol
 const broadcastToSymbol = (symbol: string, data: StockQuote) => {
   // Strip isCached flag for WebSocket - real-time updates are always "fresh"
@@ -153,7 +187,7 @@ wss.on('connection', (ws) => {
     trackedStocks: TRACKED_STOCKS,
   }));
   
-  ws.on('message', (message) => {
+  ws.on('message', async (message) => {
     try {
       const data = JSON.parse(message.toString());
       
@@ -162,19 +196,32 @@ wss.on('connection', (ws) => {
         subscribedSymbols.add(symbol);
         console.log(`[WebSocket] Client subscribed to ${symbol}`);
         
-        // Send initial data
-        finnhubService.getQuote(symbol).then(quote => {
+        // Try to get cached data first (Redis/DB survives restarts)
+        const cachedQuote = await finnhubService.getQuote(symbol);
+        
+        if (cachedQuote) {
+          // Send cached data immediately
           ws.send(JSON.stringify({
             type: 'quote',
             symbol,
-            data: quote,
+            data: cachedQuote,
           }));
-        }).catch(err => {
+          
+          // If this is cached (not fresh) data, also queue for API refresh
+          if (cachedQuote.isCached || cachedQuote.timestamp < Date.now()/1000 - 300) {
+            queueSubscription(symbol);
+          }
+        } else {
+          // No cache available, queue for batched API fetch
+          queueSubscription(symbol);
+          
+          // Notify client that data is loading
           ws.send(JSON.stringify({
-            type: 'error',
-            error: `Failed to fetch ${symbol}: ${err.message}`,
+            type: 'loading',
+            symbol,
+            message: 'Fetching initial data...',
           }));
-        });
+        }
       }
       
       if (data.action === 'unsubscribe' && data.symbol) {

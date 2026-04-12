@@ -1,5 +1,7 @@
 import { StockQuote, FinnhubQuote, FinnhubProfile } from '../types';
 import { cacheService } from './cacheService';
+import { redisService } from './redisService';
+import { databaseService } from './databaseService';
 import { finnhubRateLimiter, profileRateLimiter, UsageStats } from './rateLimiter';
 
 const FINNHUB_API_URL = 'https://finnhub.io/api/v1';
@@ -89,6 +91,54 @@ class FinnhubService {
       const cached = cacheService.get<StockQuote>(cacheKey);
       if (cached) {
         return cached;
+      }
+      
+      // Check Redis (L2 cache) - survives server restarts
+      try {
+        const redisQuote = await redisService.getLatestQuote(symbol);
+        if (redisQuote) {
+          const quote: StockQuote = {
+            symbol,
+            currentPrice: redisQuote.price,
+            change: redisQuote.change,
+            changePercent: redisQuote.changePercent,
+            highPrice: 0, // Not stored in Redis, will be updated on next API call
+            lowPrice: 0,
+            openPrice: 0,
+            previousClose: 0,
+            timestamp: redisQuote.timestamp,
+          };
+          // Also cache in memory for faster access
+          cacheService.set(cacheKey, quote, 60);
+          console.log(`[Finnhub] Serving ${symbol} from Redis cache (post-restart recovery)`);
+          return quote;
+        }
+      } catch (error) {
+        // Redis error, continue to DB fallback
+      }
+      
+      // Check database (L3 cache) - latest_quotes table
+      try {
+        const dbQuote = await databaseService.getLatestQuote(symbol);
+        if (dbQuote) {
+          const quote: StockQuote = {
+            symbol,
+            currentPrice: dbQuote.currentPrice,
+            change: dbQuote.change,
+            changePercent: dbQuote.changePercent,
+            highPrice: dbQuote.highPrice || 0,
+            lowPrice: dbQuote.lowPrice || 0,
+            openPrice: dbQuote.openPrice || 0,
+            previousClose: dbQuote.previousClose || 0,
+            timestamp: new Date(dbQuote.timestamp).getTime() / 1000,
+          };
+          // Also cache in memory
+          cacheService.set(cacheKey, quote, 60);
+          console.log(`[Finnhub] Serving ${symbol} from database (post-restart recovery)`);
+          return quote;
+        }
+      } catch (error) {
+        // DB error, continue to API
       }
     }
 

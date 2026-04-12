@@ -56,7 +56,7 @@ A real-time AI stock monitoring web application featuring dark theme UI, server-
 ## Quick Start
 
 ### Prerequisites
-- Node.js 20 or higher
+- Node.js 25 (see `.nvmrc` for exact version - use [nvm](https://github.com/nvm-sh/nvm) to manage)
 - npm or yarn
 - Finnhub API key (free at [finnhub.io](https://finnhub.io))
 
@@ -65,6 +65,10 @@ A real-time AI stock monitoring web application featuring dark theme UI, server-
 ```bash
 git clone <repository-url>
 cd AIPulse
+
+# Use correct Node version (if using nvm)
+nvm use
+
 npm install
 ```
 

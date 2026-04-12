@@ -1,5 +1,6 @@
 # Build stage - builds both frontend and backend
-FROM node:20-alpine AS builder
+# Using Node 25 (see .nvmrc for version specification)
+FROM node:25-alpine AS builder
 
 WORKDIR /app
 
@@ -29,7 +30,8 @@ RUN npm run build --workspace=frontend
 RUN npm run build --workspace=backend
 
 # Production stage
-FROM node:20-alpine
+# Using Node 25 (see .nvmrc for version specification)
+FROM node:25-alpine
 
 WORKDIR /app
 

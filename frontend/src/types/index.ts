@@ -86,6 +86,22 @@ export const STOCK_EXCHANGES: Record<string, StockExchange> = {
   TSLA: 'NYSE',
 };
 
+// Country flags and origins for each stock (where the company was founded/headquartered)
+export const STOCK_COUNTRIES: Record<string, { country: string; flag: string; origin: string }> = {
+  NVDA: { country: 'United States', flag: '🇺🇸', origin: 'Santa Clara, CA' },
+  AMD: { country: 'United States', flag: '🇺🇸', origin: 'Sunnyvale, CA' },
+  AVGO: { country: 'United States', flag: '🇺🇸', origin: 'Palo Alto, CA' },
+  TSM: { country: 'Taiwan', flag: '🇹🇼', origin: 'Hsinchu, Taiwan' },
+  ASML: { country: 'Netherlands', flag: '🇳🇱', origin: 'Veldhoven, Netherlands' },
+  ARM: { country: 'United Kingdom', flag: '🇬🇧', origin: 'Cambridge, UK' },
+  MU: { country: 'United States', flag: '🇺🇸', origin: 'Boise, ID' },
+  SNDK: { country: 'United States', flag: '🇺🇸', origin: 'Milpitas, CA' },
+  MSFT: { country: 'United States', flag: '🇺🇸', origin: 'Redmond, WA' },
+  GOOGL: { country: 'United States', flag: '🇺🇸', origin: 'Mountain View, CA' },
+  AMZN: { country: 'United States', flag: '🇺🇸', origin: 'Seattle, WA' },
+  TSLA: { country: 'United States', flag: '🇺🇸', origin: 'Austin, TX' },
+};
+
 export interface RateLimitStatus {
   callsInCurrentWindow: number;
   windowStart: number;

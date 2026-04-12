@@ -1,5 +1,5 @@
 import { TrendingUp, TrendingDown, Activity, Database } from 'lucide-react';
-import { StockQuote, STOCK_DISPLAY_NAMES, STOCK_CATEGORIES } from '../types';
+import { StockQuote, STOCK_DISPLAY_NAMES, STOCK_CATEGORIES, STOCK_COUNTRIES } from '../types';
 import { formatCurrency, formatChange, getChangeColor, getChangeBgColor, getChangeLabel, checkMarketOpen, getExchangeForSymbol, isSameTradingDay } from '../utils/format';
 import { useTimeRange } from '../contexts/TimeRangeContext';
 import { MiniAreaChart } from './MiniAreaChart';
@@ -77,8 +77,13 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
 
       <div className="flex items-start justify-between mb-3">
         <div>
-          <h3 className="text-xl font-bold text-white tracking-tight">{quote.symbol}</h3>
-          <p className="text-sm text-gray-400">{displayName}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-lg" title={STOCK_COUNTRIES[quote.symbol]?.country || ''}>
+              {STOCK_COUNTRIES[quote.symbol]?.flag || '🌐'}
+            </span>
+            <h3 className="text-xl font-bold text-white tracking-tight">{quote.symbol}</h3>
+          </div>
+          <p className="text-sm text-gray-400 ml-7">{displayName}</p>
         </div>
         <div className={`flex items-center gap-1 px-3 py-1.5 rounded-lg ${getChangeBgColor(quote.change)}`}>
           {isPositive ? (

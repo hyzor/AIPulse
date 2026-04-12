@@ -159,41 +159,54 @@ router.get('/stocks/:symbol/history', async (req, res) => {
     let dbCandles = await databaseService.getCandles(uppercaseSymbol, from, now, resolution);
     
     // If no data in DB and Finnhub is configured, fetch from API
+    // BUT: Only fetch if rate limit allows (save calls for real-time data)
     let fetchedFromApi = false;
+    const rateLimitStatus = finnhubService.getRateLimitStatus();
+    
     if (dbCandles.length === 0 && finnhubService.isConfigured()) {
-      console.log(`[API] No data in DB for ${uppercaseSymbol}, fetching from Finnhub...`);
-      
-      // Map resolution to Finnhub format
-      const finnhubResolution: '60' | 'D' = resolution === '1d' ? 'D' : '60';
-      
-      // Fetch from Finnhub
-      const apiCandles = await finnhubService.getHistoricalCandles(
-        uppercaseSymbol,
-        finnhubResolution,
-        from.getTime() / 1000,
-        now.getTime() / 1000
-      );
-      
-      if (apiCandles && apiCandles.length > 0) {
-        // Convert to database format and store
-        const dbFormatCandles = apiCandles.map(c => ({
-          time: new Date(c.t),
-          symbol: uppercaseSymbol,
-          open: c.o,
-          high: c.h,
-          low: c.l,
-          close: c.c,
-          volume: c.v,
-          source: 'finnhub' as const,
-        }));
+      // Require at least 20 calls remaining to fetch historical (protect rate limit)
+      if (rateLimitStatus.callsRemaining < 20) {
+        console.log(`[API] Skipping historical fetch for ${uppercaseSymbol} - rate limit too low (${rateLimitStatus.callsRemaining} remaining)`);
+      } else {
+        console.log(`[API] No data in DB for ${uppercaseSymbol}, fetching from Finnhub...`);
         
-        await databaseService.insertCandles1m(dbFormatCandles);
+        // Map resolution to Finnhub format
+        const finnhubResolution: '60' | 'D' = resolution === '1d' ? 'D' : '60';
         
-        // Re-fetch from DB to get the stored data
-        dbCandles = await databaseService.getCandles(uppercaseSymbol, from, now, resolution);
-        fetchedFromApi = true;
-        
-        console.log(`[API] Stored ${dbCandles.length} candles for ${uppercaseSymbol}`);
+        try {
+          // Fetch from Finnhub
+          const apiCandles = await finnhubService.getHistoricalCandles(
+            uppercaseSymbol,
+            finnhubResolution,
+            from.getTime() / 1000,
+            now.getTime() / 1000
+          );
+          
+          if (apiCandles && apiCandles.length > 0) {
+            // Convert to database format and store
+            const dbFormatCandles = apiCandles.map(c => ({
+              time: new Date(c.t),
+              symbol: uppercaseSymbol,
+              open: c.o,
+              high: c.h,
+              low: c.l,
+              close: c.c,
+              volume: c.v,
+              source: 'finnhub' as const,
+            }));
+            
+            await databaseService.insertCandles1m(dbFormatCandles);
+            
+            // Re-fetch from DB to get the stored data
+            dbCandles = await databaseService.getCandles(uppercaseSymbol, from, now, resolution);
+            fetchedFromApi = true;
+            
+            console.log(`[API] Stored ${dbCandles.length} candles for ${uppercaseSymbol}`);
+          }
+        } catch (error) {
+          // Silently fail on 403/429 errors - don't spam logs
+          console.log(`[API] Historical fetch failed for ${uppercaseSymbol}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
       }
     }
     

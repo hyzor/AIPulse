@@ -124,8 +124,8 @@ class RateLimiter {
 
 // Default rate limiter for Finnhub free tier (60 calls/min)
 // Configure via environment variables to adjust conservativeness
-const maxCalls = parseInt(process.env.FINNHUB_MAX_CALLS_PER_MINUTE || '58', 10);
-const warningThreshold = parseInt(process.env.FINNHUB_WARNING_THRESHOLD || '50', 10);
+const maxCalls = parseInt(process.env.FINNHUB_MAX_CALLS_PER_MINUTE || '50', 10);
+const warningThreshold = parseInt(process.env.FINNHUB_WARNING_THRESHOLD || '40', 10);
 
 console.log(`[RateLimiter] Configured: ${maxCalls} calls/min (warning at ${warningThreshold})`);
 

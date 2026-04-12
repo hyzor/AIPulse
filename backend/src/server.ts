@@ -45,8 +45,8 @@ const STALE_DATA_THRESHOLD = parseInt(process.env.STALE_DATA_THRESHOLD_SECONDS |
 console.log(`[Config] Stale data threshold: ${STALE_DATA_THRESHOLD}s`);
 
 // Rate limit optimized refresh intervals (Finnhub free tier: 60 calls/min)
-// Default: 120s (2min) = 30 calls/min for 12 stocks - leaves 30 calls for other operations
-const AUTO_REFRESH_INTERVAL = parseInt(process.env.AUTO_REFRESH_INTERVAL_MS || '120000', 10);
+// Default: 180s (3min) = 20 calls/min for 12 stocks - very conservative for dev
+const AUTO_REFRESH_INTERVAL = parseInt(process.env.AUTO_REFRESH_INTERVAL_MS || '180000', 10);
 
 // Minimum calls to reserve for user-initiated requests (historical data, etc.)
 const RATE_LIMIT_BUFFER = parseInt(process.env.RATE_LIMIT_BUFFER || '20', 10);

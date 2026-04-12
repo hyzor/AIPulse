@@ -56,10 +56,9 @@ export function DataCollectionStatus() {
 
   const totalCandles = stats.total1mCandles;
   const hasData = totalCandles > 0;
-  const symbolCount = stats.symbols?.length || 0;
 
-  // Estimate hours of data (assuming 12 symbols, ~5 candles per hour per symbol)
-  const estimatedHours = Math.floor(totalCandles / 12 / 5);
+  // Estimate hours of data (assuming 15 symbols, ~5 candles per hour per symbol)
+  const estimatedHours = Math.floor(totalCandles / 15 / 5);
 
   // Determine status
   let status = 'Collecting...';

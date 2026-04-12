@@ -12,7 +12,10 @@ export const TRACKED_STOCKS = [
   // AI Software / Tech
   'MSFT', // Microsoft - Azure AI, OpenAI
   'GOOGL', // Google - AI research, Gemini
+  'META', // Meta - Llama AI, AI glasses
   'AMZN', // Amazon - AWS AI services
+  'AAPL', // Apple - Apple Intelligence
+  'ORCL', // Oracle - AI cloud, Autonomous DB
   'TSLA', // Tesla - AI/robotics, FSD
 ] as const;
 
@@ -27,7 +30,10 @@ export const STOCK_DISPLAY_NAMES: Record<string, string> = {
   SNDK: 'SanDisk',
   MSFT: 'Microsoft',
   GOOGL: 'Alphabet',
+  META: 'Meta',
   AMZN: 'Amazon',
+  AAPL: 'Apple',
+  ORCL: 'Oracle',
   TSLA: 'Tesla',
 };
 

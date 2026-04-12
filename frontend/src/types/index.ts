@@ -41,7 +41,7 @@ export interface WebSocketMessage {
 
 export const TRACKED_STOCKS = [
   'NVDA', 'AMD', 'AVGO', 'TSM', 'ASML', 'ARM', 'MU', 'SNDK',
-  'MSFT', 'GOOGL', 'AMZN', 'TSLA',
+  'MSFT', 'GOOGL', 'META', 'AMZN', 'AAPL', 'ORCL', 'TSLA',
 ] as const;
 
 export const STOCK_DISPLAY_NAMES: Record<string, string> = {
@@ -55,15 +55,18 @@ export const STOCK_DISPLAY_NAMES: Record<string, string> = {
   SNDK: 'SanDisk',
   MSFT: 'Microsoft',
   GOOGL: 'Alphabet',
+  META: 'Meta',
   AMZN: 'Amazon',
+  AAPL: 'Apple',
+  ORCL: 'Oracle',
   TSLA: 'Tesla',
 };
 
 export const STOCK_CATEGORIES: Record<string, string[]> = {
   'AI Chips': ['NVDA', 'AMD'],
   'Semiconductors': ['AVGO', 'TSM', 'ASML', 'ARM', 'MU', 'SNDK'],
-  'AI Software': ['MSFT', 'GOOGL'],
-  'Tech Giants': ['AMZN', 'TSLA'],
+  'AI Software': ['MSFT', 'GOOGL', 'META', 'ORCL'],
+  'Tech Giants': ['AMZN', 'AAPL', 'TSLA'],
 };
 
 // Exchange information - all tracked stocks trade on US markets
@@ -80,9 +83,12 @@ export const STOCK_EXCHANGES: Record<string, StockExchange> = {
   SNDK: 'NASDAQ',
   MSFT: 'NASDAQ',
   GOOGL: 'NASDAQ',
+  META: 'NASDAQ',
   AMZN: 'NASDAQ',
+  AAPL: 'NASDAQ',
   // NYSE
   TSM: 'NYSE',
+  ORCL: 'NYSE',
   TSLA: 'NYSE',
 };
 
@@ -98,7 +104,10 @@ export const STOCK_COUNTRIES: Record<string, { country: string; flag: string; or
   SNDK: { country: 'United States', flag: '🇺🇸', origin: 'Milpitas, CA' },
   MSFT: { country: 'United States', flag: '🇺🇸', origin: 'Redmond, WA' },
   GOOGL: { country: 'United States', flag: '🇺🇸', origin: 'Mountain View, CA' },
+  META: { country: 'United States', flag: '🇺🇸', origin: 'Menlo Park, CA' },
   AMZN: { country: 'United States', flag: '🇺🇸', origin: 'Seattle, WA' },
+  AAPL: { country: 'United States', flag: '🇺🇸', origin: 'Cupertino, CA' },
+  ORCL: { country: 'United States', flag: '🇺🇸', origin: 'Austin, TX' },
   TSLA: { country: 'United States', flag: '🇺🇸', origin: 'Austin, TX' },
 };
 

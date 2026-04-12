@@ -103,9 +103,9 @@ export function DataCollectionStatus() {
       <div className="w-full bg-dark-700 rounded-full h-2 mb-3">
         <div
           className={`h-2 rounded-full transition-all duration-500 ${
-            progress === 100 ? 'bg-neon-green' : 'bg-neon-blue'
+            progress === 100 ? 'bg-neon-green' : progress === 0 ? 'bg-gray-600' : 'bg-neon-blue'
           }`}
-          style={{ width: `${Math.max(progress, 5)}%` }}
+          style={{ width: `${progress}%` }}
         >
         </div>
       </div>
@@ -115,17 +115,25 @@ export function DataCollectionStatus() {
         <div className="flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-gray-500" />
           <span className="text-gray-400">Candles:</span>
-          <span className="text-white font-mono">{totalCandles.toLocaleString()}</span>
+          <span className={`font-mono ${totalCandles === 0 ? 'text-gray-500' : 'text-white'}`}>
+            {totalCandles.toLocaleString()}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4 text-gray-500" />
           <span className="text-gray-400">Est. Hours:</span>
-          <span className="text-white font-mono">
-            {estimatedHours}
-            h
+          <span className={`font-mono ${estimatedHours === 0 ? 'text-gray-500' : 'text-white'}`}>
+            {estimatedHours}h
           </span>
         </div>
       </div>
+
+      {/* No data warning */}
+      {totalCandles === 0 && (
+        <div className="mt-3 py-2 px-3 bg-dark-700/50 border border-dark-600 rounded text-xs text-gray-400">
+          📊 Data collection is initializing. Historical charts will populate as market data is collected over time.
+        </div>
+      )}
 
       {/* Symbol indicators - All tracked symbols */}
       <div className="mt-3 pt-3 border-t border-dark-700">

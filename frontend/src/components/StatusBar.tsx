@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, Brain, Cpu, Code2, Rocket, Gauge, Clock, Zap } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Brain, Gauge, Clock } from 'lucide-react';
 import { useMemo } from 'react';
 
 import type { RateLimitStatus } from '../types';
@@ -122,26 +122,6 @@ export function StatusBar({ totalStocks, apiConfigured, error, rateLimit }: Stat
                 {' '}
                 AI stocks tracked
               </span>
-            </div>
-          </div>
-
-          {/* Categories */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-700 rounded-lg border border-dark-600">
-              <Zap className="w-4 h-4 text-neon-purple" />
-              <span className="text-sm text-gray-300">AI Chips</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-700 rounded-lg border border-dark-600">
-              <Cpu className="w-4 h-4 text-neon-blue" />
-              <span className="text-sm text-gray-300">Semiconductors</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-700 rounded-lg border border-dark-600">
-              <Code2 className="w-4 h-4 text-neon-green" />
-              <span className="text-sm text-gray-300">AI Software</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-700 rounded-lg border border-dark-600">
-              <Rocket className="w-4 h-4 text-orange-400" />
-              <span className="text-sm text-gray-300">Tech Giants</span>
             </div>
           </div>
 

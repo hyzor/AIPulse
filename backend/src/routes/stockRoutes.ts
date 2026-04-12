@@ -160,10 +160,12 @@ router.get('/stocks/:symbol/history', async (req, res) => {
     
     // If no data in DB and Finnhub is configured, fetch from API
     // BUT: Only fetch if rate limit allows (save calls for real-time data)
+    // NOTE: Historical fetching requires paid Finnhub tier (free tier = 403 Forbidden)
     let fetchedFromApi = false;
     const rateLimitStatus = finnhubService.getRateLimitStatus();
+    const enableHistoricalFetch = process.env.ENABLE_HISTORICAL_FETCH === 'true';
     
-    if (dbCandles.length === 0 && finnhubService.isConfigured()) {
+    if (dbCandles.length === 0 && finnhubService.isConfigured() && enableHistoricalFetch) {
       // Require at least 20 calls remaining to fetch historical (protect rate limit)
       if (rateLimitStatus.callsRemaining < 20) {
         console.log(`[API] Skipping historical fetch for ${uppercaseSymbol} - rate limit too low (${rateLimitStatus.callsRemaining} remaining)`);
@@ -208,6 +210,9 @@ router.get('/stocks/:symbol/history', async (req, res) => {
           console.log(`[API] Historical fetch failed for ${uppercaseSymbol}: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
+    } else if (dbCandles.length === 0 && finnhubService.isConfigured() && !enableHistoricalFetch) {
+      // Historical fetching disabled (default for free tier)
+      console.log(`[API] Historical fetch disabled for ${uppercaseSymbol} (ENABLE_HISTORICAL_FETCH not set)`);
     }
     
     // Check if we have recent data in Redis (for the "partial" flag)

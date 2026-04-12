@@ -40,6 +40,7 @@ export function MiniAreaChart({
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
+        hour12: false,
       }),
       formattedPrice: `$${candle.c.toFixed(2)}`,
     }));

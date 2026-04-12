@@ -39,7 +39,7 @@ export function Header({ isConnected, lastUpdate, onRefresh, isLoading }: Header
               <div className="hidden md:block text-right">
                 <p className="text-xs text-gray-500">Last Update</p>
                 <p className="text-sm font-mono text-gray-300">
-                  {lastUpdate.toLocaleTimeString()}
+                  {lastUpdate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
                 </p>
               </div>
             )}

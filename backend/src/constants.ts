@@ -3,7 +3,6 @@ export const TRACKED_STOCKS = [
   'NVDA', // NVIDIA - AI chips leader
   'AMD',  // AMD - CPUs/GPUs
   'AVGO', // Broadcom - semiconductors
-  'MRVL', // Marvell - data infrastructure
   'TSM',  // TSMC - chip manufacturing
   'ASML', // ASML - lithography equipment
   'ARM',  // ARM Holdings - chip architecture
@@ -11,7 +10,6 @@ export const TRACKED_STOCKS = [
   'SNDK', // SanDisk - AI flash storage
 
   // AI Software / Tech
-  'PLTR', // Palantir - AI/data analytics
   'MSFT', // Microsoft - Azure AI, OpenAI
   'GOOGL', // Google - AI research, Gemini
   'AMZN', // Amazon - AWS AI services
@@ -22,13 +20,11 @@ export const STOCK_DISPLAY_NAMES: Record<string, string> = {
   NVDA: 'NVIDIA',
   AMD: 'AMD',
   AVGO: 'Broadcom',
-  MRVL: 'Marvell',
   TSM: 'TSMC',
   ASML: 'ASML',
   ARM: 'ARM Holdings',
   MU: 'Micron',
   SNDK: 'SanDisk',
-  PLTR: 'Palantir',
   MSFT: 'Microsoft',
   GOOGL: 'Alphabet',
   AMZN: 'Amazon',

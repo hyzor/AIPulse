@@ -40,21 +40,19 @@ export interface WebSocketMessage {
 }
 
 export const TRACKED_STOCKS = [
-  'NVDA', 'AMD', 'AVGO', 'MRVL', 'TSM', 'ASML', 'ARM', 'MU', 'SNDK',
-  'PLTR', 'MSFT', 'GOOGL', 'AMZN', 'TSLA',
+  'NVDA', 'AMD', 'AVGO', 'TSM', 'ASML', 'ARM', 'MU', 'SNDK',
+  'MSFT', 'GOOGL', 'AMZN', 'TSLA',
 ] as const;
 
 export const STOCK_DISPLAY_NAMES: Record<string, string> = {
   NVDA: 'NVIDIA',
   AMD: 'AMD',
   AVGO: 'Broadcom',
-  MRVL: 'Marvell',
   TSM: 'TSMC',
   ASML: 'ASML',
   ARM: 'ARM Holdings',
   MU: 'Micron',
   SNDK: 'SanDisk',
-  PLTR: 'Palantir',
   MSFT: 'Microsoft',
   GOOGL: 'Alphabet',
   AMZN: 'Amazon',
@@ -63,8 +61,8 @@ export const STOCK_DISPLAY_NAMES: Record<string, string> = {
 
 export const STOCK_CATEGORIES: Record<string, string[]> = {
   'AI Chips': ['NVDA', 'AMD'],
-  'Semiconductors': ['AVGO', 'MRVL', 'TSM', 'ASML', 'ARM', 'MU', 'SNDK'],
-  'AI Software': ['PLTR', 'MSFT', 'GOOGL'],
+  'Semiconductors': ['AVGO', 'TSM', 'ASML', 'ARM', 'MU', 'SNDK'],
+  'AI Software': ['MSFT', 'GOOGL'],
   'Tech Giants': ['AMZN', 'TSLA'],
 };
 
@@ -76,7 +74,6 @@ export const STOCK_EXCHANGES: Record<string, StockExchange> = {
   NVDA: 'NASDAQ',
   AMD: 'NASDAQ',
   AVGO: 'NASDAQ',
-  MRVL: 'NASDAQ',
   ASML: 'NASDAQ',
   ARM: 'NASDAQ',
   MU: 'NASDAQ',
@@ -86,7 +83,6 @@ export const STOCK_EXCHANGES: Record<string, StockExchange> = {
   AMZN: 'NASDAQ',
   // NYSE
   TSM: 'NYSE',
-  PLTR: 'NYSE',
   TSLA: 'NYSE',
 };
 

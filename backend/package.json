@@ -2,6 +2,7 @@
   "name": "aipulse-backend",
   "version": "1.0.0",
   "description": "AIPulse Backend - Express TypeScript API with Finnhub integration",
+  "type": "module",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",

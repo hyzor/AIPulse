@@ -159,8 +159,13 @@ export function ExpandedChartModal({ symbol, quote, onClose }: ExpandedChartModa
                 )
                 : chartData.length === 0
                   ? (
-                    <div className="h-full flex items-center justify-center">
-                      <p className="text-gray-400">No data available</p>
+                    <div className="h-full flex flex-col items-center justify-center">
+                      <p className="text-gray-400 mb-2">Collecting data...</p>
+                      <p className="text-gray-500 text-xs text-center max-w-md px-4">
+                        Historical chart data is collected over time during market hours.
+                        Charts require time-series data which can also be fetched via
+                        ENABLE_HISTORICAL_FETCH=true with paid Finnhub tier.
+                      </p>
                     </div>
                   )
                   : (

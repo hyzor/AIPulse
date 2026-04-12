@@ -62,6 +62,32 @@ docker compose -f docker-compose.prod.yml down
 - TimescaleDB on port 5432 (internal only)
 - Redis on port 6379 (internal only)
 
+### Deploying with a Custom Domain (e.g., aipulse.falkenby.com)
+
+When deploying to a server with a custom domain, you need to update the `.env` file:
+
+```bash
+# .env file for https://aipulse.falkenby.com
+
+# Required: Your domain for CORS
+CORS_ORIGIN=https://aipulse.falkenby.com
+
+# Finnhub API key
+FINNHUB_API_KEY=your_api_key_here
+
+# WebSocket URL is now auto-detected (no need to set VITE_WS_URL)
+# The app automatically uses wss:// for HTTPS sites
+
+# Other settings remain default...
+```
+
+**WebSocket is auto-configured:** The frontend automatically detects the WebSocket URL from the current host. No need to set `VITE_WS_URL` - it will use `wss://aipulse.falkenby.com/ws` automatically.
+
+Then deploy as usual:
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
 ## Production Deployment Options
 
 ### Option 1: Docker Compose (Recommended for Home Lab)

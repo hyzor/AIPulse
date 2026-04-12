@@ -1,7 +1,20 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { StockQuote, WebSocketMessage } from '../types';
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001/ws';
+// Dynamic WebSocket URL - works in both dev and production
+// Uses current host, automatically switches between ws:// (http) and wss:// (https)
+const getWebSocketUrl = (): string => {
+  // Check for explicit env var first (useful for custom setups)
+  const envUrl = import.meta.env.VITE_WS_URL;
+  if (envUrl) return envUrl;
+  
+  // Otherwise use current host
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.host;
+  return `${protocol}//${host}/ws`;
+};
+
+const WS_URL = getWebSocketUrl();
 
 interface UseWebSocketReturn {
   quotes: Map<string, StockQuote>;

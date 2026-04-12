@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Activity, Database } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, Database, Cpu, Code2, Rocket, Zap } from 'lucide-react';
 
 import { STOCK_DISPLAY_NAMES, STOCK_CATEGORIES, STOCK_COUNTRIES } from '../types';
 import { LoadingSkeleton } from './LoadingSkeleton';
@@ -27,6 +27,14 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
   const category = Object.entries(STOCK_CATEGORIES).find(([_, symbols]) =>
     symbols.includes(quote.symbol),
   )?.[0] || 'Other';
+
+  // Category icon mapping
+  const categoryIcons: Record<string, React.ReactNode> = {
+    'AI Chips': <Zap className="w-3 h-3 text-neon-purple" />,
+    'Semiconductors': <Cpu className="w-3 h-3 text-neon-blue" />,
+    'AI Software': <Code2 className="w-3 h-3 text-neon-green" />,
+    'Tech Giants': <Rocket className="w-3 h-3 text-orange-400" />,
+  };
 
   // Check if market is currently open AND the quote is from today
   const exchange = getExchangeForSymbol(quote.symbol);
@@ -139,7 +147,8 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
       <div className="pt-3 border-t border-dark-600">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 px-2 py-1 rounded bg-dark-800">
+            <span className="text-xs text-gray-500 px-2 py-1 rounded bg-dark-800 flex items-center gap-1.5">
+              {categoryIcons[category]}
               {category}
             </span>
             <span className="text-xs text-gray-600">

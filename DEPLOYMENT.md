@@ -14,7 +14,7 @@ cp .env.example .env
 # Edit .env and add your FINNHUB_API_KEY
 
 # 2. Start infrastructure services (TimescaleDB + Redis)
-docker-compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d
 
 # 3. In another terminal, start the backend
 cd backend
@@ -45,13 +45,13 @@ For production deployment with all services containerized:
 echo "FINNHUB_API_KEY=your_api_key_here" > .env
 
 # Start all services
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 
 # View logs
-docker-compose -f docker-compose.prod.yml logs -f
+docker compose -f docker-compose.prod.yml logs -f
 
 # Stop services
-docker-compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml down
 ```
 
 **Services in production mode:**
@@ -78,7 +78,7 @@ cd aipulse
 
 3. **Deploy with Docker Compose:**
 ```bash
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 4. **Access the app:**
@@ -87,10 +87,10 @@ docker-compose -f docker-compose.prod.yml up -d
 5. **Verify deployment:**
 ```bash
 # Check all containers are running
-docker-compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml ps
 
 # Check logs
-docker-compose -f docker-compose.prod.yml logs -f app
+docker compose -f docker-compose.prod.yml logs -f app
 
 # Test API
 curl http://localhost:3001/api/health
@@ -102,8 +102,8 @@ curl http://localhost:3001/api/health
 git pull
 
 # Rebuild and restart
-docker-compose -f docker-compose.prod.yml down
-docker-compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 ### Option 2: Manual Docker Build
@@ -270,12 +270,12 @@ The production compose file includes health checks:
 
 ```bash
 # All services
-docker-compose -f docker-compose.prod.yml logs -f
+docker compose -f docker-compose.prod.yml logs -f
 
 # Specific service
-docker-compose -f docker-compose.prod.yml logs -f app
-docker-compose -f docker-compose.prod.yml logs -f db
-docker-compose -f docker-compose.prod.yml logs -f redis
+docker compose -f docker-compose.prod.yml logs -f app
+docker compose -f docker-compose.prod.yml logs -f db
+docker compose -f docker-compose.prod.yml logs -f redis
 ```
 
 ## Troubleshooting
@@ -284,21 +284,21 @@ docker-compose -f docker-compose.prod.yml logs -f redis
 
 ```bash
 # Check logs
-docker-compose -f docker-compose.prod.yml logs app
+docker compose -f docker-compose.prod.yml logs app
 
 # Verify environment variables
-docker-compose -f docker-compose.prod.yml config
+docker compose -f docker-compose.prod.yml config
 ```
 
 ### Database connection issues
 
 ```bash
 # Check if DB is ready
-docker-compose -f docker-compose.prod.yml exec db pg_isready
+docker compose -f docker-compose.prod.yml exec db pg_isready
 
 # Reset database (WARNING: destroys data)
-docker-compose -f docker-compose.prod.yml down -v
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml down -v
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ### Rate limit issues
@@ -365,9 +365,9 @@ vercel env add VITE_API_URL
 git pull origin main
 
 # Rebuild and restart
-docker-compose -f docker-compose.prod.yml down
-docker-compose -f docker-compose.prod.yml pull  # If using pre-built images
-docker-compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml pull  # If using pre-built images
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 ### Zero-Downtime Update (Advanced)
@@ -377,11 +377,11 @@ docker-compose -f docker-compose.prod.yml up -d --build
 docker build -t aipulse:new .
 
 # Start new container alongside old
-docker-compose -f docker-compose.prod.yml up -d --scale app=2
+docker compose -f docker-compose.prod.yml up -d --scale app=2
 
 # Verify new container works
 curl http://localhost:3001/api/health
 
 # Remove old container
-docker-compose -f docker-compose.prod.yml up -d --scale app=1
+docker compose -f docker-compose.prod.yml up -d --scale app=1
 ```

@@ -47,12 +47,12 @@ To ensure this system works correctly, we provide automated test scripts that ve
 This starts TimescaleDB and Redis in Docker:
 
 ```bash
-docker-compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d
 ```
 
 Verify they're running:
 ```bash
-docker-compose -f docker-compose.dev.yml ps
+docker compose -f docker-compose.dev.yml ps
 ```
 
 ### Step 2: Start the Backend (⚠️ CRITICAL!)
@@ -287,7 +287,7 @@ If any test fails:
 1. Check the specific error message
 2. Verify services are running:
    ```bash
-   docker-compose -f docker-compose.dev.yml ps
+   docker compose -f docker-compose.dev.yml ps
    ```
 3. Check backend logs for errors
 4. Re-run the specific failing test

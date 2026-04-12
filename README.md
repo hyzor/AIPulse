@@ -83,7 +83,7 @@ cp .env.example .env
 **For local development:**
 - The same `.env` file works for both backend and frontend
 - Backend runs on port 3001, frontend on port 5173
-- Default database URLs point to localhost (run `docker-compose -f docker-compose.dev.yml up -d` for DB services)
+- Default database URLs point to localhost (run `docker compose -f docker-compose.dev.yml up -d` for DB services)
 
 ### 3. Start Development
 
@@ -122,7 +122,7 @@ To verify the persistence system works (data survives restarts):
 
 ```bash
 # 1. Start databases
-docker-compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d
 
 # 2. Start backend (keep running)
 cd backend && npm run dev
@@ -161,7 +161,7 @@ AIPulse/
 │   ├── tsconfig.json
 │   └── vite.config.ts
 ├── deployment/             # Deployment configs
-├── docker-compose.yml
+├── docker compose.yml
 ├── Dockerfile
 ├── ecosystem.config.js     # PM2 config
 └── package.json            # Root workspace config
@@ -211,7 +211,7 @@ AIPulse/
 
 Using Docker Compose:
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 Using PM2:

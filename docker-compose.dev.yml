@@ -1,7 +1,5 @@
-version: '3.8'
-
 # Development: Database services only
-# Run with: docker-compose -f docker-compose.dev.yml up -d
+# Run with: docker compose -f docker-compose.dev.yml up -d
 # Then: cd backend && npm run dev
 
 services:

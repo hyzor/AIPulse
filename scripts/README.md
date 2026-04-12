@@ -22,7 +22,7 @@ Utility scripts for testing, development, and data management.
 ### Prerequisites
 
 1. Backend running (`cd backend && npm run dev`)
-2. Docker containers running (`docker-compose -f docker-compose.dev.yml up -d`)
+2. Docker containers running (`docker compose -f docker-compose.dev.yml up -d`)
 3. Finnhub API configured (`.env` has `FINNHUB_API_KEY`)
 
 ### Usage (Windows PowerShell)
@@ -121,7 +121,7 @@ See [Testing Guide](../docs/testing-guide.md) for full documentation.
 
 ### Prerequisites
 
-1. Databases running: `docker-compose -f docker-compose.dev.yml up -d`
+1. Databases running: `docker compose -f docker-compose.dev.yml up -d`
 2. Backend running: `cd backend && npm run dev`
 3. Wait 10 seconds for connections
 

@@ -1,7 +1,5 @@
-version: '3.8'
-
 # Production: Full stack with all services
-# Run with: docker-compose -f docker-compose.prod.yml up -d
+# Run with: docker compose -f docker-compose.prod.yml up -d
 #
 # Environment variables are loaded automatically from .env file in project root.
 # Create .env file: cp .env.example .env

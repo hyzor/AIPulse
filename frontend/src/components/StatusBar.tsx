@@ -220,7 +220,7 @@ export function StatusBar({ totalStocks, apiConfigured, error, rateLimit }: Stat
                 <span className="inline-flex rounded-full h-2 w-2 bg-gray-500"></span>
                 <span className="text-sm text-gray-400">Market Closed</span>
                 <span className="text-sm text-gray-500">
-                  • Opens
+                  • Opens{' '}
                   {marketStatus.nextOpen.toLocaleString(undefined, {
                     weekday: 'short',
                     hour: '2-digit',

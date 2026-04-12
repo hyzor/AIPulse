@@ -106,7 +106,6 @@ function AppContent() {
       />
 
       <StatusBar
-        totalStocks={stocks.size}
         isConnected={isConnected}
         apiConfigured={apiConfigured}
         error={error || wsError}

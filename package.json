@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "AI Stock Monitoring Web App - Real-time stock prices for AI/tech companies",
   "private": true,
+  "type": "module",
   "workspaces": [
     "backend",
     "frontend"
@@ -13,7 +14,9 @@
     "dev:frontend": "npm run dev --workspace=frontend",
     "build": "npm run build --workspace=frontend",
     "start": "npm run start --workspace=backend",
-    "lint": "eslint . --ext .ts,.tsx",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:report": "eslint . --format stylish",
     "typecheck": "npm run typecheck --workspace=backend && npm run typecheck --workspace=frontend"
   },
   "keywords": [
@@ -27,8 +30,16 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "@types/node": "^20.10.5",
     "concurrently": "^8.2.2",
+    "eslint": "^9.39.4",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
     "typescript": "^5.3.3",
-    "@types/node": "^20.10.5"
+    "typescript-eslint": "^8.58.1"
   }
 }

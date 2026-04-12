@@ -1,6 +1,6 @@
 import { TrendingUp, TrendingDown, Activity, Database } from 'lucide-react';
 import { StockQuote, STOCK_DISPLAY_NAMES, STOCK_CATEGORIES } from '../types';
-import { formatCurrency, formatChange, getChangeColor, getChangeBgColor } from '../utils/format';
+import { formatCurrency, formatChange, getChangeColor, getChangeBgColor, getChangeLabel, checkMarketOpen, getExchangeForSymbol, isSameTradingDay } from '../utils/format';
 import { useTimeRange } from '../contexts/TimeRangeContext';
 import { MiniAreaChart } from './MiniAreaChart';
 import { LoadingSkeleton } from './LoadingSkeleton';
@@ -25,6 +25,16 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
     symbols.includes(quote.symbol)
   )?.[0] || 'Other';
 
+  // Check if market is currently open AND the quote is from today
+  const exchange = getExchangeForSymbol(quote.symbol);
+  const isMarketOpen = checkMarketOpen(exchange);
+  const isFromToday = isSameTradingDay(exchange, quote.timestamp);
+
+  // Only show live indicator if market is open, quote is from today, AND we have realtime data
+  const showLiveIndicator = isMarketOpen && isFromToday && isRealtime;
+  // Only show 1D live indicator if market is open, quote is from today, and in 1D view
+  const show1DLiveIndicator = isMarketOpen && isFromToday && timeRange === '1d' && !isRealtime;
+
   return (
     <div 
       onClick={onClick}
@@ -32,11 +42,11 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
         relative bg-dark-700 border border-dark-600 rounded-xl p-5 
         transition-all duration-300 hover:border-neon-blue/50 hover:shadow-lg hover:shadow-neon-blue/10 
         group cursor-pointer
-        ${isRealtime ? 'ring-2 ring-neon-blue/30' : ''}
+        ${showLiveIndicator ? 'ring-2 ring-neon-blue/30' : ''}
       `}
     >
-      {/* Real-time indicator */}
-      {isRealtime && (
+      {/* Real-time indicator - only show when market is actually open */}
+      {showLiveIndicator && (
         <div className="absolute top-3 right-3 flex items-center gap-1.5">
           <span className="relative flex h-2.5 w-2.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-green opacity-75"></span>
@@ -46,8 +56,8 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
         </div>
       )}
 
-      {/* LIVE indicator for 1D view */}
-      {timeRange === '1d' && !isRealtime && (
+      {/* LIVE indicator for 1D view - only show when market is open */}
+      {show1DLiveIndicator && (
         <div className="absolute top-3 right-3 flex items-center gap-1.5">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
@@ -87,7 +97,7 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
           {formatCurrency(quote.currentPrice)}
         </p>
         <p className={`text-sm font-medium ${getChangeColor(quote.change)}`}>
-          {quote.change >= 0 ? '+' : ''}{formatCurrency(quote.change)} today
+          {quote.change >= 0 ? '+' : ''}{formatCurrency(quote.change)} {getChangeLabel(quote.symbol, quote.timestamp)}
         </p>
       </div>
 
@@ -111,9 +121,14 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
 
       <div className="pt-3 border-t border-dark-600">
         <div className="flex justify-between items-center">
-          <span className="text-xs text-gray-500 px-2 py-1 rounded bg-dark-800">
-            {category}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 px-2 py-1 rounded bg-dark-800">
+              {category}
+            </span>
+            <span className="text-xs text-gray-600">
+              {exchange}
+            </span>
+          </div>
           <Activity className="w-4 h-4 text-gray-600 group-hover:text-neon-blue transition-colors" />
         </div>
       </div>

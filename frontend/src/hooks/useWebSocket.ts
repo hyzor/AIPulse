@@ -7,8 +7,13 @@ const getWebSocketUrl = (): string => {
   // Check for explicit env var first (useful for custom setups)
   const envUrl = import.meta.env.VITE_WS_URL;
   if (envUrl) return envUrl;
-  
-  // Otherwise use current host
+
+  // In dev mode, connect directly to backend on port 3001
+  if (import.meta.env.DEV) {
+    return 'ws://localhost:3001/ws';
+  }
+
+  // In production, use current host (assumes frontend and backend are on same origin)
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = window.location.host;
   return `${protocol}//${host}/ws`;
@@ -31,9 +36,16 @@ export function useWebSocket(): UseWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
   const subscribedSymbols = useRef<Set<string>>(new Set());
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const intentionalClose = useRef(false);
 
   const connect = useCallback(() => {
     try {
+      // Clear any existing reconnect timeout before creating new connection
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+
       const ws = new WebSocket(WS_URL);
       wsRef.current = ws;
 
@@ -78,6 +90,12 @@ export function useWebSocket(): UseWebSocketReturn {
       };
 
       ws.onclose = () => {
+        // Don't log or reconnect if this was an intentional close (cleanup)
+        if (intentionalClose.current) {
+          intentionalClose.current = false;
+          return;
+        }
+
         console.log('[WebSocket] Disconnected');
         setIsConnected(false);
 
@@ -89,6 +107,10 @@ export function useWebSocket(): UseWebSocketReturn {
       };
 
       ws.onerror = (err) => {
+        // Don't log errors during intentional close (React StrictMode cleanup)
+        if (intentionalClose.current) {
+          return;
+        }
         console.error('[WebSocket] Error:', err);
         setError('WebSocket connection error');
       };
@@ -99,13 +121,21 @@ export function useWebSocket(): UseWebSocketReturn {
   }, []);
 
   useEffect(() => {
-    connect();
+    // Small delay to skip React StrictMode's double-mount in dev
+    const timeout = setTimeout(() => {
+      connect();
+    }, import.meta.env.DEV ? 100 : 0);
 
     return () => {
+      clearTimeout(timeout);
+      // Mark this as an intentional close to prevent reconnect
+      intentionalClose.current = true;
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
       wsRef.current?.close();
+      wsRef.current = null;
     };
   }, [connect]);
 

@@ -66,6 +66,26 @@ export const STOCK_CATEGORIES: Record<string, string[]> = {
   'Tech Giants': ['AMZN', 'TSLA'],
 };
 
+// Exchange information - all tracked stocks trade on US markets
+export type StockExchange = 'NASDAQ' | 'NYSE';
+
+export const STOCK_EXCHANGES: Record<string, StockExchange> = {
+  // NASDAQ
+  NVDA: 'NASDAQ',
+  AMD: 'NASDAQ',
+  AVGO: 'NASDAQ',
+  MRVL: 'NASDAQ',
+  ASML: 'NASDAQ',
+  ARM: 'NASDAQ',
+  MSFT: 'NASDAQ',
+  GOOGL: 'NASDAQ',
+  AMZN: 'NASDAQ',
+  // NYSE
+  TSM: 'NYSE',
+  PLTR: 'NYSE',
+  TSLA: 'NYSE',
+};
+
 export interface RateLimitStatus {
   callsInCurrentWindow: number;
   windowStart: number;

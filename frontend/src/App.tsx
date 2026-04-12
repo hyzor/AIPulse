@@ -1,3 +1,4 @@
+import { Cpu, Code2, Rocket, Zap } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
 import { DataCollectionStatus } from './components/DataCollectionStatus';
@@ -161,10 +162,20 @@ function AppContent() {
           const categoryStocks = getStocksByCategory(symbols);
           if (categoryStocks.length === 0) { return null; }
 
+          // Category icon and color mapping
+          const categoryConfig: Record<string, { icon: React.ReactNode; color: string; barColor: string }> = {
+            'AI Chips': { icon: <Zap className="w-5 h-5" />, color: 'text-neon-purple', barColor: 'bg-neon-purple' },
+            'Semiconductors': { icon: <Cpu className="w-5 h-5" />, color: 'text-neon-blue', barColor: 'bg-neon-blue' },
+            'AI Software': { icon: <Code2 className="w-5 h-5" />, color: 'text-neon-green', barColor: 'bg-neon-green' },
+            'Tech Giants': { icon: <Rocket className="w-5 h-5" />, color: 'text-orange-400', barColor: 'bg-orange-400' },
+          };
+          const config = categoryConfig[category] || { icon: null, color: 'text-gray-400', barColor: 'bg-gray-400' };
+
           return (
             <section key={category} className="mb-12">
-              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <span className="w-1 h-5 bg-neon-purple rounded-full"></span>
+              <h2 className={`text-xl font-bold mb-4 flex items-center gap-2 ${config.color}`}>
+                <span className={`w-1 h-6 ${config.barColor} rounded-full`}></span>
+                {config.icon}
                 {category}
               </h2>
               <StockGrid

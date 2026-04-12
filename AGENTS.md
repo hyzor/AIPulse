@@ -548,6 +548,62 @@ useEffect(() => {
 
 ---
 
+## Code Quality Requirements
+
+### Mandatory Linting
+
+**ALL code changes MUST pass ESLint before being committed.**
+
+#### Required Workflow
+
+1. **After making ANY code changes**, run:
+   ```bash
+   npm run lint
+   ```
+
+2. **If errors exist, fix them immediately.** Common fixes:
+   ```bash
+   npm run lint:fix    # Auto-fix formatting and simple issues
+   ```
+
+3. **Verify clean status** before committing:
+   ```bash
+   npm run lint        # Should show 0 errors
+   npm run typecheck   # Should pass
+   ```
+
+#### Current ESLint Status
+
+| Severity | Count | Action |
+|----------|-------|--------|
+| **Errors** | 0 ✅ | Maintain - never introduce new errors |
+| **Warnings** | ~10 ⚠️ | Acceptable (mostly unused interface params) |
+
+#### Critical Rules (Never Disable)
+
+- `no-undef` - Prevents using undefined variables
+- `@typescript-eslint/no-floating-promises` - Prevents unhandled async
+- `no-debugger` - Prevents debugger statements in production
+- `import/no-unresolved` - Ensures imports exist
+
+#### Commonly Relaxed Rules (Already Configured)
+
+- `@typescript-eslint/no-explicit-any` - Set to 'off' (use `unknown` instead)
+- `no-console` - Allow console.log/warn/error (needed for backend logging)
+- `@typescript-eslint/no-unused-vars` - Warnings only for unused catch blocks
+
+### Pre-Commit Checklist
+
+```bash
+# Before every commit, run:
+npm run lint && npm run typecheck
+
+# If both pass, proceed with commit
+# If either fails, fix issues first
+```
+
+---
+
 ## Quick Reference
 
 ### File Purposes

@@ -52,7 +52,36 @@ function getMarketStatus() {
   const isWithinHours = timeDecimal >= openDecimal && timeDecimal < closeDecimal;
   const isOpen = isWeekday && isWithinHours;
 
-  return { isOpen, hours: '9:30 AM - 4:00 PM ET' };
+  // Calculate next open time (in user's local time)
+  let daysUntilOpen: number;
+  if (isOpen) {
+    daysUntilOpen = dayOfWeek === 5 ? 3 : 1;
+  } else if (isWeekday && timeDecimal < openDecimal) {
+    daysUntilOpen = 0;
+  } else if (isWeekday && timeDecimal >= closeDecimal) {
+    daysUntilOpen = dayOfWeek === 5 ? 3 : 1;
+  } else {
+    daysUntilOpen = dayOfWeek === 7 ? 1 : 2;
+  }
+
+  // Create the next market open date in ET
+  const etDateFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  });
+
+  const etParts = etDateFormatter.formatToParts(now);
+  const etYear = parseInt(etParts.find((p) => p.type === 'year')?.value || '0', 10);
+  const etMonth = parseInt(etParts.find((p) => p.type === 'month')?.value || '0', 10) - 1;
+  const etDay = parseInt(etParts.find((p) => p.type === 'day')?.value || '0', 10);
+
+  const targetETDay = etDay + daysUntilOpen;
+  const nextOpenUTC = Date.UTC(etYear, etMonth, targetETDay, MARKET_OPEN_HOUR + 5, MARKET_OPEN_MINUTE, 0);
+  const nextOpen = new Date(nextOpenUTC);
+
+  return { isOpen, nextOpen, hours: '9:30 AM - 4:00 PM ET' };
 }
 
 export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: StatusBarProps) {
@@ -70,8 +99,43 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
         {/* Main Status Row */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Connection & API Status */}
-          <div className="flex items-center gap-2">
+          {/* Market Status - Left side, takes available space */}
+          <div className="flex-1 flex items-center gap-3 px-3 py-2 bg-dark-800/50 border border-dark-600 rounded-lg min-w-0">
+            <div className="flex items-center gap-2 text-gray-400 shrink-0">
+              <Clock className="w-4 h-4" />
+              <span className="text-sm">NYSE/NASDAQ:</span>
+              <span className="text-sm text-gray-300">{marketStatus.hours}</span>
+            </div>
+            <div className="h-4 w-px bg-dark-600 shrink-0" />
+            {marketStatus.isOpen
+              ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-green opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-neon-green"></span>
+                  </span>
+                  <span className="text-sm text-neon-green font-medium">Market Open</span>
+                </div>
+              )
+              : (
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-flex rounded-full h-2 w-2 bg-gray-500"></span>
+                  <span className="text-sm text-gray-400">Market Closed</span>
+                  <span className="text-sm text-gray-500">
+                    • Opens{' '}
+                    {marketStatus.nextOpen.toLocaleString(undefined, {
+                      weekday: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: false,
+                    })}
+                  </span>
+                </div>
+              )}
+          </div>
+
+          {/* Connection, API, Rate Limit - Right side, grouped together */}
+          <div className="flex items-center gap-2 shrink-0">
             {/* WebSocket Connection */}
             <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${isConnected ? 'bg-neon-green/10 border-neon-green/30' : 'bg-neon-red/10 border-neon-red/30'}`}>
               {isConnected
@@ -107,10 +171,7 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
                   )}
               </>
             )}
-          </div>
 
-          {/* Rate Limit & Market Status */}
-          <div className="flex items-center gap-2">
             {/* Rate Limit Indicator */}
             {rateLimit && (
               <div className={`flex items-center gap-1.5 px-2.5 py-1.5 bg-dark-700 rounded-lg border border-dark-600 ${getRateLimitColor(rateLimit.percentUsed)}`}>
@@ -120,27 +181,6 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
                 </span>
               </div>
             )}
-
-            {/* Market Status */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-dark-700 rounded-lg border border-dark-600">
-              <Clock className="w-3.5 h-3.5 text-gray-400" />
-              {marketStatus.isOpen
-                ? (
-                  <span className="flex items-center gap-1.5">
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-green opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-neon-green"></span>
-                    </span>
-                    <span className="text-xs text-neon-green font-medium">Market Open</span>
-                  </span>
-                )
-                : (
-                  <span className="flex items-center gap-1.5">
-                    <span className="inline-flex rounded-full h-1.5 w-1.5 bg-gray-500"></span>
-                    <span className="text-xs text-gray-400">Closed</span>
-                  </span>
-                )}
-            </div>
           </div>
         </div>
 

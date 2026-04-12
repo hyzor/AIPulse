@@ -20,7 +20,7 @@ interface TimeRangeContextType {
 const TimeRangeContext = createContext<TimeRangeContextType | undefined>(undefined);
 
 export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
-  const [timeRange, setTimeRangeState] = useState<TimeRange>('1d');
+  const [timeRange, setTimeRangeState] = useState<TimeRange>('7d');
   const [historicalData, setHistoricalData] = useState<HistoricalDataCache>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

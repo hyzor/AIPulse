@@ -18,6 +18,8 @@ interface CategoryStats {
   stockCount: number;
   upStocks: number;
   downStocks: number;
+  hasData: boolean;
+  dataPoints: number;
 }
 
 interface HistoricalChange {
@@ -204,15 +206,20 @@ export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
       }
     });
 
+    const hasData = count > 0;
+    const expectedCount = symbols.length;
+
     return {
       name: categoryName,
       icon: getCategoryIcon(categoryName),
       color: getCategoryColor(categoryName),
-      avgChange: count > 0 ? totalChange / count : 0,
-      avgChangePercent: count > 0 ? totalChangePercent / count : 0,
+      avgChange: hasData ? totalChange / count : 0,
+      avgChangePercent: hasData ? totalChangePercent / count : 0,
       stockCount: count,
       upStocks,
       downStocks,
+      hasData,
+      dataPoints: expectedCount,
     };
   };
 
@@ -316,6 +323,16 @@ export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
           </div>
         )}
 
+        {/* Insufficient data warning */}
+        {timeRange !== '1d' && !isLoading && categoryStats.some((c) => !c.hasData) && (
+          <div className="flex items-center gap-2 py-2 px-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg mb-3">
+            <span className="text-xs text-yellow-400">
+              ⚠️ Insufficient historical data. Showing {categoryStats.filter((c) => c.hasData).length} of {categoryStats.length} categories.
+              Charts may display &quot;No data&quot; for some symbols.
+            </span>
+          </div>
+        )}
+
         {fetchError && (
           <div className="flex items-center justify-center py-3 px-4 bg-neon-red/10 border border-neon-red/30 rounded-lg mb-3">
             <span className="text-xs text-neon-red">{fetchError} - Using daily data</span>
@@ -326,32 +343,43 @@ export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
           {categoryStats.map((category) => (
             <div
               key={category.name}
-              className="bg-dark-700 rounded-lg border border-dark-600 p-3 hover:border-dark-500 transition-colors"
-              title={`${category.name}: Average performance across ${category.stockCount} stocks. ${category.upStocks} up, ${category.downStocks} down ${timeRange === '1d' ? (marketIsOpen ? 'today' : `on ${periodLabel}`) : `over ${periodLabel.toLowerCase()}`}.`}
+              className={`rounded-lg border p-3 transition-colors ${category.hasData ? 'bg-dark-700 border-dark-600 hover:border-dark-500' : 'bg-dark-800 border-dark-700'}`}
+              title={category.hasData
+                ? `${category.name}: Average performance across ${category.stockCount} stocks. ${category.upStocks} up, ${category.downStocks} down ${timeRange === '1d' ? (marketIsOpen ? 'today' : `on ${periodLabel}`) : `over ${periodLabel.toLowerCase()}`}.`
+                : `${category.name}: No historical data available. Try switching to &quot;Last Trading Day&quot; view.`}
             >
               <div className="flex items-center gap-2 mb-2">
-                <span className={category.color}>{category.icon}</span>
-                <span className="text-sm font-medium text-white">{category.name}</span>
+                <span className={category.hasData ? category.color : 'text-gray-600'}>{category.icon}</span>
+                <span className={`text-sm font-medium ${category.hasData ? 'text-white' : 'text-gray-500'}`}>{category.name}</span>
               </div>
 
-              <div className="flex items-baseline gap-1 mb-1">
-                <span className={`text-lg font-bold ${category.avgChangePercent >= 0 ? 'text-neon-green' : 'text-neon-red'}`}>
-                  {formatPercent(category.avgChangePercent)}
-                </span>
-                <span className={`text-xs ${category.avgChange >= 0 ? 'text-neon-green/70' : 'text-neon-red/70'}`}>
-                  {formatCurrency(category.avgChange)}
-                </span>
-              </div>
+              {category.hasData ? (
+                <>
+                  <div className="flex items-baseline gap-1 mb-1">
+                    <span className={`text-lg font-bold ${category.avgChangePercent >= 0 ? 'text-neon-green' : 'text-neon-red'}`}>
+                      {formatPercent(category.avgChangePercent)}
+                    </span>
+                    <span className={`text-xs ${category.avgChange >= 0 ? 'text-neon-green/70' : 'text-neon-red/70'}`}>
+                      {formatCurrency(category.avgChange)}
+                    </span>
+                  </div>
 
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <span className="flex items-center gap-1">
-                  {category.avgChangePercent >= 0
-                    ? <TrendingUp className="w-3 h-3 text-neon-green" />
-                    : <TrendingDown className="w-3 h-3 text-neon-red" />
-                  }
-                  {category.upStocks}/{category.stockCount} up
-                </span>
-              </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <span className="flex items-center gap-1">
+                      {category.avgChangePercent >= 0
+                        ? <TrendingUp className="w-3 h-3 text-neon-green" />
+                        : <TrendingDown className="w-3 h-3 text-neon-red" />
+                      }
+                      {category.upStocks}/{category.stockCount} up
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  <span className="text-lg font-bold text-gray-600">--</span>
+                  <span className="text-xs text-gray-500">No data</span>
+                </div>
+              )}
             </div>
           ))}
         </div>

@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { finnhubService } from '../services/finnhubService.js';
-import { cacheService } from '../services/cacheService.js';
-import { databaseService } from '../services/databaseService.js';
-import { candleBufferService } from '../services/candleBufferService.js';
-import { redisService } from '../services/redisService.js';
-import { TRACKED_STOCKS } from '../constants.js';
-import type { HistoryResponse, CandleData, FlushResult } from '../types/index.js';
+import { finnhubService } from '../services/finnhubService';
+import { cacheService } from '../services/cacheService';
+import { databaseService } from '../services/databaseService';
+import { candleBufferService } from '../services/candleBufferService';
+import { redisService } from '../services/redisService';
+import { TRACKED_STOCKS } from '../constants';
+import type { HistoryResponse, CandleData, FlushResult } from '../types';
 
 const router = Router();
 

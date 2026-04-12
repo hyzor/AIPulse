@@ -1,8 +1,8 @@
-import { StockQuote, FinnhubQuote, FinnhubProfile } from '../types/index.js';
-import { cacheService } from './cacheService.js';
-import { redisService } from './redisService.js';
-import { databaseService } from './databaseService.js';
-import { finnhubRateLimiter, profileRateLimiter, UsageStats } from './rateLimiter.js';
+import { StockQuote, FinnhubQuote, FinnhubProfile } from '../types';
+import { cacheService } from './cacheService';
+import { redisService } from './redisService';
+import { databaseService } from './databaseService';
+import { finnhubRateLimiter, profileRateLimiter, UsageStats } from './rateLimiter';
 
 const FINNHUB_API_URL = 'https://finnhub.io/api/v1';
 

@@ -1,6 +1,7 @@
 import { Cpu, Code2, Rocket, Zap } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
+import { CategoryPerformance } from './components/CategoryPerformance';
 import { DataCollectionStatus } from './components/DataCollectionStatus';
 import { ExpandedChartModal } from './components/ExpandedChartModal';
 import { Header } from './components/Header';
@@ -111,6 +112,9 @@ function AppContent() {
         error={error || wsError}
         rateLimit={rateLimit}
       />
+
+      {/* Category Performance Overview */}
+      <CategoryPerformance stocks={mergedStocks} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Data Collection Status */}

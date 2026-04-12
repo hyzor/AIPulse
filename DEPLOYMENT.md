@@ -9,15 +9,19 @@ AIPulse now uses a three-tier persistent cache architecture with TimescaleDB and
 For local development with hot-reload and database services:
 
 ```bash
-# Start infrastructure services (TimescaleDB + Redis)
+# 1. Configure environment (single .env file for both backend and frontend)
+cp .env.example .env
+# Edit .env and add your FINNHUB_API_KEY
+
+# 2. Start infrastructure services (TimescaleDB + Redis)
 docker-compose -f docker-compose.dev.yml up -d
 
-# In another terminal, start the backend
+# 3. In another terminal, start the backend
 cd backend
 npm install
 npm run dev
 
-# In another terminal, start the frontend
+# 4. In another terminal, start the frontend
 cd frontend
 npm install
 npm run dev
@@ -26,8 +30,11 @@ npm run dev
 **Services in dev mode:**
 - TimescaleDB on port 5432
 - Redis on port 6379
-- Backend on port 3001 (local, hot-reload)
-- Frontend on port 5173 (local, hot-reload)
+- Backend on port 3001 (local, hot-reload) → http://localhost:3001
+- Frontend on port 5173 (local, hot-reload) → http://localhost:5173
+
+**Access the app in dev mode:**
+Open http://localhost:5173 in your browser (Vite dev server with hot reload)
 
 ### Production Mode (Full Stack)
 
@@ -48,9 +55,9 @@ docker-compose -f docker-compose.prod.yml down
 ```
 
 **Services in production mode:**
-- AIPulse app on port 3001
-- TimescaleDB on port 5432 (internal)
-- Redis on port 6379 (internal)
+- AIPulse app on **port 3001** → http://localhost:3001
+- TimescaleDB on port 5432 (internal only)
+- Redis on port 6379 (internal only)
 
 ## Production Deployment Options
 
@@ -63,17 +70,21 @@ cd aipulse
 ```
 
 2. **Configure environment:**
-```bash
-cp .env.example .env
-# Edit .env with your FINNHUB_API_KEY
-```
+   > **Note:** Docker Compose automatically loads environment variables from `.env` in the project root.
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your FINNHUB_API_KEY
+   ```
 
 3. **Deploy with Docker Compose:**
 ```bash
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
-4. **Verify deployment:**
+4. **Access the app:**
+   Open http://localhost:3001 in your browser
+
+5. **Verify deployment:**
 ```bash
 # Check all containers are running
 docker-compose -f docker-compose.prod.yml ps
@@ -85,7 +96,7 @@ docker-compose -f docker-compose.prod.yml logs -f app
 curl http://localhost:3001/api/health
 ```
 
-5. **Update deployment:**
+6. **Update deployment:**
 ```bash
 # Pull latest changes
 git pull
@@ -127,11 +138,11 @@ npm install -g pm2
    - Install Redis locally or use cloud service
 
 3. **Configure environment:**
-```bash
-export FINNHUB_API_KEY=your_api_key
-export DATABASE_URL=postgresql://localhost:5432/aipulse
-export REDIS_URL=redis://localhost:6379
-```
+   > **Note:** Docker Compose automatically loads environment variables from a `.env` file in the project root.
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your FINNHUB_API_KEY
+   ```
 
 4. **Start with PM2:**
 ```bash

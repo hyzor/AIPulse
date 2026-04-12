@@ -1,13 +1,14 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load environment variables FIRST before any other imports
-// This ensures process.env is populated before services are instantiated
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+// Load environment variables from project root FIRST before any other imports
+// This works for both local dev (tsx) and Docker (compiled to dist/)
+const envPath = path.resolve(process.cwd(), '.env');
+dotenv.config({ path: envPath });
 
 // Debug: Log environment status (mask API key for security)
 const apiKey = process.env.FINNHUB_API_KEY;
-console.log('[Config] Environment loaded from:', path.resolve(__dirname, '../.env'));
+console.log('[Config] Environment loaded from:', envPath);
 console.log('[Config] FINNHUB_API_KEY present:', apiKey ? 'Yes' : 'No');
 console.log('[Config] FINNHUB_API_KEY length:', apiKey ? apiKey.length : 0);
 if (apiKey) {
@@ -39,28 +40,8 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Routes
+// API Routes (must be BEFORE static files)
 app.use('/api', stockRoutes);
-
-// Root endpoint
-app.get('/', (_req, res) => {
-  res.json({
-    name: 'AIPulse API',
-    version: '1.0.0',
-    description: 'AI Stock Monitoring API with Persistent Cache',
-    endpoints: {
-      stocks: '/api/stocks',
-      stockDetail: '/api/stocks/:symbol',
-      history: '/api/stocks/:symbol/history',
-      profile: '/api/profile/:symbol',
-      health: '/api/health',
-      cacheClear: 'POST /api/cache/clear',
-      flushCache: 'POST /api/admin/flush-cache',
-    },
-    trackedStocks: TRACKED_STOCKS,
-    timestamp: Date.now(),
-  });
-});
 
 // Health check endpoint with full system status
 app.get('/api/health', async (_req, res) => {
@@ -90,6 +71,36 @@ app.get('/api/health', async (_req, res) => {
   };
 
   res.json(status);
+});
+
+// API info endpoint (moved from root to /api)
+app.get('/api', (_req, res) => {
+  res.json({
+    name: 'AIPulse API',
+    version: '1.0.0',
+    description: 'AI Stock Monitoring API with Persistent Cache',
+    endpoints: {
+      stocks: '/api/stocks',
+      stockDetail: '/api/stocks/:symbol',
+      history: '/api/stocks/:symbol/history',
+      profile: '/api/profile/:symbol',
+      health: '/api/health',
+      cacheClear: 'POST /api/cache/clear',
+      flushCache: 'POST /api/admin/flush-cache',
+    },
+    trackedStocks: TRACKED_STOCKS,
+    timestamp: Date.now(),
+  });
+});
+
+// Serve static frontend files (production build)
+const staticPath = path.resolve(process.cwd(), 'frontend/dist');
+console.log('[Server] Serving static files from:', staticPath);
+app.use(express.static(staticPath));
+
+// Catch-all: serve index.html for any non-API route (client-side routing)
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(staticPath, 'index.html'));
 });
 
 // Create HTTP server

@@ -1,21 +1,31 @@
-# Build stage
+# Build stage - builds both frontend and backend
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Copy all package files first (for better layer caching)
 COPY package*.json ./
 COPY backend/package*.json ./backend/
+COPY frontend/package*.json ./frontend/
 
-# Install dependencies
+# Install all dependencies using workspaces (single install for all)
 RUN npm ci
 
 # Copy source code
 COPY backend/src ./backend/src
 COPY backend/tsconfig.json ./backend/
+COPY frontend/src ./frontend/src
+COPY frontend/index.html ./frontend/
+COPY frontend/tsconfig*.json ./frontend/
+COPY frontend/vite.config.ts ./frontend/
+COPY frontend/tailwind.config.js ./frontend/
+COPY frontend/postcss.config.js ./frontend/
 
-# Build backend
-RUN cd backend && npm run build
+# Build frontend (outputs to frontend/dist)
+RUN npm run build --workspace=frontend
+
+# Build backend (outputs to backend/dist)
+RUN npm run build --workspace=backend
 
 # Production stage
 FROM node:20-alpine
@@ -29,11 +39,14 @@ RUN apk add --no-cache curl
 COPY package*.json ./
 COPY backend/package*.json ./backend/
 
-# Install production dependencies only
-RUN npm ci --only=production && cd backend && npm ci --only=production
+# Install production dependencies only (omit dev dependencies)
+RUN npm ci --omit=dev
 
-# Copy built files
+# Copy built backend
 COPY --from=builder /app/backend/dist ./backend/dist
+
+# Copy built frontend static files
+COPY --from=builder /app/frontend/dist ./frontend/dist
 
 # Expose port
 EXPOSE 3001

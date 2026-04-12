@@ -23,7 +23,7 @@ Utility scripts for testing, development, and data management.
 
 1. Backend running (`cd backend && npm run dev`)
 2. Docker containers running (`docker-compose -f docker-compose.dev.yml up -d`)
-3. Finnhub API configured (`backend/.env` has `FINNHUB_API_KEY`)
+3. Finnhub API configured (`.env` has `FINNHUB_API_KEY`)
 
 ### Usage (Windows PowerShell)
 
@@ -142,11 +142,11 @@ npm run dev
 
 ### "API Not Configured" Error
 
-**Cause:** `FINNHUB_API_KEY` not set in `backend/.env`
+**Cause:** `FINNHUB_API_KEY` not set in `.env`
 
 **Fix:**
 1. Get free API key at https://finnhub.io
-2. Add to `backend/.env`: `FINNHUB_API_KEY=your_key_here`
+2. Add to `.env`: `FINNHUB_API_KEY=your_key_here`
 3. Restart backend
 
 ### "Only X API calls remaining" Warning

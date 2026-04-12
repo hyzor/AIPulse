@@ -9,7 +9,7 @@ interface StatsPanelProps {
   changePercent: number;
 }
 
-export function StatsPanel({ candles, currentPrice, change, changePercent }: StatsPanelProps) {
+export function StatsPanel({ candles, currentPrice: _currentPrice, change, changePercent }: StatsPanelProps) {
   if (!candles || candles.length === 0) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

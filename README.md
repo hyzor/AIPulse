@@ -70,19 +70,20 @@ npm install
 
 ### 2. Configure Environment
 
-Backend:
+Create a `.env` file from the template:
 ```bash
-cd backend
 cp .env.example .env
 # Edit .env and add your FINNHUB_API_KEY
 ```
 
-Frontend:
-```bash
-cd frontend
-cp .env.example .env
-# Default values should work for local development
-```
+**For Docker deployment:**
+- Only the root `.env` file is needed (Docker Compose loads it automatically)
+- Database URLs are auto-configured in `docker-compose.prod.yml`
+
+**For local development:**
+- The same `.env` file works for both backend and frontend
+- Backend runs on port 3001, frontend on port 5173
+- Default database URLs point to localhost (run `docker-compose -f docker-compose.dev.yml up -d` for DB services)
 
 ### 3. Start Development
 

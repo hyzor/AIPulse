@@ -2,6 +2,7 @@ import { Activity, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 
 import { TimeRangeToggle } from './TimeRangeToggle';
+import { checkMarketOpen } from '../utils/format';
 
 interface HeaderProps {
   lastUpdate: Date | null;
@@ -14,12 +15,15 @@ export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
     freshCount: number;
     cachedCount: number;
     failedCount: number;
+    isMarketOpen: boolean;
     show: boolean;
   } | null>(null);
 
   const handleRefresh = async () => {
     const result = await onRefresh();
-    setRefreshStatus({ ...result, show: true });
+    // Check if US markets are open (most stocks are US-based)
+    const isMarketOpen = checkMarketOpen('NASDAQ');
+    setRefreshStatus({ ...result, isMarketOpen, show: true });
 
     // Hide after 3 seconds
     setTimeout(() => {
@@ -55,11 +59,11 @@ export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
               <div className={`
                 hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium animate-in fade-in slide-in-from-top-2
                 ${refreshStatus.freshCount > 0
-                  ? 'bg-neon-green/10 text-neon-green border border-neon-green/30'
-                  : refreshStatus.cachedCount > 0
-                    ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30'
-                    : 'bg-red-500/10 text-red-400 border border-red-500/30'
-                }
+                ? 'bg-neon-green/10 text-neon-green border border-neon-green/30'
+                : refreshStatus.cachedCount > 0
+                  ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30'
+                  : 'bg-red-500/10 text-red-400 border border-red-500/30'
+              }
               `}>
                 {refreshStatus.freshCount > 0 ? (
                   <CheckCircle className="w-3.5 h-3.5" />
@@ -68,7 +72,9 @@ export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
                 )}
                 <span>
                   {refreshStatus.freshCount > 0
-                    ? `${refreshStatus.freshCount} live updated`
+                    ? refreshStatus.isMarketOpen
+                      ? `${refreshStatus.freshCount} live updated`
+                      : `${refreshStatus.freshCount} stocks refreshed`
                     : refreshStatus.cachedCount > 0
                       ? 'API limit - cached data'
                       : 'Refresh failed'}
@@ -94,7 +100,9 @@ export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
               onClick={handleRefresh}
               disabled={isLoading}
               className="flex items-center gap-2 px-3 py-2 bg-neon-blue/10 hover:bg-neon-blue/20 text-neon-blue rounded-lg border border-neon-blue/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Fetch live data for all stocks (API capacity permitting)"
+              title={checkMarketOpen('NASDAQ')
+                ? 'Fetch live data for all stocks (market open)'
+                : 'Fetch latest data for all stocks (market closed)'}
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
               <span className="text-sm font-medium hidden sm:inline">

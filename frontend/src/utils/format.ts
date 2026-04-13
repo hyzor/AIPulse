@@ -46,11 +46,12 @@ export function formatTimestamp(timestamp: number): string {
   });
 }
 
-// Exchange market hours (in UTC for consistency)
-// All times are approximate and don't account for DST changes precisely
+// Exchange market hours in Eastern Time (ET) - 9:30 AM to 4:00 PM
+// These times are in 24-hour format (9.5 = 9:30 AM, 16 = 4:00 PM)
+// ET is UTC-5 (EST) or UTC-4 (EDT), but we check in ET timezone directly
 const EXCHANGE_HOURS: Record<string, { open: number; close: number; timezone: string }> = {
-  NASDAQ: { open: 14, close: 21, timezone: 'America/New_York' }, // 9:30 AM - 4:00 PM ET
-  NYSE: { open: 14, close: 21, timezone: 'America/New_York' }, // 9:30 AM - 4:00 PM ET
+  NASDAQ: { open: 9.5, close: 16, timezone: 'America/New_York' }, // 9:30 AM - 4:00 PM ET
+  NYSE: { open: 9.5, close: 16, timezone: 'America/New_York' }, // 9:30 AM - 4:00 PM ET
 };
 
 /**
@@ -120,38 +121,53 @@ export function getExchangeForSymbol(symbol: string): string {
 
 /**
  * Check if a market is currently open
+ * Uses proper timezone conversion to check market hours in local exchange time
  */
 export function checkMarketOpen(exchange: string, now: Date = new Date()): boolean {
   const hours = EXCHANGE_HOURS[exchange];
   if (!hours) { return false; }
 
-  // Get current time components in the exchange's timezone
-  const options: Intl.DateTimeFormatOptions = {
+  // Get current time components in the exchange's timezone using hour12: true
+  // hour12: false can produce "24" as hour value in some browsers, causing NaN issues
+  const timeOptions: Intl.DateTimeFormatOptions = {
     timeZone: hours.timezone,
     hour: 'numeric',
     minute: 'numeric',
-    hour12: false,
+    hour12: true,
   };
 
-  const formatter = new Intl.DateTimeFormat('en-US', options);
-  const parts = formatter.formatToParts(now);
+  const timeFormatter = new Intl.DateTimeFormat('en-US', timeOptions);
+  const timeParts = timeFormatter.formatToParts(now);
 
-  const hour = parseInt(parts.find((p) => p.type === 'hour')?.value || '0');
-  const minute = parseInt(parts.find((p) => p.type === 'minute')?.value || '0');
+  const hourStr = timeParts.find((p) => p.type === 'hour')?.value || '0';
+  const minuteStr = timeParts.find((p) => p.type === 'minute')?.value || '0';
+  // dayPeriod type is 'dayPeriod' (camelCase) in Intl.DateTimeFormatPartTypesRegistry
+  const dayPeriod = timeParts.find((p) => p.type === 'dayPeriod')?.value || 'AM';
+
+  let hour = parseInt(hourStr);
+  const minute = parseInt(minuteStr);
+
+  // Convert to 24-hour format
+  if (dayPeriod === 'PM' && hour !== 12) {
+    hour += 12;
+  } else if (dayPeriod === 'AM' && hour === 12) {
+    hour = 0;
+  }
+
   const timeDecimal = hour + minute / 60;
 
-  // Get day of week using a different approach - format and parse
+  // Get day of week
   const dayFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: hours.timezone,
     weekday: 'short',
   });
   const dayName = dayFormatter.format(now);
   const dayMap: Record<string, number> = {
-    Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7,
+    Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 0,
   };
-  const dayOfWeek = dayMap[dayName] || 0;
+  const dayOfWeek = dayMap[dayName];
 
-  // Check if it's a weekday and within market hours
+  // Check if it's a weekday (Mon-Fri) and within market hours
   const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
   const isWithinHours = timeDecimal >= hours.open && timeDecimal < hours.close;
 

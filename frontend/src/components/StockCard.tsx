@@ -41,9 +41,11 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
   const isMarketOpen = checkMarketOpen(exchange);
   const isFromToday = isSameTradingDay(exchange, quote.timestamp);
 
-  // Only show live indicator if market is open, quote is from today, AND we have realtime data
+  // "LIVE" only when market is open, quote is from today, AND we have realtime data
   const showLiveIndicator = isMarketOpen && isFromToday && isRealtime;
-  // Only show 1D live indicator if market is open, quote is from today, and in 1D view
+  // "UPDATED" when WebSocket delivers data but market is closed (avoids misleading "LIVE" when not trading)
+  const showUpdatedIndicator = !isMarketOpen && isFromToday && isRealtime;
+  // 1D realtime indicator only when market is open
   const show1DLiveIndicator = isMarketOpen && isFromToday && timeRange === '1d' && !isRealtime;
 
   return (
@@ -58,7 +60,7 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
     >
       {/* Top-right indicators */}
       <div className="absolute top-3 right-3 flex items-center gap-2">
-        {/* Real-time indicator - only show when market is actually open */}
+        {/* LIVE indicator - only when market is actually open and trading */}
         {showLiveIndicator && (
           <div className="flex items-center gap-1.5">
             <span className="relative flex h-2.5 w-2.5">
@@ -66,6 +68,16 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-neon-green"></span>
             </span>
             <span className="text-xs text-neon-green font-mono">LIVE</span>
+          </div>
+        )}
+
+        {/* UPDATED indicator - WebSocket connected but market closed (avoids misleading LIVE) */}
+        {showUpdatedIndicator && (
+          <div className="flex items-center gap-1.5" title="Real-time data (market closed)">
+            <span className="relative flex h-2 w-2">
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-400"></span>
+            </span>
+            <span className="text-xs font-medium text-blue-400">UPDATED</span>
           </div>
         )}
 

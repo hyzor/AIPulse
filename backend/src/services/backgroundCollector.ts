@@ -189,7 +189,7 @@ class BackgroundCollector {
           await this.sleep(this.batchDelayMs);
         }
       } catch (error) {
-        console.error(`[BackgroundCollector] Batch failed:`, error);
+        console.error('[BackgroundCollector] Batch failed:', error);
         this.stats.errors++;
       }
     }
@@ -219,7 +219,7 @@ class BackgroundCollector {
     }
 
     // Not enough API capacity - serve from cache
-    console.log(`[BackgroundCollector] Force collect: insufficient API capacity, serving from cache`);
+    console.log('[BackgroundCollector] Force collect: insufficient API capacity, serving from cache');
     return { collected: 0, fromCache: symbols.length };
   }
 

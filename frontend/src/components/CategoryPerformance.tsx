@@ -1,9 +1,10 @@
 import { TrendingUp, TrendingDown, Zap, Cpu, Code2, Rocket, Clock, ChevronDown } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 
-import type { StockQuote, TimeRange } from '../types';
-import { STOCK_CATEGORIES, TRACKED_STOCKS } from '../types';
 import { useTimeRange } from '../contexts/TimeRangeContext';
+import { STOCK_CATEGORIES, TRACKED_STOCKS } from '../types';
+
+import type { StockQuote, TimeRange } from '../types';
 
 interface CategoryPerformanceProps {
   stocks: Map<string, StockQuote>;
@@ -137,7 +138,7 @@ export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
           setFetchError(err instanceof Error ? err.message : 'Failed to fetch historical data');
         });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [timeRange, fetchAllHistory]);
 
   // Calculate changes when historical data updates

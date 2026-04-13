@@ -194,19 +194,19 @@ function AppContent() {
                 </div>
               </div>
             )
-              : stocks.size > 0
-                ? (
+            : stocks.size > 0
+              ? (
                 <StockGrid
                   quotes={allStocks}
                   realtimeQuotes={realtimeQuotes}
                   onStockClick={handleStockClick}
                 />
-                )
-                : (
-                  <div className="text-center py-12">
-                    <p className="text-gray-400">No stock data available. Check your API configuration.</p>
-                  </div>
-                )}
+              )
+              : (
+                <div className="text-center py-12">
+                  <p className="text-gray-400">No stock data available. Check your API configuration.</p>
+                </div>
+              )}
         </section>
 
         {/* Categories */}

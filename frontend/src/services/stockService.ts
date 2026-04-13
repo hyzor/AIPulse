@@ -74,6 +74,34 @@ class StockService {
 
     return data.data;
   }
+
+  /**
+   * Manual refresh - fetches live data from API if capacity available
+   * Background collector has priority, so this may return cached data
+   */
+  async refreshStock(symbol: string): Promise<{
+    success: boolean;
+    cached: boolean;
+    symbol: string;
+    data: StockQuote;
+    message: string;
+    rateLimit?: RateLimitStatus;
+  }> {
+    const response = await fetch(`${API_URL}/api/stocks/${symbol}/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || `Failed to refresh ${symbol}`);
+    }
+
+    return data;
+  }
 }
 
 export const stockService = new StockService();

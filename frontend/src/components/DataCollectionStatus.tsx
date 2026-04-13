@@ -57,8 +57,14 @@ export function DataCollectionStatus() {
   const totalCandles = stats.total1mCandles;
   const hasData = totalCandles > 0;
 
-  // Estimate hours of data (using actual symbol count, ~5 candles per hour per symbol)
-  const estimatedHours = Math.floor(totalCandles / TRACKED_STOCKS.length / 5);
+  // Calculate estimated hours of market data
+  // Each symbol gets ~20 candles per market day (6.5 hours) with 3-minute refresh
+  // Average candles per symbol / 3 = approximate market days
+  // Market days * 6.5 = market hours
+  const symbolsWithData = stats.symbols?.length || 0;
+  const avgCandlesPerSymbol = symbolsWithData > 0 ? totalCandles / symbolsWithData : 0;
+  // ~3 candles per hour of market time (one every ~3 minutes during market hours only)
+  const estimatedHours = hasData ? Math.max(1, Math.floor(avgCandlesPerSymbol / 3)) : 0;
 
   // Determine status
   let status = 'Collecting...';
@@ -158,7 +164,7 @@ export function DataCollectionStatus() {
                 }`}
                 title={STOCK_COUNTRIES[symbol]?.country || ''}
               >
-                <span>{STOCK_COUNTRIES[symbol]?.flag || ''}</span>
+                <span className="flag-emoji">{STOCK_COUNTRIES[symbol]?.flag || ''}</span>
                 <span className="font-medium">{symbol}</span>
               </span>
             );

@@ -1,14 +1,32 @@
-import { Activity, RefreshCw } from 'lucide-react';
+import { Activity, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
 
 import { TimeRangeToggle } from './TimeRangeToggle';
 
 interface HeaderProps {
   lastUpdate: Date | null;
-  onRefresh: () => void;
+  onRefresh: () => Promise<{ freshCount: number; cachedCount: number; failedCount: number }>;
   isLoading: boolean;
 }
 
 export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
+  const [refreshStatus, setRefreshStatus] = useState<{
+    freshCount: number;
+    cachedCount: number;
+    failedCount: number;
+    show: boolean;
+  } | null>(null);
+
+  const handleRefresh = async () => {
+    const result = await onRefresh();
+    setRefreshStatus({ ...result, show: true });
+
+    // Hide after 3 seconds
+    setTimeout(() => {
+      setRefreshStatus((prev) => (prev ? { ...prev, show: false } : null));
+    }, 3000);
+  };
+
   return (
     <header className="bg-dark-800 border-b border-dark-600 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -32,6 +50,32 @@ export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
 
           {/* Status & Controls */}
           <div className="flex items-center gap-4">
+            {/* Refresh Feedback Toast */}
+            {refreshStatus?.show && (
+              <div className={`
+                hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium animate-in fade-in slide-in-from-top-2
+                ${refreshStatus.freshCount > 0
+                  ? 'bg-neon-green/10 text-neon-green border border-neon-green/30'
+                  : refreshStatus.cachedCount > 0
+                    ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30'
+                    : 'bg-red-500/10 text-red-400 border border-red-500/30'
+                }
+              `}>
+                {refreshStatus.freshCount > 0 ? (
+                  <CheckCircle className="w-3.5 h-3.5" />
+                ) : (
+                  <AlertCircle className="w-3.5 h-3.5" />
+                )}
+                <span>
+                  {refreshStatus.freshCount > 0
+                    ? `${refreshStatus.freshCount} live updated`
+                    : refreshStatus.cachedCount > 0
+                      ? 'API limit - cached data'
+                      : 'Refresh failed'}
+                </span>
+              </div>
+            )}
+
             {/* Time Range Toggle */}
             <TimeRangeToggle />
 
@@ -47,13 +91,15 @@ export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
 
             {/* Refresh Button */}
             <button
-              onClick={onRefresh}
+              onClick={handleRefresh}
               disabled={isLoading}
               className="flex items-center gap-2 px-3 py-2 bg-neon-blue/10 hover:bg-neon-blue/20 text-neon-blue rounded-lg border border-neon-blue/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Manually refresh all stock data from Finnhub API"
+              title="Fetch live data for all stocks (API capacity permitting)"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              <span className="text-sm font-medium hidden sm:inline">Refresh</span>
+              <span className="text-sm font-medium hidden sm:inline">
+                {isLoading ? 'Fetching...' : 'Refresh'}
+              </span>
             </button>
           </div>
         </div>

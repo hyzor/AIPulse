@@ -11,6 +11,8 @@ import { WebSocketServer } from 'ws';
 
 import { TRACKED_STOCKS } from './constants';
 import stockRoutes from './routes/stockRoutes';
+import { backgroundCollector } from './services/backgroundCollector';
+import { cacheService } from './services/cacheService';
 import { candleBufferService } from './services/candleBufferService';
 import { databaseService } from './services/databaseService';
 import { finnhubService } from './services/finnhubService';
@@ -109,10 +111,75 @@ app.get('/api', (_req, res) => {
       health: '/api/health',
       cacheClear: 'POST /api/cache/clear',
       flushCache: 'POST /api/admin/flush-cache',
+      refresh: 'POST /api/stocks/:symbol/refresh - Manual refresh for live data',
     },
     trackedStocks: TRACKED_STOCKS,
     timestamp: Date.now(),
   });
+});
+
+// Manual refresh endpoint - fetches live data from API if capacity available
+app.post('/api/stocks/:symbol/refresh', async (req, res) => {
+  const { symbol } = req.params;
+  const upperSymbol = symbol.toUpperCase();
+
+  console.log(`[API] Manual refresh requested for ${upperSymbol}`);
+
+  const rateLimitStatus = finnhubService.getRateLimitStatus();
+
+  // Check API capacity - prioritize background collection
+  // Only allow manual refresh if we have significant capacity remaining
+  if (rateLimitStatus.callsRemaining < 15) {
+    // Serve from cache
+    const cachedQuote = await getCachedQuote(upperSymbol);
+    if (cachedQuote) {
+      return res.json({
+        success: false,
+        cached: true,
+        symbol: upperSymbol,
+        data: cachedQuote,
+        message: 'API rate limit near capacity. Serving cached data. Background collector has priority.',
+        rateLimit: rateLimitStatus,
+      });
+    }
+    return res.status(503).json({
+      success: false,
+      error: 'API rate limit reached and no cached data available',
+      rateLimit: rateLimitStatus,
+    });
+  }
+
+  try {
+    const freshQuote = await finnhubService.getQuote(upperSymbol, true); // Skip cache
+
+    if (freshQuote) {
+      // Update candle buffer with fresh data
+      candleBufferService.updatePrice(upperSymbol, freshQuote.currentPrice, 0, Date.now());
+
+      // Broadcast to all WebSocket subscribers
+      broadcastToSymbol(upperSymbol, freshQuote);
+
+      return res.json({
+        success: true,
+        cached: false,
+        symbol: upperSymbol,
+        data: freshQuote,
+        message: 'Live data fetched successfully',
+        rateLimit: finnhubService.getRateLimitStatus(),
+      });
+    }
+
+    return res.status(404).json({
+      success: false,
+      error: `No data available for ${upperSymbol}`,
+    });
+  } catch (error) {
+    console.error(`[API] Refresh failed for ${upperSymbol}:`, error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch live data',
+    });
+  }
 });
 
 // Serve static frontend files (production build)
@@ -216,8 +283,9 @@ wss.on('connection', (ws) => {
         subscribedSymbols.add(symbol);
         console.log(`[WebSocket] Client subscribed to ${symbol}`);
 
-        // Try to get cached data first (Redis/DB survives restarts)
-        const cachedQuote = await finnhubService.getQuote(symbol);
+        // Serve from cache ONLY - no API calls on subscribe
+        // Background collector keeps cache updated
+        const cachedQuote = await getCachedQuote(symbol);
 
         if (cachedQuote) {
           // Send cached data immediately
@@ -227,19 +295,22 @@ wss.on('connection', (ws) => {
             data: cachedQuote,
           }));
 
-          // If this is cached (not fresh) data, also queue for API refresh
-          if (cachedQuote.isCached || cachedQuote.timestamp < Date.now() / 1000 - STALE_DATA_THRESHOLD) {
-            queueSubscription(symbol);
+          // Indicate if data is stale (older than threshold)
+          const isStale = cachedQuote.timestamp < Date.now() / 1000 - STALE_DATA_THRESHOLD;
+          if (isStale) {
+            ws.send(JSON.stringify({
+              type: 'info',
+              symbol,
+              message: 'Data may be stale. Click refresh for live data.',
+              isStale: true,
+            }));
           }
         } else {
-          // No cache available, queue for batched API fetch
-          queueSubscription(symbol);
-
-          // Notify client that data is loading
+          // No cache available - background collector should populate it soon
           ws.send(JSON.stringify({
             type: 'loading',
             symbol,
-            message: 'Fetching initial data...',
+            message: 'Waiting for background data collection...',
           }));
         }
       }
@@ -248,6 +319,59 @@ wss.on('connection', (ws) => {
         const symbol = data.symbol.toUpperCase();
         subscribedSymbols.delete(symbol);
         console.log(`[WebSocket] Client unsubscribed from ${symbol}`);
+      }
+
+      // Manual refresh request - fetches fresh data if API capacity available
+      if (data.action === 'refresh' && data.symbol) {
+        const symbol = data.symbol.toUpperCase();
+        console.log(`[WebSocket] Manual refresh requested for ${symbol}`);
+
+        const rateLimitStatus = finnhubService.getRateLimitStatus();
+
+        // Only fetch live data if we have API capacity
+        if (rateLimitStatus.callsRemaining > 10) { // Reserve some for background
+          try {
+            const freshQuote = await finnhubService.getQuote(symbol, true); // Skip cache
+            if (freshQuote) {
+              // Update candle buffer with fresh data
+              candleBufferService.updatePrice(symbol, freshQuote.currentPrice, 0, Date.now());
+
+              // Broadcast to all subscribers
+              broadcastToSymbol(symbol, freshQuote);
+
+              // Confirm to requesting client
+              ws.send(JSON.stringify({
+                type: 'refreshed',
+                symbol,
+                data: freshQuote,
+                message: 'Live data fetched successfully',
+              }));
+            }
+          } catch (error) {
+            ws.send(JSON.stringify({
+              type: 'error',
+              symbol,
+              message: 'Failed to fetch live data. Using cached data.',
+            }));
+          }
+        } else {
+          // No API capacity - serve from cache
+          const cachedQuote = await getCachedQuote(symbol);
+          if (cachedQuote) {
+            ws.send(JSON.stringify({
+              type: 'quote',
+              symbol,
+              data: cachedQuote,
+              message: 'API rate limit reached. Serving cached data.',
+            }));
+          } else {
+            ws.send(JSON.stringify({
+              type: 'error',
+              symbol,
+              message: 'No data available and API rate limit reached. Please try again later.',
+            }));
+          }
+        }
       }
     } catch (_error) {
       ws.send(JSON.stringify({
@@ -267,48 +391,98 @@ wss.on('connection', (ws) => {
   });
 });
 
-// Auto-refresh interval - optimized for Finnhub free tier (60 calls/min)
-// Default 120s = 30 calls/min for 12 stocks, leaving 30 calls for other operations
-console.log(`[Config] Auto-refresh interval: ${AUTO_REFRESH_INTERVAL}ms (${(AUTO_REFRESH_INTERVAL / 1000).toFixed(0)}s)`);
-console.log(`[Config] Rate limit buffer: ${RATE_LIMIT_BUFFER} calls reserved for user requests`);
+/**
+ * Get cached quote from L1, L2, or L3 cache
+ * NO API calls - serves only from cache
+ */
+async function getCachedQuote(symbol: string): Promise<StockQuote | null> {
+  const cacheKey = `quote:${symbol}`;
 
-setInterval(async () => {
-  if (clients.size === 0) { return; }
-
-  // Skip auto-refresh when market is closed to preserve API quota
-  if (!isMarketOpen()) {
-    const marketStatus = getMarketStatus();
-    console.log(`[Auto-refresh] Market closed (${marketStatus.message}) - skipping auto-refresh to preserve API quota`);
-    return;
+  // Check L1 cache (memory)
+  const l1Cached = cacheService.get<StockQuote>(cacheKey);
+  if (l1Cached) {
+    return l1Cached;
   }
 
-  const activeSymbols = new Set<string>();
-  clients.forEach((symbols) => {
-    symbols.forEach((symbol) => activeSymbols.add(symbol));
-  });
-
-  if (activeSymbols.size === 0) { return; }
-
-  const rateLimitStatus = finnhubService.getRateLimitStatus();
-  // Be more conservative: reserve buffer calls for user-initiated requests
-  if (rateLimitStatus.callsRemaining < activeSymbols.size + RATE_LIMIT_BUFFER) {
-    console.log(`[Auto-refresh] Skipping update - rate limit low (${rateLimitStatus.callsRemaining} remaining, need ${activeSymbols.size + RATE_LIMIT_BUFFER})`);
-    return;
+  // Check L2 cache (Redis)
+  try {
+    const redisQuote = await redisService.getLatestQuote(symbol);
+    if (redisQuote) {
+      const quote: StockQuote = {
+        symbol,
+        currentPrice: redisQuote.currentPrice,
+        change: redisQuote.change,
+        changePercent: redisQuote.changePercent,
+        highPrice: redisQuote.high,
+        lowPrice: redisQuote.low,
+        openPrice: redisQuote.open,
+        previousClose: redisQuote.previousClose,
+        timestamp: redisQuote.timestamp,
+      };
+      // Also cache in memory for faster access
+      cacheService.set(cacheKey, quote, 60);
+      return quote;
+    }
+  } catch {
+    // Redis error, continue to DB
   }
 
-  console.log(`[Auto-refresh] Market open - fetching updates for ${activeSymbols.size} symbols (${rateLimitStatus.callsRemaining} calls remaining)`);
+  // Check L3 cache (TimescaleDB)
+  try {
+    const dbQuote = await databaseService.getLatestQuote(symbol);
+    if (dbQuote) {
+      const quote: StockQuote = {
+        symbol,
+        currentPrice: dbQuote.currentPrice,
+        change: dbQuote.change,
+        changePercent: dbQuote.changePercent,
+        highPrice: dbQuote.highPrice || 0,
+        lowPrice: dbQuote.lowPrice || 0,
+        openPrice: dbQuote.openPrice || 0,
+        previousClose: dbQuote.previousClose || 0,
+        timestamp: new Date(dbQuote.timestamp).getTime() / 1000,
+      };
+      cacheService.set(cacheKey, quote, 60);
+      return quote;
+    }
+  } catch {
+    // DB error
+  }
 
-  const symbols = [...activeSymbols];
-  // Use larger delays between batches to spread load across the minute
-  const quotes = await finnhubService.getQuotes(symbols, { batchSize: 3, delayMs: 1000 });
+  return null;
+}
 
-  quotes.forEach((quote) => {
-    broadcastToSymbol(quote.symbol, quote);
+// Background Data Collection
+// Runs independently of WebSocket clients
+// Maximizes API usage for historical data building
+console.log('[Server] Initializing background data collection service...');
 
-    // Update candle buffer with new price data
-    candleBufferService.updatePrice(quote.symbol, quote.currentPrice, 0, Date.now());
+// Listen for new data from background collector and broadcast to clients
+// This hook will be called by the background collector after each collection
+const originalUpdatePrice = candleBufferService.updatePrice.bind(candleBufferService);
+candleBufferService.updatePrice = (symbol: string, price: number, volume?: number, timestamp?: number) => {
+  // Call original method
+  originalUpdatePrice(symbol, price, volume, timestamp);
+
+  // Broadcast to WebSocket clients if any are subscribed
+  // Get the latest quote from Redis (which was just updated)
+  redisService.getLatestQuote(symbol).then((redisQuote) => {
+    if (redisQuote) {
+      const quote: StockQuote = {
+        symbol,
+        currentPrice: redisQuote.currentPrice,
+        change: redisQuote.change,
+        changePercent: redisQuote.changePercent,
+        highPrice: redisQuote.high,
+        lowPrice: redisQuote.low,
+        openPrice: redisQuote.open,
+        previousClose: redisQuote.previousClose,
+        timestamp: redisQuote.timestamp,
+      };
+      broadcastToSymbol(symbol, quote);
+    }
   });
-}, AUTO_REFRESH_INTERVAL);
+};
 
 // Graceful shutdown handler
 async function gracefulShutdown(signal: string): Promise<void> {
@@ -393,12 +567,18 @@ async function initializeServer(): Promise<void> {
   // Start candle buffer persistence timers
   candleBufferService.start();
 
+  // Start background data collection service
+  // This runs independently and maximizes API usage for historical data
+  backgroundCollector.start();
+
   // Start HTTP server
   server.listen(PORT, () => {
+    const bgStats = backgroundCollector.getStats();
+
     console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║                    AIPulse Server                          ║
-║              AI Stock Monitoring API                       ║
+║         AI Stock Monitoring API with Background Collection ║
 ╠════════════════════════════════════════════════════════════╣
 ║  HTTP Server: http://localhost:${PORT}                      ║
 ║  WebSocket:   ws://localhost:${PORT}/ws                     ║
@@ -408,18 +588,22 @@ async function initializeServer(): Promise<void> {
 ║    ${redisConnected ? '✅' : '❌'} Redis (L2 Cache with AOF)                         ║
 ║    ✅ In-Memory (L1 Cache)                                  ║
 ╠════════════════════════════════════════════════════════════╣
+║  Architecture:                                             ║
+║    📊 Background Collector: Auto-runs during market hours  ║
+║    📡 WebSocket: Serves from cache (no API calls)          ║
+║    🔄 Manual Refresh: POST /api/stocks/:symbol/refresh    ║
+╠════════════════════════════════════════════════════════════╣
 ║  API Endpoints:                                            ║
-║    GET  /api/stocks         - All stocks                   ║
-║    GET  /api/stocks/:symbol - Specific stock             ║
+║    GET  /api/stocks              - All stocks              ║
+║    GET  /api/stocks/:symbol      - Specific stock        ║
+║    POST /api/stocks/:symbol/refresh - Manual refresh     ║
 ║    GET  /api/stocks/:symbol/history - Price history      ║
-║    GET  /api/health         - Health check                 ║
-║    GET  /api/rate-limit     - Rate limit status            ║
-║    POST /api/admin/flush-cache - Manual flush (dev)      ║
+║    GET  /api/health              - Health check            ║
+║    GET  /api/rate-limit          - Rate limit status       ║
 ╠════════════════════════════════════════════════════════════╣
 ║  Tracked Stocks: ${TRACKED_STOCKS.length} companies                         ║
-║  CORS Origin: ${CORS_ORIGIN}          ║
-║  Rate Limit: ${process.env.FINNHUB_MAX_CALLS_PER_MINUTE || '58'}/60 calls/min (limit: ${process.env.FINNHUB_MAX_CALLS_PER_MINUTE || '58'})      ║
-║  Auto-refresh: ${(AUTO_REFRESH_INTERVAL / 1000).toFixed(0)}s interval + ${RATE_LIMIT_BUFFER} call buffer     ║
+║  Background Collection: ${backgroundCollector.isActive() ? '✅ RUNNING' : '❌ STOPPED'}          ║
+║  Rate Limit: ${process.env.FINNHUB_MAX_CALLS_PER_MINUTE || '58'}/60 calls/min (maximized for history) ║
 ╚════════════════════════════════════════════════════════════╝
     `);
 

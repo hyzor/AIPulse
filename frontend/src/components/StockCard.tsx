@@ -50,46 +50,49 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
     <div
       onClick={onClick}
       className={`
-        relative bg-dark-700 border border-dark-600 rounded-xl p-5 
-        transition-all duration-300 hover:border-neon-blue/50 hover:shadow-lg hover:shadow-neon-blue/10 
+        relative bg-dark-700 border border-dark-600 rounded-xl p-5
+        transition-all duration-300 hover:border-neon-blue/50 hover:shadow-lg hover:shadow-neon-blue/10
         group cursor-pointer
         ${showLiveIndicator ? 'ring-2 ring-neon-blue/30' : ''}
       `}
     >
-      {/* Real-time indicator - only show when market is actually open */}
-      {showLiveIndicator && (
-        <div className="absolute top-3 right-3 flex items-center gap-1.5">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-green opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-neon-green"></span>
-          </span>
-          <span className="text-xs text-neon-green font-mono">LIVE</span>
-        </div>
-      )}
+      {/* Top-right indicators */}
+      <div className="absolute top-3 right-3 flex items-center gap-2">
+        {/* Real-time indicator - only show when market is actually open */}
+        {showLiveIndicator && (
+          <div className="flex items-center gap-1.5">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-green opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-neon-green"></span>
+            </span>
+            <span className="text-xs text-neon-green font-mono">LIVE</span>
+          </div>
+        )}
 
-      {/* LIVE indicator for 1D view - only show when market is open */}
-      {show1DLiveIndicator && (
-        <div className="absolute top-3 right-3 flex items-center gap-1.5">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-          </span>
-          <span className="text-xs font-semibold text-green-500">LIVE</span>
-        </div>
-      )}
+        {/* LIVE indicator for 1D view - only show when market is open */}
+        {show1DLiveIndicator && (
+          <div className="flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
+            <span className="text-xs font-semibold text-green-500">LIVE</span>
+          </div>
+        )}
 
-      {/* Cached data indicator */}
-      {quote.isCached && (
-        <div className="absolute top-3 right-3 flex items-center gap-1.5" title="Data from cache (rate limit reached)">
-          <Database className="w-3 h-3 text-yellow-500" />
-          <span className="text-xs font-semibold text-yellow-500">CACHED</span>
-        </div>
-      )}
+        {/* Cached data indicator */}
+        {quote.isCached && (
+          <div className="flex items-center gap-1.5" title="Data from cache (rate limit reached)">
+            <Database className="w-3 h-3 text-yellow-500" />
+            <span className="text-xs font-semibold text-yellow-500">CACHED</span>
+          </div>
+        )}
+      </div>
 
       <div className="flex items-start justify-between mb-3">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-lg" title={STOCK_COUNTRIES[quote.symbol]?.country || ''}>
+            <span className="flag-emoji" title={STOCK_COUNTRIES[quote.symbol]?.country || ''}>
               {STOCK_COUNTRIES[quote.symbol]?.flag || '🌐'}
             </span>
             <h3 className="text-xl font-bold text-white tracking-tight">{quote.symbol}</h3>

@@ -10,7 +10,7 @@ import { StockGrid } from './components/StockGrid';
 import { TimeRangeProvider } from './contexts/TimeRangeContext';
 import { useWebSocket, useAutoRefresh } from './hooks/useWebSocket';
 import { stockService } from './services/stockService';
-import { STOCK_CATEGORIES } from './types';
+import { STOCK_CATEGORIES, TRACKED_STOCKS } from './types';
 
 import type { StockQuote, RateLimitStatus } from './types';
 
@@ -80,6 +80,60 @@ function AppContent() {
     setSelectedSymbol(null);
   };
 
+  // Live refresh - fetches fresh data for ALL stocks from API (if capacity available)
+  const refreshAllStocks = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Fetch fresh data for all stocks via the refresh endpoint
+      // This will update all stocks if API capacity is available
+      const refreshPromises = [...TRACKED_STOCKS].map(async (symbol) => {
+        try {
+          const result = await stockService.refreshStock(symbol);
+          if (result.success && result.data) {
+            return { symbol, data: result.data, cached: result.cached };
+          }
+          return null;
+        } catch {
+          return null;
+        }
+      });
+
+      const results = await Promise.all(refreshPromises);
+      const successfulRefreshes = results.filter((r) => r !== null);
+
+      // Update stocks map with refreshed data
+      if (successfulRefreshes.length > 0) {
+        setStocks((prev) => {
+          const newMap = new Map(prev);
+          successfulRefreshes.forEach((item) => {
+            if (item) {
+              newMap.set(item.symbol, item.data);
+            }
+          });
+          return newMap;
+        });
+        setLastUpdate(new Date());
+      }
+
+      // Calculate results
+      const freshCount = successfulRefreshes.filter((r) => r && !r.cached).length;
+      const cachedCount = successfulRefreshes.length - freshCount;
+      const failedCount = TRACKED_STOCKS.length - successfulRefreshes.length;
+
+      console.log(`[Refresh] ${freshCount} live, ${cachedCount} cached, ${failedCount} failed`);
+
+      // Refresh rate limit status
+      await fetchRateLimit();
+
+      return { freshCount, cachedCount, failedCount };
+    } catch (err) {
+      console.error('Failed to refresh stocks:', err);
+      return { freshCount: 0, cachedCount: 0, failedCount: TRACKED_STOCKS.length };
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchRateLimit]);
+
   const selectedQuote = selectedSymbol ? stocks.get(selectedSymbol) || realtimeQuotes.get(selectedSymbol) || null : null;
 
   // Merge real-time quotes with polled data
@@ -102,7 +156,7 @@ function AppContent() {
     <div className="min-h-screen bg-dark-900 text-white">
       <Header
         lastUpdate={lastUpdate}
-        onRefresh={fetchStocks}
+        onRefresh={refreshAllStocks}
         isLoading={isLoading}
       />
 
@@ -126,8 +180,8 @@ function AppContent() {
             </h2>
             <span className="text-sm text-gray-500">
               {isConnected
-                ? `Real-time updates active ${rateLimit ? `(${rateLimit.callsRemaining} calls left)` : ''}`
-                : 'Polling mode (60s refresh)'}
+                ? `Background collection active ${rateLimit ? `(${rateLimit.callsRemaining} API calls available)` : ''}`
+                : 'Background collection running (WebSocket disconnected)'}
             </span>
           </div>
 
@@ -140,19 +194,19 @@ function AppContent() {
                 </div>
               </div>
             )
-            : stocks.size > 0
-              ? (
+              : stocks.size > 0
+                ? (
                 <StockGrid
                   quotes={allStocks}
                   realtimeQuotes={realtimeQuotes}
                   onStockClick={handleStockClick}
                 />
-              )
-              : (
-                <div className="text-center py-12">
-                  <p className="text-gray-400">No stock data available. Check your API configuration.</p>
-                </div>
-              )}
+                )
+                : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-400">No stock data available. Check your API configuration.</p>
+                  </div>
+                )}
         </section>
 
         {/* Categories */}
@@ -193,7 +247,11 @@ function AppContent() {
         {/* Info Footer */}
         <footer className="mt-12 pt-8 border-t border-dark-600">
           <div className="text-center text-sm text-gray-500">
-            <p>Data provided by Finnhub API. Real-time updates via WebSocket.</p>
+            <p>
+              Background data collection during market hours (9:30 AM - 4:00 PM ET).
+              Click "Live" button for fresh data (API capacity permitting).
+            </p>
+            <p className="mt-1">Data provided by Finnhub API.</p>
           </div>
         </footer>
       </main>

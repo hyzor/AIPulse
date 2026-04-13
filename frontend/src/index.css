@@ -4,6 +4,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Emoji font support for country flags - Windows compatible */
+/* Noto Color Emoji provides actual flag images on all platforms */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap');
+
 :root {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
@@ -77,4 +81,12 @@ body {
 
 .animate-slide-up {
   animation: slide-up 0.5s ease-out;
+}
+
+/* Emoji/Flag styling - Windows compatible with Noto Color Emoji */
+.flag-emoji {
+  font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+  font-size: 1.2em;
+  line-height: 1;
+  display: inline-block;
 }

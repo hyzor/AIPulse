@@ -23,10 +23,10 @@ router.get('/stocks', async (_req, res) => {
 
       const cachedResults = await getAllCachedQuotes(TRACKED_STOCKS);
 
-      // If we have cached data for all stocks, return it
+      // If we have cached data for all stocks, return it with market closed flag
       if (cachedResults.length === TRACKED_STOCKS.length) {
-        // Extract quotes from cache results
-        const cachedQuotes = cachedResults.map((r) => r.quote);
+        // Add isMarketClosed flag since we're serving from cache when market is closed
+        const cachedQuotes = cachedResults.map((r) => ({ ...r.quote, isMarketClosed: true }));
         return res.json({
           success: true,
           data: cachedQuotes,
@@ -74,7 +74,7 @@ router.get('/stocks/:symbol', async (req, res) => {
         console.log(`[API] Market closed - serving ${uppercaseSymbol} from cache (${cachedResult.source})`);
         return res.json({
           success: true,
-          data: cachedResult.quote,
+          data: { ...cachedResult.quote, isMarketClosed: true },
           cached: true,
           marketStatus: marketStatus.message,
           timestamp: Date.now(),

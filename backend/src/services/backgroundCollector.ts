@@ -172,10 +172,13 @@ class BackgroundCollector {
         // Update candle buffers
         for (const quote of quotes) {
           if (quote) {
+            // Mark as fresh data (not cached) since we just fetched it from API
+            const freshQuote = { ...quote, isCached: false };
+
             candleBufferService.updatePrice(
-              quote.symbol,
-              quote.currentPrice,
-              quote.volume || 0,
+              freshQuote.symbol,
+              freshQuote.currentPrice,
+              0, // Volume not available from Finnhub quote
               Date.now(),
             );
             totalCandles++;

@@ -93,11 +93,19 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
           </div>
         )}
 
-        {/* Cached data indicator */}
+        {/* Rate limit - cached data indicator */}
         {quote.isCached && (
-          <div className="flex items-center gap-1.5" title="Data from cache (rate limit reached)">
+          <div className="flex items-center gap-1.5" title="Rate limit reached - serving cached data">
             <Database className="w-3 h-3 text-yellow-500" />
             <span className="text-xs font-semibold text-yellow-500">CACHED</span>
+          </div>
+        )}
+
+        {/* Market closed - last known price indicator */}
+        {quote.isMarketClosed && (
+          <div className="flex items-center gap-1.5" title="Market closed - showing last known price">
+            <Database className="w-3 h-3 text-gray-400" />
+            <span className="text-xs font-semibold text-gray-400">CLOSED</span>
           </div>
         )}
       </div>

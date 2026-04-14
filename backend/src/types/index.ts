@@ -9,6 +9,7 @@ export interface StockQuote {
   previousClose: number;
   timestamp: number;
   isCached?: boolean; // True if data came from cache due to rate limiting
+  isMarketClosed?: boolean; // True if market is closed and we're serving last known data
 }
 
 export interface StockProfile {

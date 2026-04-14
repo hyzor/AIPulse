@@ -148,7 +148,8 @@ class FinnhubService {
       const l1Cached = cacheService.get<StockQuote>(cacheKey);
       if (l1Cached) {
         console.log(`[Finnhub] Market closed - serving L1 cached data for ${symbol} without API call`);
-        return { ...l1Cached, isCached: true };
+        // Mark as market closed - serving last known price
+        return { ...l1Cached, isMarketClosed: true };
       }
 
       // Check L2 (Redis) for cached data
@@ -168,7 +169,8 @@ class FinnhubService {
           };
           cacheService.set(cacheKey, quote, 60);
           console.log(`[Finnhub] Market closed - serving Redis cached data for ${symbol} without API call`);
-          return { ...quote, isCached: true };
+          // Mark as market closed - serving last known price
+          return { ...quote, isMarketClosed: true };
         }
       } catch (error) {
         // Redis error, continue
@@ -191,7 +193,8 @@ class FinnhubService {
           };
           cacheService.set(cacheKey, quote, 60);
           console.log(`[Finnhub] Market closed - serving database cached data for ${symbol} without API call`);
-          return { ...quote, isCached: true };
+          // Mark as market closed - serving last known price
+          return { ...quote, isMarketClosed: true };
         }
       } catch (error) {
         // DB error, continue
@@ -230,6 +233,7 @@ class FinnhubService {
         openPrice: data.o,
         previousClose: data.pc,
         timestamp: data.t,
+        isCached: false, // Fresh data from API
       };
 
       // Cache the result
@@ -299,7 +303,7 @@ class FinnhubService {
         // Check L1 cache first
         const l1Cached = cacheService.get<StockQuote>(cacheKey);
         if (l1Cached) {
-          results.push({ ...l1Cached, isCached: true });
+          results.push({ ...l1Cached, isMarketClosed: true }); // Mark as market closed
           fromL1++;
           continue;
         }
@@ -320,7 +324,7 @@ class FinnhubService {
               timestamp: Math.floor(redisQuote.timestamp / 1000), // Convert ms to seconds
             };
             cacheService.set(cacheKey, quote, 60);
-            results.push({ ...quote, isCached: true });
+            results.push({ ...quote, isMarketClosed: true }); // Mark as market closed
             fromL2++;
             continue;
           }
@@ -344,7 +348,7 @@ class FinnhubService {
               timestamp: new Date(dbQuote.timestamp).getTime() / 1000,
             };
             cacheService.set(cacheKey, quote, 60);
-            results.push({ ...quote, isCached: true });
+            results.push({ ...quote, isMarketClosed: true }); // Mark as market closed
             fromL3++;
             continue;
           }

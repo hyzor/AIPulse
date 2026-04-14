@@ -238,10 +238,10 @@ const processBatchedSubscriptions = async () => {
       symbols.map(async (symbol) => getCachedQuote(symbol)),
     );
 
-    // Broadcast cached data to all clients
+    // Broadcast cached data to all clients (with market closed flag)
     cachedResults.forEach((result) => {
       if (result) {
-        broadcastToSymbol(result.quote.symbol, result.quote);
+        broadcastToSymbol(result.quote.symbol, { ...result.quote, isMarketClosed: true });
       }
     });
 

@@ -108,7 +108,7 @@ export function DataCollectionStatus() {
     },
     {
       label: 'Building 1D',
-      completed: false, // Never "completed" - it's a range
+      completed: chartsReady && estimatedHours >= 24, // Complete once Full 1D is reached
       inProgress: chartsReady && estimatedHours >= 6 && estimatedHours < 24,
       progressPercent: 50 + Math.min(25, (estimatedHours / 24) * 25), // 50-75% based on hours
       description: 'Collecting 24h of data',
@@ -143,6 +143,12 @@ export function DataCollectionStatus() {
     progress = currentMilestoneIndex === -1
       ? 100
       : milestones[currentMilestoneIndex]?.progressPercent ?? 0;
+  }
+
+  // Cap progress at 75% until we actually have 72 hours for 7D+ Views
+  // This prevents the bar from jumping to 100% when Full 1D is reached
+  if (progress > 75 && estimatedHours < 72) {
+    progress = 75;
   }
 
   // Status text based on current stage

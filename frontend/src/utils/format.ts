@@ -183,7 +183,7 @@ export function checkMarketOpen(exchange: string, now: Date = new Date()): boole
  * @param timestamp - Unix timestamp (in milliseconds or seconds)
  * @returns true if the timestamp is from today in user's local timezone
  */
-export function isSameTradingDay(exchange: string, timestamp: number): boolean {
+export function isSameTradingDay(_exchange: string, timestamp: number): boolean {
   const now = new Date();
   const time = new Date(timestamp > 1e10 ? timestamp : timestamp * 1000);
 

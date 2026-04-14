@@ -602,6 +602,52 @@ npm run lint && npm run typecheck
 # If either fails, fix issues first
 ```
 
+### Git Operations - IMPORTANT
+
+**🚫 NEVER automatically push commits. Always ask for explicit confirmation.**
+
+#### Rules for Git Operations
+
+1. **Never run `git push` automatically**
+   - Always ask: "Should I commit and push these changes?"
+   - Wait for explicit user confirmation before pushing
+
+2. **Avoid excessive small commits**
+   - Group related changes into logical, complete commits
+   - Don't commit every tiny fix separately (e.g., 5 commits for UI tweaks)
+   - Prefer: `git commit --amend` for small follow-up fixes before pushing
+
+3. **Commit message quality**
+   - Write clear, descriptive commit messages
+   - Explain WHY not just WHAT
+   - Format: `<type>: <description>` (fix, feat, refactor, docs, etc.)
+
+4. **Before committing, verify:**
+   - `npm run lint` passes
+   - `npm run typecheck` passes
+   - Changes are complete and tested
+
+#### Example Workflow
+
+```bash
+# 1. Make changes
+# 2. Run checks
+npm run lint && npm run typecheck
+
+# 3. Stage files
+git add <files>
+
+# 4. Commit with good message
+git commit -m "fix: correct milestone logic for progress bar
+
+- Building 1D now requires 24h, not 6h
+- Progress bar fills gradually 50-75% based on hours
+- Fixes misleading 'complete' status at 13h"
+
+# 5. ASK before pushing!
+# "Should I push this commit?"
+```
+
 ---
 
 ## Quick Reference

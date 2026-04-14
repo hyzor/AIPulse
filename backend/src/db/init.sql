@@ -95,9 +95,9 @@ SELECT add_compression_policy('stock_candles_1m', INTERVAL '30 days');
 -- SELECT add_retention_policy('stock_candles_1m', INTERVAL '1 year');
 -- SELECT add_retention_policy('stock_candles_1h', INTERVAL '2 years');
 
--- Continuous aggregate policy for 1h candles
+-- Continuous aggregate policy for 1h candles (with real-time aggregation enabled)
 CREATE MATERIALIZED VIEW IF NOT EXISTS stock_candles_1h_aggregation
-WITH (timescaledb.continuous) AS
+WITH (timescaledb.continuous, timescaledb.materialized_only = false) AS
 SELECT
     time_bucket('1 hour', time) AS time,
     symbol,
@@ -118,9 +118,9 @@ SELECT add_continuous_aggregate_policy('stock_candles_1h_aggregation',
     schedule_interval => INTERVAL '1 hour'
 );
 
--- Continuous aggregate policy for 1d candles
+-- Continuous aggregate policy for 1d candles (with real-time aggregation enabled)
 CREATE MATERIALIZED VIEW IF NOT EXISTS stock_candles_1d_aggregation
-WITH (timescaledb.continuous) AS
+WITH (timescaledb.continuous, timescaledb.materialized_only = false) AS
 SELECT
     time_bucket('1 day', time) AS time,
     symbol,

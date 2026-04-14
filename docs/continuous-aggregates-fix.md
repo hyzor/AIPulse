@@ -221,6 +221,71 @@ docker exec aipulse-db psql -U postgres -d aipulse \
 
 ---
 
+## Additional Fix: Real-Time Aggregation for Stale Data
+
+### Problem
+
+Charts showed data lagging **2+ hours behind** current time. For example at 20:34 local time, charts only displayed data up to 18:00 (2+ hours stale), when they should have shown data through 20:00.
+
+### Root Cause
+
+The continuous aggregate materialized views can become **stale** - the background refresh policy (scheduled every 1 hour) may not have run recently, causing the pre-computed data to lag behind the raw 1-minute data.
+
+By default, TimescaleDB continuous aggregates only query the **materialized** (pre-computed) data, ignoring fresher raw data in the source table.
+
+### Solution
+
+Enable **real-time aggregation** (`materialized_only = false`). This makes queries:
+1. Read pre-computed data from the materialized view (fast)
+2. **Also** query the raw 1-minute table for recent data not yet materialized (fresh)
+
+The two results are combined automatically, giving you the best of both worlds.
+
+### Apply the Fix
+
+```bash
+# Access database container and run commands
+docker exec -it aipulse-db psql -U postgres -d aipulse
+```
+
+Then inside psql:
+```sql
+-- Enable real-time aggregation for 1-hour candles
+ALTER MATERIALIZED VIEW stock_candles_1h_aggregation SET (timescaledb.materialized_only = false);
+
+-- Enable real-time aggregation for 1-day candles  
+ALTER MATERIALIZED VIEW stock_candles_1d_aggregation SET (timescaledb.materialized_only = false);
+
+-- Verify the change
+SELECT view_name, materialized_only 
+FROM timescaledb_information.continuous_aggregates
+WHERE view_name IN ('stock_candles_1h_aggregation', 'stock_candles_1d_aggregation');
+```
+
+Exit psql with `\q`
+
+### What Changed
+
+| Mode | Behavior | Data Freshness |
+|------|----------|----------------|
+| `materialized_only = true` (default) | Only reads pre-computed buckets | Can lag hours behind |
+| `materialized_only = false` (fixed) | Combines pre-computed + raw table | Current to last 1m candle |
+
+### Permanent Fix in Schema
+
+The `backend/src/db/init.sql` has been updated to enable real-time aggregation by default:
+
+```sql
+-- New installations automatically get real-time aggregation
+CREATE MATERIALIZED VIEW IF NOT EXISTS stock_candles_1h_aggregation
+WITH (timescaledb.continuous, timescaledb.materialized_only = false) AS
+...
+```
+
+Migration file: `backend/src/db/migrations/001_enable_realtime_aggregation.sql`
+
+---
+
 ## Related Documentation
 
 - `docs/persistent-cache-architecture.md` - Data flow architecture

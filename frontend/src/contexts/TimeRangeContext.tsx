@@ -6,11 +6,11 @@ import type { TimeRange, HistoricalDataCache, SymbolHistoryState } from '../type
 
 interface TimeRangeContextType {
   timeRange: TimeRange;
-  setTimeRange: (range: TimeRange) => void;
+  setTimeRange: (_range: TimeRange) => void;
   historicalData: HistoricalDataCache;
-  fetchHistory: (symbol: string) => Promise<void>;
-  fetchAllHistory: (symbols: string[]) => Promise<void>;
-  getSymbolData: (symbol: string) => SymbolHistoryState | undefined;
+  fetchHistory: (_symbol: string) => Promise<void>;
+  fetchAllHistory: (_symbols: string[]) => Promise<void>;
+  getSymbolData: (_symbol: string) => SymbolHistoryState | undefined;
   isLoading: boolean;
   error: string | null;
   refreshData: () => Promise<void>;

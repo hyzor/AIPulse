@@ -8,7 +8,7 @@ import type { StockQuote } from '../types';
 interface StockGridProps {
   quotes: StockQuote[];
   realtimeQuotes: Map<string, StockQuote>;
-  onStockClick: (symbol: string) => void;
+  onStockClick: (_symbol: string) => void;
 }
 
 export function StockGrid({ quotes, realtimeQuotes, onStockClick }: StockGridProps) {

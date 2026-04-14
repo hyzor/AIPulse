@@ -26,8 +26,8 @@ interface UseWebSocketReturn {
   quotes: Map<string, StockQuote>;
   isConnected: boolean;
   error: string | null;
-  subscribe: (symbol: string) => void;
-  unsubscribe: (symbol: string) => void;
+  subscribe: (_symbol: string) => void;
+  unsubscribe: (_symbol: string) => void;
 }
 
 export function useWebSocket(): UseWebSocketReturn {

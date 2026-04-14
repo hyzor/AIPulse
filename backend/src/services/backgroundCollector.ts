@@ -1,7 +1,6 @@
 import { TRACKED_STOCKS } from '../constants';
 import { candleBufferService } from './candleBufferService';
 import { finnhubService } from './finnhubService';
-import { redisService } from './redisService';
 import { isMarketOpen, getMarketStatus } from '../utils/marketHours';
 
 /**

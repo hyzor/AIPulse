@@ -163,6 +163,6 @@ export interface SymbolHistoryState {
 // Historical data cache structure
 export type HistoricalDataCache = {
   [symbol: string]: {
-    [range in TimeRange]?: SymbolHistoryState;
+    [_range in TimeRange]?: SymbolHistoryState;
   };
 };

@@ -295,7 +295,7 @@ class FinnhubService {
       const marketStatus = getMarketStatus();
       console.log(`[Finnhub] Market closed (${marketStatus.message}). Serving ${symbols.length} symbols from cache to preserve API quota.`);
 
-      let fromL1 = 0, fromL2 = 0, fromL3 = 0, missing = 0;
+      let fromL1 = 0, fromL2 = 0, fromL3 = 0, _missing = 0;
 
       for (const symbol of symbols) {
         const cacheKey = `quote:${symbol}`;
@@ -357,7 +357,7 @@ class FinnhubService {
         }
 
         // No cached data found - must fetch even though market is closed
-        missing++;
+        _missing++;
         console.log(`[Finnhub] No cached data for ${symbol} - will fetch from API despite market being closed`);
       }
 

@@ -4,7 +4,6 @@ import { fileURLToPath } from 'url';
 
 import cors from 'cors';
 import dotenv from 'dotenv';
-
 // Now import everything else
 import express from 'express';
 import { WebSocketServer } from 'ws';
@@ -17,7 +16,7 @@ import { candleBufferService } from './services/candleBufferService';
 import { databaseService } from './services/databaseService';
 import { finnhubService } from './services/finnhubService';
 import { redisService } from './services/redisService';
-import { isMarketOpen, getMarketStatus } from './utils/marketHours';
+
 
 import type { WebSocketMessage, StockQuote, HealthStatus } from './types';
 import type WebSocket from 'ws';
@@ -49,13 +48,6 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 // For development: 60s (1min) or 30s for frequent redeploys
 const STALE_DATA_THRESHOLD = parseInt(process.env.STALE_DATA_THRESHOLD_SECONDS || '300', 10);
 console.log(`[Config] Stale data threshold: ${STALE_DATA_THRESHOLD}s`);
-
-// Rate limit optimized refresh intervals (Finnhub free tier: 60 calls/min)
-// Default: 180s (3min) = 20 calls/min for 12 stocks - very conservative for dev
-const AUTO_REFRESH_INTERVAL = parseInt(process.env.AUTO_REFRESH_INTERVAL_MS || '180000', 10);
-
-// Minimum calls to reserve for user-initiated requests (historical data, etc.)
-const RATE_LIMIT_BUFFER = parseInt(process.env.RATE_LIMIT_BUFFER || '20', 10);
 
 // Middleware
 app.use(cors({
@@ -213,75 +205,6 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 
 // Store connected clients with their subscribed symbols
 const clients = new Map<WebSocket, Set<string>>();
-
-// Batched subscription handling (prevents API spike on redeployment)
-const pendingSubscriptions = new Set<string>();
-let subscriptionBatchTimer: NodeJS.Timeout | null = null;
-const SUBSCRIPTION_BATCH_DELAY = parseInt(process.env.WS_BATCH_DELAY_MS || '500', 10);
-console.log(`[Config] WebSocket subscription batch delay: ${SUBSCRIPTION_BATCH_DELAY}ms`);
-
-// Process batched subscriptions
-const processBatchedSubscriptions = async () => {
-  if (pendingSubscriptions.size === 0) { return; }
-
-  const symbols = [...pendingSubscriptions];
-  pendingSubscriptions.clear();
-  subscriptionBatchTimer = null;
-
-  const marketStatus = getMarketStatus();
-
-  if (!isMarketOpen()) {
-    console.log(`[WebSocket] Market closed (${marketStatus.message}) - serving ${symbols.length} symbols from cache`);
-
-    // First, try to get all symbols from cache
-    const cachedResults = await Promise.all(
-      symbols.map(async (symbol) => getCachedQuote(symbol)),
-    );
-
-    // Broadcast cached data to all clients (with market closed flag)
-    cachedResults.forEach((result) => {
-      if (result) {
-        broadcastToSymbol(result.quote.symbol, { ...result.quote, isMarketClosed: true });
-      }
-    });
-
-    // Check if any symbols are missing from cache - fetch those from API
-    const missingSymbols = symbols.filter((_, i) => !cachedResults[i]);
-    if (missingSymbols.length > 0) {
-      console.log(`[WebSocket] Market closed but ${missingSymbols.length} symbols missing from cache - fetching from API: ${missingSymbols.join(', ')}`);
-
-      // Fetch missing symbols from API even when market is closed (no cached data available)
-      const freshQuotes = await finnhubService.getQuotes(missingSymbols, { batchSize: 3, delayMs: 1000 });
-
-      // Broadcast fetched data
-      freshQuotes.forEach((quote) => {
-        broadcastToSymbol(quote.symbol, quote);
-      });
-    }
-
-    return;
-  }
-
-  // Market is open - fetch fresh data
-  console.log(`[WebSocket] Market open - processing batched subscriptions for ${symbols.length} symbols`);
-
-  // Fetch all in one batch using getQuotes (which has rate limit awareness)
-  const quotes = await finnhubService.getQuotes(symbols, { batchSize: 3, delayMs: 1000 });
-
-  // Broadcast to all clients
-  quotes.forEach((quote) => {
-    broadcastToSymbol(quote.symbol, quote);
-  });
-};
-
-// Queue a symbol for batched fetching
-const queueSubscription = (symbol: string) => {
-  pendingSubscriptions.add(symbol);
-
-  if (!subscriptionBatchTimer) {
-    subscriptionBatchTimer = setTimeout(processBatchedSubscriptions, SUBSCRIPTION_BATCH_DELAY);
-  }
-};
 
 // Broadcast to all clients subscribed to a symbol
 const broadcastToSymbol = (symbol: string, data: StockQuote) => {
@@ -565,8 +488,6 @@ async function initializeServer(): Promise<void> {
 
   // Start HTTP server
   server.listen(PORT, () => {
-    const bgStats = backgroundCollector.getStats();
-
     console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║                    AIPulse Server                          ║

@@ -249,7 +249,7 @@ function AppContent() {
           <div className="text-center text-sm text-gray-500">
             <p>
               Background data collection during market hours (9:30 AM - 4:00 PM ET).
-              Click "Live" button for fresh data (API capacity permitting).
+              Click &quot;Live&quot; button for fresh data (API capacity permitting).
             </p>
             <p className="mt-1">Data provided by Finnhub API.</p>
           </div>

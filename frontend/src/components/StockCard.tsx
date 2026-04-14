@@ -16,13 +16,34 @@ interface StockCardProps {
 }
 
 export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps) {
-  const isPositive = quote.change >= 0;
   const displayName = STOCK_DISPLAY_NAMES[quote.symbol] || quote.symbol;
   const { getSymbolData, timeRange } = useTimeRange();
 
   const historicalData = getSymbolData(quote.symbol);
   const isLoading = historicalData?.loading ?? true;
   const hasError = !!historicalData?.error;
+
+  // Use the most recent price: either from WebSocket quote or chart's latest candle
+  // This prevents the main price from lagging behind the chart
+  const candles = historicalData?.candles || [];
+  const latestCandle = candles.length > 0 ? candles[candles.length - 1] : null;
+  const chartPrice = latestCandle?.c ?? null;
+  const chartTimestamp = latestCandle?.t ?? null;
+
+  // Determine which price is more recent (chart or WebSocket)
+  // Convert quote.timestamp (seconds) to ms for comparison
+  const quoteTimestampMs = quote.timestamp * 1000;
+  const chartTimestampMs = chartTimestamp ?? 0;
+
+  // Use chart price if it's newer than WebSocket quote
+  const displayPrice = (chartTimestampMs > quoteTimestampMs && chartPrice !== null)
+    ? chartPrice
+    : quote.currentPrice;
+
+  // Calculate change based on display price vs previous close
+  const displayChange = displayPrice - quote.previousClose;
+  const displayChangePercent = (displayChange / quote.previousClose) * 100;
+  const displayIsPositive = displayChange >= 0;
 
   // Find category for this stock
   const category = Object.entries(STOCK_CATEGORIES).find(([_, symbols]) =>
@@ -42,12 +63,12 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
   const isMarketOpen = checkMarketOpen(exchange);
   const isFromToday = isSameTradingDay(exchange, quote.timestamp);
 
-  // "LIVE" only when market is open, quote is from today, AND we have realtime data
+  // "LIVE" (green with animation) - Market open, today, WebSocket realtime data
   const showLiveIndicator = isMarketOpen && isFromToday && isRealtime;
-  // "UPDATED" when WebSocket delivers data but market is closed (avoids misleading "LIVE" when not trading)
-  const showUpdatedIndicator = !isMarketOpen && isFromToday && isRealtime;
-  // 1D realtime indicator only when market is open
+  // "LIVE" (small green) - Market open, today, 1D view with HTTP polling
   const show1DLiveIndicator = isMarketOpen && isFromToday && timeRange === '1d' && !isRealtime;
+  // "CLOSED" (gray) - Market is closed (consistent, no flickering)
+  const showClosedIndicator = !isMarketOpen && isFromToday;
 
   return (
     <div
@@ -72,16 +93,6 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
           </div>
         )}
 
-        {/* UPDATED indicator - WebSocket connected but market closed (avoids misleading LIVE) */}
-        {showUpdatedIndicator && (
-          <div className="flex items-center gap-1.5" title="Real-time data (market closed)">
-            <span className="relative flex h-2 w-2">
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-400"></span>
-            </span>
-            <span className="text-xs font-medium text-blue-400">UPDATED</span>
-          </div>
-        )}
-
         {/* LIVE indicator for 1D view - only show when market is open */}
         {show1DLiveIndicator && (
           <div className="flex items-center gap-1.5">
@@ -101,9 +112,9 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
           </div>
         )}
 
-        {/* Market closed - last known price indicator */}
-        {quote.isMarketClosed && (
-          <div className="flex items-center gap-1.5" title="Market closed - showing last known price">
+        {/* Market closed indicator - shows when market is closed (consistent, no flickering) */}
+        {showClosedIndicator && (
+          <div className="flex items-center gap-1.5" title="Market closed">
             <Database className="w-3 h-3 text-gray-400" />
             <span className="text-xs font-semibold text-gray-400">CLOSED</span>
           </div>
@@ -122,27 +133,27 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
           </div>
           <p className="text-sm text-gray-400 ml-7">{displayName}</p>
         </div>
-        <div className={`flex items-center gap-1 px-3 py-1.5 rounded-lg ${getChangeBgColor(quote.change)}`}>
-          {isPositive
+        <div className={`flex items-center gap-1 px-3 py-1.5 rounded-lg ${getChangeBgColor(displayChange)}`}>
+          {displayIsPositive
             ? (
               <TrendingUp className="w-4 h-4 text-neon-green" />
             )
             : (
               <TrendingDown className="w-4 h-4 text-neon-red" />
             )}
-          <span className={`text-sm font-bold ${getChangeColor(quote.change)}`}>
-            {formatChange(quote.changePercent)}
+          <span className={`text-sm font-bold ${getChangeColor(displayChange)}`}>
+            {formatChange(displayChangePercent)}
           </span>
         </div>
       </div>
 
       <div className="mb-3">
         <p className="text-2xl font-bold text-white font-mono">
-          {formatCurrency(quote.currentPrice)}
+          {formatCurrency(displayPrice)}
         </p>
-        <p className={`text-sm font-medium ${getChangeColor(quote.change)}`}>
-          {quote.change >= 0 ? '+' : ''}
-          {formatCurrency(quote.change)}
+        <p className={`text-sm font-medium ${getChangeColor(displayChange)}`}>
+          {displayChange >= 0 ? '+' : ''}
+          {formatCurrency(displayChange)}
           {' '}
           {getChangeLabel(quote.symbol, quote.timestamp)}
         </p>

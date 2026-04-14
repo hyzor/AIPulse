@@ -1,5 +1,7 @@
 import { Pool } from 'pg';
 
+import { isMarketOpen } from '../utils/marketHours';
+
 export interface StockCandle {
   time: Date;
   symbol: string;
@@ -228,10 +230,22 @@ class DatabaseService {
 
         // Only append if quote is newer than last hourly candle
         if (quoteTime > lastCandleTime) {
+          // Check if market is closed - if so, round to the hour close (16:00 ET / 20:00 UTC)
+          let displayTime = latestQuote.timestamp;
+          const marketOpen = isMarketOpen();
+
+          if (!marketOpen) {
+            // Market is closed - round timestamp to the next hour (market close time)
+            // This ensures the chart shows 22:00 instead of 21:59
+            const roundedTime = new Date(latestQuote.timestamp);
+            roundedTime.setMinutes(0, 0, 0);
+            roundedTime.setHours(roundedTime.getHours() + 1);
+            displayTime = roundedTime;
+          }
+
           // Add current real-time price as a separate data point
-          // This shows: price at 19:00 (194.89) AND price now at 19:27 (196.23)
           candles.push({
-            time: latestQuote.timestamp,
+            time: displayTime,
             symbol,
             open: latestQuote.currentPrice,
             high: latestQuote.currentPrice,
@@ -241,7 +255,7 @@ class DatabaseService {
             source: 'realtime',
           });
 
-          console.log(`[Database] Smooth 1D query for ${symbol}: ${candles.length} candles (hourly open: ${lastCandle.close}, current: ${latestQuote.currentPrice})`);
+          console.log(`[Database] Smooth 1D query for ${symbol}: ${candles.length} candles (hourly open: ${lastCandle.close}, current: ${latestQuote.currentPrice}${!marketOpen ? ', market closed - rounded to hour' : ''})`);
         }
       }
 

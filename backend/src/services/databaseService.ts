@@ -233,14 +233,20 @@ class DatabaseService {
           // Check if market is closed - if so, round to the hour close (16:00 ET / 20:00 UTC)
           let displayTime = latestQuote.timestamp;
           const marketOpen = isMarketOpen();
+          const now = new Date();
 
           if (!marketOpen) {
             // Market is closed - round timestamp to the next hour (market close time)
-            // This ensures the chart shows 22:00 instead of 21:59
+            // BUT: Don't round to a future time - cap at current time
             const roundedTime = new Date(latestQuote.timestamp);
             roundedTime.setMinutes(0, 0, 0);
             roundedTime.setHours(roundedTime.getHours() + 1);
-            displayTime = roundedTime;
+
+            // Only use rounded time if it's not in the future
+            if (roundedTime.getTime() <= now.getTime()) {
+              displayTime = roundedTime;
+            }
+            // If rounded time is in the future, keep the original timestamp
           }
 
           // Add current real-time price as a separate data point

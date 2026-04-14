@@ -230,20 +230,28 @@ class DatabaseService {
 
         // Only append if quote is newer than last hourly candle
         if (quoteTime > lastCandleTime) {
-          // Check if market is closed - if so, use market close hour (16:00 ET = 20:00 or 21:00 UTC depending on DST)
+          // Check if market is closed - if so, use market close hour
           let displayTime = latestQuote.timestamp;
           const marketOpen = isMarketOpen();
 
           if (!marketOpen) {
-            // Market is closed - round timestamp to the market close hour
-            // The latestQuote is from market close, so display it at that hour mark (22:00, not 21:59)
-            const marketCloseTime = new Date(latestQuote.timestamp);
-            marketCloseTime.setMinutes(0, 0, 0);
-            // If minutes were > 0, we're after the hour start, so this IS the close hour
-            // e.g., 21:45 -> 21:00, but we want 22:00 (next hour = market close)
-            // Actually, if market closes at 22:00, the last quote at 21:59 should show at 22:00
-            marketCloseTime.setHours(marketCloseTime.getHours() + 1);
-            displayTime = marketCloseTime;
+            // Market is closed - check if we need to round to market close hour
+            const quoteDate = new Date(latestQuote.timestamp);
+            const currentHour = quoteDate.getHours();
+            const currentMinutes = quoteDate.getMinutes();
+
+            // Get market close hour in UTC (16:00 ET = 20:00 or 21:00 UTC depending on DST)
+            // For simplicity, we check if current hour is before typical market close hours
+            const isBeforeMarketClose = currentHour < 20 || (currentHour === 20 && currentMinutes === 0);
+
+            if (isBeforeMarketClose) {
+              // Quote is from before/during market close - round up to market close hour (20:00 or 21:00)
+              const marketCloseTime = new Date(latestQuote.timestamp);
+              marketCloseTime.setMinutes(0, 0, 0);
+              marketCloseTime.setHours(20); // Use 20:00 UTC as market close time
+              displayTime = marketCloseTime;
+            }
+            // If already at or past market close hour, use the quote time as-is
           }
 
           // Add current real-time price as a separate data point

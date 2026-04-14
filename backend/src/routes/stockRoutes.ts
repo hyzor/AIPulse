@@ -210,11 +210,11 @@ router.get('/stocks/:symbol/history', async (req, res) => {
     const dataRange = await databaseService.getDataRange(uppercaseSymbol);
 
     // Fetch from database first
-    // Use hybrid query for 1D view to get minute-level data for current hour
+    // Use smooth query for 1D view: hourly data with current price appended
     let dbCandles: Awaited<ReturnType<typeof databaseService.getCandles>>;
     if (range === '1d' && resolution === '1h') {
-      // Hybrid: 1h aggregates for completed hours + 1m for current hour
-      dbCandles = await databaseService.getHybrid1DCandles(uppercaseSymbol, from, to);
+      // Smooth: 1h aggregates with latest real-time price (no jagged minute data)
+      dbCandles = await databaseService.getSmooth1DCandles(uppercaseSymbol, from, to);
     } else {
       dbCandles = await databaseService.getCandles(uppercaseSymbol, from, to, resolution);
     }

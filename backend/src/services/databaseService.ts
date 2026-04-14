@@ -186,29 +186,25 @@ class DatabaseService {
   }
 
   /**
-   * Get hybrid candles for 1D view: 1h aggregates for completed hours + 1m for current hour
-   * This provides the accuracy of minute data for the current hour with the efficiency of hourly data
+   * Get smooth 1D candles: hourly aggregates with current real-time price appended
+   * Shows clean hourly chart with just the current price as the final point
    */
-  async getHybrid1DCandles(
+  async getSmooth1DCandles(
     symbol: string,
     from: Date,
     to: Date,
   ): Promise<StockCandle[]> {
-    // Get the start of the current hour for splitting the query
-    const currentHourStart = new Date(to);
-    currentHourStart.setMinutes(0, 0, 0);
-
     try {
-      // Query 1: Get 1h aggregates for completed hours (up to but not including current hour)
+      // Query 1: Get 1h aggregates for the full range
       const hourlyQuery = `
         SELECT time, symbol, open, high, low, close, volume, source
         FROM stock_candles_1h_aggregation
-        WHERE symbol = $1 AND time >= $2 AND time < $3
+        WHERE symbol = $1 AND time >= $2 AND time <= $3
         ORDER BY time ASC
       `;
 
-      const hourlyResult = await this.pool.query(hourlyQuery, [symbol, from, currentHourStart]);
-      const hourlyCandles: StockCandle[] = hourlyResult.rows.map((row) => ({
+      const hourlyResult = await this.pool.query(hourlyQuery, [symbol, from, to]);
+      const candles: StockCandle[] = hourlyResult.rows.map((row) => ({
         time: row.time,
         symbol: row.symbol,
         open: parseFloat(row.open),
@@ -219,36 +215,50 @@ class DatabaseService {
         source: 'aggregated',
       }));
 
-      // Query 2: Get 1m data for current hour (from current hour start to now)
-      // This provides minute-level granularity for the most recent data
-      const minuteQuery = `
-        SELECT time, symbol, open, high, low, close, volume, source
-        FROM stock_candles_1m
-        WHERE symbol = $1 AND time >= $2 AND time <= $3
-        ORDER BY time ASC
-      `;
+      // Query 2: Get latest real-time quote to append as current price
+      // This ensures chart shows price up to current minute without jagged minute data
+      const latestQuote = await this.getLatestQuote(symbol);
 
-      const minuteResult = await this.pool.query(minuteQuery, [symbol, currentHourStart, to]);
-      const minuteCandles: StockCandle[] = minuteResult.rows.map((row) => ({
-        time: row.time,
-        symbol: row.symbol,
-        open: parseFloat(row.open),
-        high: parseFloat(row.high),
-        low: parseFloat(row.low),
-        close: parseFloat(row.close),
-        volume: parseInt(row.volume, 10),
-        source: 'realtime',
-      }));
+      if (latestQuote && candles.length > 0) {
+        const lastCandle = candles[candles.length - 1];
+        const lastCandleTime = new Date(lastCandle.time).getTime();
+        const quoteTime = latestQuote.timestamp.getTime();
 
-      // Merge: hourly data + minute data for current hour
-      // If we have minute data for the current hour, use it; otherwise fall back to hourly
-      const result: StockCandle[] = [...hourlyCandles, ...minuteCandles];
+        // Only append if quote is newer than last hourly candle and within current hour
+        if (quoteTime > lastCandleTime) {
+          // Check if we're in the same hour as the last candle
+          const lastCandleHour = new Date(lastCandle.time);
+          lastCandleHour.setMinutes(0, 0, 0);
+          const quoteHour = new Date(latestQuote.timestamp);
+          quoteHour.setMinutes(0, 0, 0);
 
-      console.log(`[Database] Hybrid 1D query for ${symbol}: ${hourlyCandles.length} hourly + ${minuteCandles.length} minute candles`);
+          if (lastCandleHour.getTime() === quoteHour.getTime()) {
+            // Same hour: update the last candle with latest price (high/low/close)
+            lastCandle.close = latestQuote.currentPrice;
+            lastCandle.high = Math.max(lastCandle.high, latestQuote.currentPrice);
+            lastCandle.low = Math.min(lastCandle.low, latestQuote.currentPrice);
+            lastCandle.source = 'realtime';
+          } else {
+            // New hour: add a new candle with latest quote
+            candles.push({
+              time: latestQuote.timestamp,
+              symbol,
+              open: latestQuote.currentPrice,
+              high: latestQuote.currentPrice,
+              low: latestQuote.currentPrice,
+              close: latestQuote.currentPrice,
+              volume: latestQuote.volume,
+              source: 'realtime',
+            });
+          }
 
-      return result;
+          console.log(`[Database] Smooth 1D query for ${symbol}: ${candles.length} candles (updated to ${latestQuote.currentPrice})`);
+        }
+      }
+
+      return candles;
     } catch (error) {
-      console.error('[Database] Error fetching hybrid candles:', error);
+      console.error('[Database] Error fetching smooth candles:', error);
       // Fall back to regular 1h query on error
       return this.getCandles(symbol, from, to, '1h');
     }

@@ -228,8 +228,20 @@ class DatabaseService {
         const lastCandleTime = new Date(lastCandle.time).getTime();
         const quoteTime = latestQuote.timestamp.getTime();
 
-        // Only append if quote is newer than last hourly candle
-        if (quoteTime > lastCandleTime) {
+        // Check if quote is in the same hour as the last candle
+        const lastCandleHour = new Date(lastCandle.time).setMinutes(0, 0, 0);
+        const quoteHour = new Date(latestQuote.timestamp).setMinutes(0, 0, 0);
+        const sameHour = lastCandleHour === quoteHour;
+
+        if (sameHour) {
+          // Same hour: update the last candle with the latest price
+          lastCandle.close = latestQuote.currentPrice;
+          lastCandle.high = Math.max(lastCandle.high, latestQuote.currentPrice);
+          lastCandle.low = Math.min(lastCandle.low, latestQuote.currentPrice);
+          lastCandle.source = 'realtime';
+          console.log(`[Database] Smooth 1D query for ${symbol}: Updated last candle to ${latestQuote.currentPrice} (same hour)`);
+        } else if (quoteTime > lastCandleTime) {
+          // Different hour and quote is newer: add as new point
           // Check if market is closed - if so, use market close hour
           let displayTime = latestQuote.timestamp;
           const marketOpen = isMarketOpen();
@@ -241,17 +253,15 @@ class DatabaseService {
             const currentMinutes = quoteDate.getMinutes();
 
             // Get market close hour in UTC (16:00 ET = 20:00 or 21:00 UTC depending on DST)
-            // For simplicity, we check if current hour is before typical market close hours
             const isBeforeMarketClose = currentHour < 20 || (currentHour === 20 && currentMinutes === 0);
 
             if (isBeforeMarketClose) {
-              // Quote is from before/during market close - round up to market close hour (20:00 or 21:00)
+              // Quote is from before/during market close - round up to market close hour (20:00)
               const marketCloseTime = new Date(latestQuote.timestamp);
               marketCloseTime.setMinutes(0, 0, 0);
               marketCloseTime.setHours(20); // Use 20:00 UTC as market close time
               displayTime = marketCloseTime;
             }
-            // If already at or past market close hour, use the quote time as-is
           }
 
           // Add current real-time price as a separate data point
@@ -266,7 +276,7 @@ class DatabaseService {
             source: 'realtime',
           });
 
-          console.log(`[Database] Smooth 1D query for ${symbol}: ${candles.length} candles (hourly open: ${lastCandle.close}, current: ${latestQuote.currentPrice}${!marketOpen ? ', market closed - rounded to hour' : ''})`);
+          console.log(`[Database] Smooth 1D query for ${symbol}: ${candles.length} candles (added new point at ${latestQuote.currentPrice})`);
         }
       }
 

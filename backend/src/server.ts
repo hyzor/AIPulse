@@ -12,7 +12,7 @@ import { WebSocketServer } from 'ws';
 import { TRACKED_STOCKS } from './constants';
 import stockRoutes from './routes/stockRoutes';
 import { backgroundCollector } from './services/backgroundCollector';
-import { cacheService } from './services/cacheService';
+import { getCachedQuote } from './services/cacheLookupService';
 import { candleBufferService } from './services/candleBufferService';
 import { databaseService } from './services/databaseService';
 import { finnhubService } from './services/finnhubService';
@@ -131,13 +131,13 @@ app.post('/api/stocks/:symbol/refresh', async (req, res) => {
   // Only allow manual refresh if we have significant capacity remaining
   if (rateLimitStatus.callsRemaining < 15) {
     // Serve from cache
-    const cachedQuote = await getCachedQuote(upperSymbol);
-    if (cachedQuote) {
+    const cachedResult = await getCachedQuote(upperSymbol);
+    if (cachedResult) {
       return res.json({
         success: false,
         cached: true,
         symbol: upperSymbol,
-        data: cachedQuote,
+        data: cachedResult.quote,
         message: 'API rate limit near capacity. Serving cached data. Background collector has priority.',
         rateLimit: rateLimitStatus,
       });
@@ -216,13 +216,43 @@ const processBatchedSubscriptions = async () => {
   subscriptionBatchTimer = null;
 
   const marketStatus = getMarketStatus();
+
   if (!isMarketOpen()) {
     console.log(`[WebSocket] Market closed (${marketStatus.message}) - serving ${symbols.length} symbols from cache`);
-  } else {
-    console.log(`[WebSocket] Market open - processing batched subscriptions for ${symbols.length} symbols`);
+
+    // First, try to get all symbols from cache
+    const cachedResults = await Promise.all(
+      symbols.map(async (symbol) => getCachedQuote(symbol)),
+    );
+
+    // Broadcast cached data to all clients
+    cachedResults.forEach((result) => {
+      if (result) {
+        broadcastToSymbol(result.quote.symbol, result.quote);
+      }
+    });
+
+    // Check if any symbols are missing from cache - fetch those from API
+    const missingSymbols = symbols.filter((_, i) => !cachedResults[i]);
+    if (missingSymbols.length > 0) {
+      console.log(`[WebSocket] Market closed but ${missingSymbols.length} symbols missing from cache - fetching from API: ${missingSymbols.join(', ')}`);
+
+      // Fetch missing symbols from API even when market is closed (no cached data available)
+      const freshQuotes = await finnhubService.getQuotes(missingSymbols, { batchSize: 3, delayMs: 1000 });
+
+      // Broadcast fetched data
+      freshQuotes.forEach((quote) => {
+        broadcastToSymbol(quote.symbol, quote);
+      });
+    }
+
+    return;
   }
 
-  // Fetch all in one batch using getQuotes (which has rate limit and market hours awareness)
+  // Market is open - fetch fresh data
+  console.log(`[WebSocket] Market open - processing batched subscriptions for ${symbols.length} symbols`);
+
+  // Fetch all in one batch using getQuotes (which has rate limit awareness)
   const quotes = await finnhubService.getQuotes(symbols, { batchSize: 3, delayMs: 1000 });
 
   // Broadcast to all clients
@@ -242,13 +272,10 @@ const queueSubscription = (symbol: string) => {
 
 // Broadcast to all clients subscribed to a symbol
 const broadcastToSymbol = (symbol: string, data: StockQuote) => {
-  // Strip isCached flag for WebSocket - real-time updates are always "fresh"
-  const { isCached, ...cleanData } = data;
-
   const message: WebSocketMessage = {
     type: 'quote',
     symbol,
-    data: cleanData,
+    data,
   };
 
   const messageStr = JSON.stringify(message);
@@ -285,18 +312,18 @@ wss.on('connection', (ws) => {
 
         // Serve from cache ONLY - no API calls on subscribe
         // Background collector keeps cache updated
-        const cachedQuote = await getCachedQuote(symbol);
+        const cachedResult = await getCachedQuote(symbol);
 
-        if (cachedQuote) {
+        if (cachedResult) {
           // Send cached data immediately
           ws.send(JSON.stringify({
             type: 'quote',
             symbol,
-            data: cachedQuote,
+            data: cachedResult.quote,
           }));
 
           // Indicate if data is stale (older than threshold)
-          const isStale = cachedQuote.timestamp < Date.now() / 1000 - STALE_DATA_THRESHOLD;
+          const isStale = cachedResult.quote.timestamp < Date.now() / 1000 - STALE_DATA_THRESHOLD;
           if (isStale) {
             ws.send(JSON.stringify({
               type: 'info',
@@ -356,12 +383,12 @@ wss.on('connection', (ws) => {
           }
         } else {
           // No API capacity - serve from cache
-          const cachedQuote = await getCachedQuote(symbol);
-          if (cachedQuote) {
+          const cachedResult = await getCachedQuote(symbol);
+          if (cachedResult) {
             ws.send(JSON.stringify({
               type: 'quote',
               symbol,
-              data: cachedQuote,
+              data: cachedResult.quote,
               message: 'API rate limit reached. Serving cached data.',
             }));
           } else {
@@ -390,67 +417,6 @@ wss.on('connection', (ws) => {
     console.error('[WebSocket] Error:', error);
   });
 });
-
-/**
- * Get cached quote from L1, L2, or L3 cache
- * NO API calls - serves only from cache
- */
-async function getCachedQuote(symbol: string): Promise<StockQuote | null> {
-  const cacheKey = `quote:${symbol}`;
-
-  // Check L1 cache (memory)
-  const l1Cached = cacheService.get<StockQuote>(cacheKey);
-  if (l1Cached) {
-    return l1Cached;
-  }
-
-  // Check L2 cache (Redis)
-  try {
-    const redisQuote = await redisService.getLatestQuote(symbol);
-    if (redisQuote) {
-      const quote: StockQuote = {
-        symbol,
-        currentPrice: redisQuote.currentPrice,
-        change: redisQuote.change,
-        changePercent: redisQuote.changePercent,
-        highPrice: redisQuote.high,
-        lowPrice: redisQuote.low,
-        openPrice: redisQuote.open,
-        previousClose: redisQuote.previousClose,
-        timestamp: redisQuote.timestamp,
-      };
-      // Also cache in memory for faster access
-      cacheService.set(cacheKey, quote, 60);
-      return quote;
-    }
-  } catch {
-    // Redis error, continue to DB
-  }
-
-  // Check L3 cache (TimescaleDB)
-  try {
-    const dbQuote = await databaseService.getLatestQuote(symbol);
-    if (dbQuote) {
-      const quote: StockQuote = {
-        symbol,
-        currentPrice: dbQuote.currentPrice,
-        change: dbQuote.change,
-        changePercent: dbQuote.changePercent,
-        highPrice: dbQuote.highPrice || 0,
-        lowPrice: dbQuote.lowPrice || 0,
-        openPrice: dbQuote.openPrice || 0,
-        previousClose: dbQuote.previousClose || 0,
-        timestamp: new Date(dbQuote.timestamp).getTime() / 1000,
-      };
-      cacheService.set(cacheKey, quote, 60);
-      return quote;
-    }
-  } catch {
-    // DB error
-  }
-
-  return null;
-}
 
 // Background Data Collection
 // Runs independently of WebSocket clients

@@ -1,11 +1,13 @@
 import { Router } from 'express';
 
 import { TRACKED_STOCKS } from '../constants';
+import { getCachedQuote, getAllCachedQuotes } from '../services/cacheLookupService';
 import { cacheService } from '../services/cacheService';
 import { candleBufferService } from '../services/candleBufferService';
 import { databaseService } from '../services/databaseService';
 import { finnhubService } from '../services/finnhubService';
 import { redisService } from '../services/redisService';
+import { isMarketOpen, getMarketStatus } from '../utils/marketHours';
 
 import type { HistoryResponse, CandleData, FlushResult } from '../types';
 
@@ -14,9 +16,34 @@ const router = Router();
 // Get all tracked stocks quotes
 router.get('/stocks', async (_req, res) => {
   try {
+    // Check if market is closed - if so, serve from cache only
+    if (!isMarketOpen()) {
+      const marketStatus = getMarketStatus();
+      console.log(`[API] Market closed (${marketStatus.message}) - serving all stocks from cache`);
+
+      const cachedResults = await getAllCachedQuotes(TRACKED_STOCKS);
+
+      // If we have cached data for all stocks, return it
+      if (cachedResults.length === TRACKED_STOCKS.length) {
+        // Extract quotes from cache results
+        const cachedQuotes = cachedResults.map((r) => r.quote);
+        return res.json({
+          success: true,
+          data: cachedQuotes,
+          count: cachedQuotes.length,
+          cached: true,
+          marketStatus: marketStatus.message,
+          timestamp: Date.now(),
+        });
+      }
+
+      // Some symbols missing from cache - fall through to API call
+      console.log(`[API] Only ${cachedResults.length}/${TRACKED_STOCKS.length} symbols in cache, fetching missing from API`);
+    }
+
     const quotes = await finnhubService.getQuotes([...TRACKED_STOCKS]);
 
-    res.json({
+    return res.json({
       success: true,
       data: quotes,
       count: quotes.length,
@@ -24,7 +51,7 @@ router.get('/stocks', async (_req, res) => {
     });
   } catch (error) {
     console.error('[API] Error fetching stocks:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to fetch stock data',
       message: error instanceof Error ? error.message : 'Unknown error',
@@ -38,16 +65,36 @@ router.get('/stocks/:symbol', async (req, res) => {
   const uppercaseSymbol = symbol.toUpperCase();
 
   try {
+    // Check if market is closed - if so, try cache first
+    if (!isMarketOpen()) {
+      const marketStatus = getMarketStatus();
+      const cachedResult = await getCachedQuote(uppercaseSymbol);
+
+      if (cachedResult) {
+        console.log(`[API] Market closed - serving ${uppercaseSymbol} from cache (${cachedResult.source})`);
+        return res.json({
+          success: true,
+          data: cachedResult.quote,
+          cached: true,
+          marketStatus: marketStatus.message,
+          timestamp: Date.now(),
+        });
+      }
+
+      // No cached data - fall through to API call
+      console.log(`[API] Market closed but no cache for ${uppercaseSymbol} - fetching from API`);
+    }
+
     const quote = await finnhubService.getQuote(uppercaseSymbol);
 
-    res.json({
+    return res.json({
       success: true,
       data: quote,
       timestamp: Date.now(),
     });
   } catch (error) {
     console.error(`[API] Error fetching ${uppercaseSymbol}:`, error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: `Failed to fetch data for ${uppercaseSymbol}`,
       message: error instanceof Error ? error.message : 'Unknown error',

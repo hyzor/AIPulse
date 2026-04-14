@@ -59,8 +59,8 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
         ${showLiveIndicator ? 'ring-2 ring-neon-blue/30' : ''}
       `}
     >
-      {/* Top-right indicators */}
-      <div className="absolute top-3 right-3 flex items-center gap-2">
+      {/* Top-right indicators - z-10 ensures they appear above the chart */}
+      <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
         {/* LIVE indicator - only when market is actually open and trading */}
         {showLiveIndicator && (
           <div className="flex items-center gap-1.5">

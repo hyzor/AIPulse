@@ -22,7 +22,7 @@ export async function getCachedQuote(symbol: string): Promise<CachedQuoteResult 
   // Check L1 cache (memory)
   const l1Cached = cacheService.get<StockQuote>(cacheKey);
   if (l1Cached) {
-    return { quote: l1Cached, source: 'l1' };
+    return { quote: { ...l1Cached, isCached: true }, source: 'l1' };
   }
 
   // Check L2 cache (Redis)
@@ -38,7 +38,8 @@ export async function getCachedQuote(symbol: string): Promise<CachedQuoteResult 
         lowPrice: redisQuote.low,
         openPrice: redisQuote.open,
         previousClose: redisQuote.previousClose,
-        timestamp: redisQuote.timestamp,
+        timestamp: Math.floor(redisQuote.timestamp / 1000), // Convert ms to seconds
+        isCached: true,
       };
       // Also cache in memory for faster access
       cacheService.set(cacheKey, quote, 60);
@@ -63,6 +64,7 @@ export async function getCachedQuote(symbol: string): Promise<CachedQuoteResult 
         openPrice: dbQuote.openPrice || 0,
         previousClose: dbQuote.previousClose || 0,
         timestamp: new Date(dbQuote.timestamp).getTime() / 1000,
+        isCached: true,
       };
       cacheService.set(cacheKey, quote, 60);
       return { quote, source: 'l3' };

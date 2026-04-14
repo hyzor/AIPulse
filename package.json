@@ -17,7 +17,10 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "lint:report": "eslint . --format stylish",
-    "typecheck": "npm run typecheck --workspace=backend && npm run typecheck --workspace=frontend"
+    "typecheck": "npm run typecheck --workspace=backend && npm run typecheck --workspace=frontend",
+    "clear:data": "node scripts/clear-data.js",
+    "clear:redis": "node scripts/clear-data.js --redis-only",
+    "clear:db": "node scripts/clear-data.js --db-only"
   },
   "keywords": [
     "stocks",

@@ -251,6 +251,34 @@ export default [
   },
 
   // ==========================================
+  // SCRIPTS (Node.js utilities)
+  // ==========================================
+  {
+    files: ['scripts/**/*.js'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        setImmediate: 'readonly',
+        clearImmediate: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        exports: 'writable',
+        module: 'writable',
+        require: 'readonly',
+      },
+    },
+    rules: {
+      'no-console': 'off',
+    },
+  },
+
+  // ==========================================
   // TEST FILES (relaxed)
   // ==========================================
   {

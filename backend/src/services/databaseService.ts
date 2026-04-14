@@ -380,18 +380,24 @@ class DatabaseService {
     symbols: string[];
   }> {
     try {
-      const [candles1m, candles1h, candles1d, symbols] = await Promise.all([
+      const [candles1m, candles1h, candles1d, candleSymbols, latestQuoteSymbols] = await Promise.all([
         this.pool.query('SELECT COUNT(*) FROM stock_candles_1m'),
         this.pool.query('SELECT COUNT(*) FROM stock_candles_1h'),
         this.pool.query('SELECT COUNT(*) FROM stock_candles_1d'),
         this.pool.query('SELECT DISTINCT symbol FROM stock_candles_1m ORDER BY symbol'),
+        this.pool.query('SELECT DISTINCT symbol FROM latest_quotes ORDER BY symbol'),
       ]);
+
+      // Merge symbols from both candles and latest_quotes tables
+      const symbolsFromCandles = candleSymbols.rows.map((r) => r.symbol);
+      const symbolsFromLatest = latestQuoteSymbols.rows.map((r) => r.symbol);
+      const allSymbols = [...new Set([...symbolsFromCandles, ...symbolsFromLatest])].sort();
 
       return {
         total1mCandles: parseInt(candles1m.rows[0].count, 10),
         total1hCandles: parseInt(candles1h.rows[0].count, 10),
         total1dCandles: parseInt(candles1d.rows[0].count, 10),
-        symbols: symbols.rows.map((r) => r.symbol),
+        symbols: allSymbols,
       };
     } catch (error) {
       console.error('[Database] Error fetching stats:', error);

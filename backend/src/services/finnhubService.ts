@@ -105,7 +105,7 @@ class FinnhubService {
             lowPrice: redisQuote.low,
             openPrice: redisQuote.open,
             previousClose: redisQuote.previousClose,
-            timestamp: redisQuote.timestamp,
+            timestamp: Math.floor(redisQuote.timestamp / 1000), // Convert ms to seconds
           };
           // Also cache in memory for faster access
           cacheService.set(cacheKey, quote, 60);
@@ -317,7 +317,7 @@ class FinnhubService {
               lowPrice: redisQuote.low,
               openPrice: redisQuote.open,
               previousClose: redisQuote.previousClose,
-              timestamp: redisQuote.timestamp,
+              timestamp: Math.floor(redisQuote.timestamp / 1000), // Convert ms to seconds
             };
             cacheService.set(cacheKey, quote, 60);
             results.push({ ...quote, isCached: true });

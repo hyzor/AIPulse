@@ -221,9 +221,8 @@ class CandleBufferService {
       volume: number;
     },
     source: 'websocket' | 'api' | 'cache' = 'api',
+    timestamp: number = Date.now(), // Allow passing original timestamp
   ): Promise<void> {
-    const timestamp = Date.now();
-
     const redisQuote: RedisLatestQuote = {
       ...quote,
       timestamp,

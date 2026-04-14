@@ -40,7 +40,7 @@ export function StockGrid({ quotes, realtimeQuotes, onStockClick }: StockGridPro
       lowPrice: 0,
       openPrice: 0,
       previousClose: 0,
-      timestamp: Date.now(),
+      timestamp: Math.floor(Date.now() / 1000), // Unix timestamp in seconds
     };
   });
 

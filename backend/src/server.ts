@@ -153,8 +153,21 @@ app.post('/api/stocks/:symbol/refresh', async (req, res) => {
     const freshQuote = await finnhubService.getQuote(upperSymbol, true); // Skip cache
 
     if (freshQuote) {
-      // Update candle buffer with fresh data
+      // Update candle buffer with fresh data (for historical charts)
       candleBufferService.updatePrice(upperSymbol, freshQuote.currentPrice, 0, Date.now());
+
+      // Also update latest quote in DB immediately (so stats show this symbol has data)
+      // Pass the ORIGINAL timestamp from Finnhub (in seconds), not current time
+      await candleBufferService.updateLatestQuote(upperSymbol, {
+        currentPrice: freshQuote.currentPrice,
+        change: freshQuote.change,
+        changePercent: freshQuote.changePercent,
+        high: freshQuote.highPrice,
+        low: freshQuote.lowPrice,
+        open: freshQuote.openPrice,
+        previousClose: freshQuote.previousClose,
+        volume: 0,
+      }, 'api', freshQuote.timestamp * 1000); // Convert seconds to ms for storage
 
       // Broadcast to all WebSocket subscribers
       broadcastToSymbol(upperSymbol, freshQuote);
@@ -360,8 +373,21 @@ wss.on('connection', (ws) => {
           try {
             const freshQuote = await finnhubService.getQuote(symbol, true); // Skip cache
             if (freshQuote) {
-              // Update candle buffer with fresh data
+              // Update candle buffer with fresh data (for historical charts)
               candleBufferService.updatePrice(symbol, freshQuote.currentPrice, 0, Date.now());
+
+              // Also update latest quote in DB immediately
+              // Pass the ORIGINAL timestamp from Finnhub (in seconds), not current time
+              await candleBufferService.updateLatestQuote(symbol, {
+                currentPrice: freshQuote.currentPrice,
+                change: freshQuote.change,
+                changePercent: freshQuote.changePercent,
+                high: freshQuote.highPrice,
+                low: freshQuote.lowPrice,
+                open: freshQuote.openPrice,
+                previousClose: freshQuote.previousClose,
+                volume: 0,
+              }, 'api', freshQuote.timestamp * 1000); // Convert seconds to ms for storage
 
               // Broadcast to all subscribers
               broadcastToSymbol(symbol, freshQuote);
@@ -443,7 +469,7 @@ candleBufferService.updatePrice = (symbol: string, price: number, volume?: numbe
         lowPrice: redisQuote.low,
         openPrice: redisQuote.open,
         previousClose: redisQuote.previousClose,
-        timestamp: redisQuote.timestamp,
+        timestamp: Math.floor(redisQuote.timestamp / 1000), // Convert ms to seconds
       };
       broadcastToSymbol(symbol, quote);
     }

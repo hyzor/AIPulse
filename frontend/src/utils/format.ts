@@ -55,14 +55,14 @@ const EXCHANGE_HOURS: Record<string, { open: number; close: number; timezone: st
 };
 
 /**
- * Get an appropriate label for the daily change based on market hours
+ * Get an appropriate label for the daily change based on user's local timezone
  *
- * If markets are currently open and the quote is from today → "today"
- * If markets are closed and the quote is from the last trading day → "last session" or day name
+ * Labels are shown from the user's perspective (their local timezone),
+ * not the exchange's timezone.
  *
  * @param symbol - The stock symbol
  * @param timestamp - Unix timestamp of the quote (in milliseconds or seconds)
- * @returns A human-readable label like "today", "last session", "Fri", "Thu", etc.
+ * @returns A human-readable label like "today", "yesterday", "Fri", etc.
  */
 export function getChangeLabel(symbol: string, timestamp: number): string {
   const now = new Date();
@@ -72,36 +72,37 @@ export function getChangeLabel(symbol: string, timestamp: number): string {
 
   // Determine exchange (default to US)
   const exchange = getExchangeForSymbol(symbol);
-  const hours = EXCHANGE_HOURS[exchange];
 
-  // Check if the quote is from "today" (same calendar day in the exchange's timezone)
-  const quoteDay = getDayInTimezone(quoteTime, hours.timezone);
-  const todayDay = getDayInTimezone(now, hours.timezone);
+  // Compare dates in USER's LOCAL timezone (not exchange timezone)
+  // This ensures labels make sense from the user's perspective
+  const quoteDayLocal = new Date(quoteTime.getFullYear(), quoteTime.getMonth(), quoteTime.getDate());
+  const todayDayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  // Check if market is currently open
+  // Check if market is currently open (uses exchange timezone for accuracy)
   const isMarketOpen = checkMarketOpen(exchange, now);
 
-  // If quote is from today and market is open → "today"
-  if (quoteDay.getTime() === todayDay.getTime() && isMarketOpen) {
-    return 'today';
+  // Calculate day difference in user's local timezone
+  const dayDiffMs = todayDayLocal.getTime() - quoteDayLocal.getTime();
+  const dayDiff = Math.floor(dayDiffMs / (24 * 60 * 60 * 1000));
+
+  // Same day → "today" (from user's perspective)
+  if (dayDiff === 0) {
+    return isMarketOpen ? 'today' : 'today (closed)';
   }
 
-  // If quote is from today but market is closed → "last session"
-  if (quoteDay.getTime() === todayDay.getTime()) {
-    return 'last session';
+  // Yesterday → "yesterday"
+  if (dayDiff === 1) {
+    return 'yesterday';
   }
 
-  // If quote is from a previous day → show day name
+  // Recent days → day name (from user's perspective)
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const dayDiff = Math.floor((todayDay.getTime() - quoteDay.getTime()) / (24 * 60 * 60 * 1000));
-
-  // For recent days, show the day name
   if (dayDiff <= 7) {
-    return dayNames[quoteDay.getDay()];
+    return dayNames[quoteDayLocal.getDay()];
   }
 
-  // For older data, show the date
-  return quoteDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  // Older data → show date in user's locale
+  return quoteDayLocal.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 /**
@@ -175,19 +176,20 @@ export function checkMarketOpen(exchange: string, now: Date = new Date()): boole
 }
 
 /**
- * Check if a timestamp represents "today" in a given exchange's timezone
- * Used to determine if data is from the current trading session
+ * Check if a timestamp represents "today" from the user's perspective
+ * Used to determine if data is from the user's current calendar day
+ *
+ * @param exchange - The exchange symbol
+ * @param timestamp - Unix timestamp (in milliseconds or seconds)
+ * @returns true if the timestamp is from today in user's local timezone
  */
 export function isSameTradingDay(exchange: string, timestamp: number): boolean {
-  const hours = EXCHANGE_HOURS[exchange];
-  if (!hours) { return false; }
-
   const now = new Date();
   const time = new Date(timestamp > 1e10 ? timestamp : timestamp * 1000);
 
-  // Get the date in the exchange's timezone for both "now" and the quote time
-  const nowDay = getDayInTimezone(now, hours.timezone);
-  const timeDay = getDayInTimezone(time, hours.timezone);
+  // Compare in USER's local timezone (not exchange timezone)
+  const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const timeDay = new Date(time.getFullYear(), time.getMonth(), time.getDate());
 
   return nowDay.getTime() === timeDay.getTime();
 }

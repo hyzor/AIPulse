@@ -153,22 +153,16 @@ class DatabaseService {
     to: Date,
     resolution: '1m' | '1h' | '1d',
   ): Promise<StockCandle[]> {
-    let table: string;
-
-    switch (resolution) {
-      case '1h':
-        table = 'stock_candles_1h';
-        break;
-      case '1d':
-        table = 'stock_candles_1d';
-        break;
-      default:
-        table = 'stock_candles_1m';
-    }
+    // Use continuous aggregate views for 1h and 1d, actual table for 1m
+    const tableOrView = resolution === '1h'
+      ? 'stock_candles_1h_aggregation'
+      : resolution === '1d'
+        ? 'stock_candles_1d_aggregation'
+        : 'stock_candles_1m';
 
     const query = `
       SELECT time, symbol, open, high, low, close, volume, source
-      FROM ${table}
+      FROM ${tableOrView}
       WHERE symbol = $1 AND time >= $2 AND time <= $3
       ORDER BY time ASC
     `;
@@ -378,14 +372,19 @@ class DatabaseService {
     total1hCandles: number;
     total1dCandles: number;
     symbols: string[];
+    symbols1h: string[];
+    symbols1d: string[];
   }> {
     try {
-      const [candles1m, candles1h, candles1d, candleSymbols, latestQuoteSymbols] = await Promise.all([
+      // Query continuous aggregate views for 1h and 1d, actual table for 1m
+      const [candles1m, candles1h, candles1d, candleSymbols, latestQuoteSymbols, symbols1h, symbols1d] = await Promise.all([
         this.pool.query('SELECT COUNT(*) FROM stock_candles_1m'),
-        this.pool.query('SELECT COUNT(*) FROM stock_candles_1h'),
-        this.pool.query('SELECT COUNT(*) FROM stock_candles_1d'),
+        this.pool.query('SELECT COUNT(*) FROM stock_candles_1h_aggregation'),
+        this.pool.query('SELECT COUNT(*) FROM stock_candles_1d_aggregation'),
         this.pool.query('SELECT DISTINCT symbol FROM stock_candles_1m ORDER BY symbol'),
         this.pool.query('SELECT DISTINCT symbol FROM latest_quotes ORDER BY symbol'),
+        this.pool.query('SELECT DISTINCT symbol FROM stock_candles_1h_aggregation ORDER BY symbol'),
+        this.pool.query('SELECT DISTINCT symbol FROM stock_candles_1d_aggregation ORDER BY symbol'),
       ]);
 
       // Merge symbols from both candles and latest_quotes tables
@@ -398,6 +397,8 @@ class DatabaseService {
         total1hCandles: parseInt(candles1h.rows[0].count, 10),
         total1dCandles: parseInt(candles1d.rows[0].count, 10),
         symbols: allSymbols,
+        symbols1h: symbols1h.rows.map((r) => r.symbol),
+        symbols1d: symbols1d.rows.map((r) => r.symbol),
       };
     } catch (error) {
       console.error('[Database] Error fetching stats:', error);
@@ -406,6 +407,8 @@ class DatabaseService {
         total1hCandles: 0,
         total1dCandles: 0,
         symbols: [],
+        symbols1h: [],
+        symbols1d: [],
       };
     }
   }

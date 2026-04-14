@@ -64,9 +64,9 @@ export function DataCollectionStatus() {
 
   // Filter to only count symbols that are currently being tracked
   const trackedSymbolsSet = new Set(TRACKED_STOCKS);
-  const symbolsWith1mData = stats.symbols?.filter((s) => trackedSymbolsSet.has(s)).length || 0;
-  const symbolsWith1hData = stats.symbols1h?.filter((s) => trackedSymbolsSet.has(s)).length || 0;
-  const symbolsWith1dData = stats.symbols1d?.filter((s) => trackedSymbolsSet.has(s)).length || 0;
+  const symbolsWith1mData = stats.symbols?.filter((s) => trackedSymbolsSet.has(s as typeof TRACKED_STOCKS[number])).length || 0;
+  const symbolsWith1hData = stats.symbols1h?.filter((s) => trackedSymbolsSet.has(s as typeof TRACKED_STOCKS[number])).length || 0;
+  const symbolsWith1dData = stats.symbols1d?.filter((s) => trackedSymbolsSet.has(s as typeof TRACKED_STOCKS[number])).length || 0;
 
   const has1mData = totalCandles1m > 0;
   const has1hData = totalCandles1h > 0;

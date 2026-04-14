@@ -20,7 +20,12 @@ interface TimeRangeContextType {
 
 const TimeRangeContext = createContext<TimeRangeContextType | undefined>(undefined);
 
-export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
+interface TimeRangeProviderProps {
+  children: React.ReactNode;
+  lastUpdatedSymbol?: string | null; // Symbol that was just updated via WebSocket
+}
+
+export function TimeRangeProvider({ children, lastUpdatedSymbol }: TimeRangeProviderProps) {
   const [timeRange, setTimeRangeState] = useState<TimeRange>('1d');
   const [historicalData, setHistoricalData] = useState<HistoricalDataCache>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -164,6 +169,14 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
       return () => { document.removeEventListener('visibilitychange', handleVisibilityChange); };
     }
   }, [timeRange, symbols, fetchAllHistory, historicalData]);
+
+  // External refresh for individual symbol (from WebSocket historical updates)
+  useEffect(() => {
+    if (lastUpdatedSymbol && timeRange === '1d') {
+      // Refresh just this symbol's history
+      fetchHistory(lastUpdatedSymbol);
+    }
+  }, [lastUpdatedSymbol, timeRange, fetchHistory]);
 
   const getSymbolData = useCallback((symbol: string): SymbolHistoryState | undefined => {
     return historicalData[symbol]?.[timeRange];

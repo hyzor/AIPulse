@@ -32,12 +32,13 @@ export interface ApiResponse<T> {
 }
 
 export interface WebSocketMessage {
-  type: 'quote' | 'error' | 'connected';
+  type: 'quote' | 'error' | 'connected' | 'historicalUpdate';
   data?: StockQuote;
   symbol?: string;
   error?: string;
   message?: string;
   trackedStocks?: string[];
+  timestamp?: number;
 }
 
 export const TRACKED_STOCKS = [

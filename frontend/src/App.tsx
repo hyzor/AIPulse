@@ -14,7 +14,12 @@ import { STOCK_CATEGORIES, TRACKED_STOCKS } from './types';
 
 import type { StockQuote, RateLimitStatus } from './types';
 
-function AppContent() {
+function AppContent({ realtimeQuotes, isConnected, wsError, subscribe }: {
+  realtimeQuotes: Map<string, StockQuote>;
+  isConnected: boolean;
+  wsError: string | null;
+  subscribe: (_symbol: string) => void;
+}) {
   const [stocks, setStocks] = useState<Map<string, StockQuote>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -22,8 +27,6 @@ function AppContent() {
   const [error, setError] = useState<string | null>(null);
   const [rateLimit, setRateLimit] = useState<RateLimitStatus | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
-
-  const { quotes: realtimeQuotes, isConnected, error: wsError, subscribe } = useWebSocket();
 
   // Fetch rate limit status
   const fetchRateLimit = useCallback(async () => {
@@ -267,9 +270,16 @@ function AppContent() {
 }
 
 function App() {
+  const { quotes: realtimeQuotes, isConnected, error: wsError, subscribe, lastUpdatedSymbol } = useWebSocket();
+
   return (
-    <TimeRangeProvider>
-      <AppContent />
+    <TimeRangeProvider lastUpdatedSymbol={lastUpdatedSymbol}>
+      <AppContent
+        realtimeQuotes={realtimeQuotes}
+        isConnected={isConnected}
+        wsError={wsError}
+        subscribe={subscribe}
+      />
     </TimeRangeProvider>
   );
 }

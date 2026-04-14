@@ -10,7 +10,7 @@ import { WebSocketServer } from 'ws';
 
 import { TRACKED_STOCKS } from './constants';
 import stockRoutes from './routes/stockRoutes';
-import { backgroundCollector } from './services/backgroundCollector';
+import { backgroundCollector, setHistoricalUpdateCallback } from './services/backgroundCollector';
 import { getCachedQuote } from './services/cacheLookupService';
 import { candleBufferService } from './services/candleBufferService';
 import { databaseService } from './services/databaseService';
@@ -222,6 +222,26 @@ const broadcastToSymbol = (symbol: string, data: StockQuote) => {
     }
   });
 };
+
+// Broadcast historical data update to all subscribed clients
+const broadcastHistoricalUpdate = (symbol: string) => {
+  const message = {
+    type: 'historicalUpdate',
+    symbol,
+    timestamp: Date.now(),
+  };
+
+  const messageStr = JSON.stringify(message);
+
+  clients.forEach((subscribedSymbols, ws) => {
+    if (subscribedSymbols.has(symbol)) {
+      ws.send(messageStr);
+    }
+  });
+};
+
+// Export for use by background collector
+export { broadcastHistoricalUpdate };
 
 // WebSocket connection handler
 wss.on('connection', (ws) => {
@@ -481,6 +501,11 @@ async function initializeServer(): Promise<void> {
 
   // Start candle buffer persistence timers
   candleBufferService.start();
+
+  // Register callback for historical data updates to broadcast via WebSocket
+  setHistoricalUpdateCallback((symbol) => {
+    broadcastHistoricalUpdate(symbol);
+  });
 
   // Start background data collection service
   // This runs independently and maximizes API usage for historical data

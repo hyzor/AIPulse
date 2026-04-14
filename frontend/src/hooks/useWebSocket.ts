@@ -28,12 +28,16 @@ interface UseWebSocketReturn {
   error: string | null;
   subscribe: (_symbol: string) => void;
   unsubscribe: (_symbol: string) => void;
+  historicalUpdates: Map<string, number>; // symbol -> timestamp of last update
+  lastUpdatedSymbol: string | null; // The most recently updated symbol
 }
 
 export function useWebSocket(): UseWebSocketReturn {
   const [quotes, setQuotes] = useState<Map<string, StockQuote>>(new Map());
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [historicalUpdates, setHistoricalUpdates] = useState<Map<string, number>>(new Map());
+  const [lastUpdatedSymbol, setLastUpdatedSymbol] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const subscribedSymbols = useRef<Set<string>>(new Set());
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -83,6 +87,18 @@ export function useWebSocket(): UseWebSocketReturn {
 
             case 'connected':
               console.log('[WebSocket] Server message:', message.message);
+              break;
+
+            case 'historicalUpdate':
+              // Background collector has new data for this symbol - refresh charts
+              if (message.symbol) {
+                setHistoricalUpdates((prev) => {
+                  const newUpdates = new Map(prev);
+                  newUpdates.set(message.symbol!, Date.now());
+                  return newUpdates;
+                });
+                setLastUpdatedSymbol(message.symbol); // Track which symbol was updated
+              }
               break;
           }
         } catch (err) {
@@ -158,7 +174,7 @@ export function useWebSocket(): UseWebSocketReturn {
     }
   }, []);
 
-  return { quotes, isConnected, error, subscribe, unsubscribe };
+  return { quotes, isConnected, error, subscribe, unsubscribe, historicalUpdates, lastUpdatedSymbol };
 }
 
 export function useAutoRefresh(

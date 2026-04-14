@@ -43,10 +43,12 @@ export interface FinnhubProfile {
 }
 
 export interface WebSocketMessage {
-  type: 'quote' | 'error' | 'connected';
+  type: 'quote' | 'error' | 'connected' | 'historicalUpdate';
   data?: StockQuote;
   symbol?: string;
   error?: string;
+  message?: string;
+  timestamp?: number;
 }
 
 // Historical candle data (OHLCV)

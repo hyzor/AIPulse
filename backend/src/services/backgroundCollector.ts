@@ -3,6 +3,17 @@ import { candleBufferService } from './candleBufferService';
 import { finnhubService } from './finnhubService';
 import { isMarketOpen, getMarketStatus } from '../utils/marketHours';
 
+// Callback for notifying when historical data is updated
+let onHistoricalUpdate: ((_symbol: string) => void) | null = null;
+
+/**
+ * Set callback for historical data updates
+ * Called by server.ts to register WebSocket broadcast function
+ */
+export function setHistoricalUpdateCallback(callback: (_symbol: string) => void): void {
+  onHistoricalUpdate = callback;
+}
+
 /**
  * Background Data Collection Service
  *
@@ -194,6 +205,11 @@ class BackgroundCollector {
               previousClose: quote.previousClose,
               volume: 0,
             }, 'api', Date.now());
+
+            // Notify that historical data was updated (for real-time chart refresh)
+            if (onHistoricalUpdate) {
+              onHistoricalUpdate(quote.symbol);
+            }
 
             totalCandles++;
           }

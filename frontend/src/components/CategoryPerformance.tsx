@@ -82,20 +82,50 @@ function getLastTradingDate(): string {
     weekday: 'short',
   });
 
+  const timeFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  });
+
   const dayName = dayFormatter.format(now);
   const dayMap: Record<string, number> = {
     Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7,
   };
   const dayOfWeek = dayMap[dayName] || 0;
 
+  // Get current time in ET
+  const timeParts = timeFormatter.formatToParts(now);
+  const hour = parseInt(timeParts.find((p) => p.type === 'hour')?.value || '0', 10);
+  const minute = parseInt(timeParts.find((p) => p.type === 'minute')?.value || '0', 10);
+  const timeDecimal = hour + minute / 60;
+  const marketOpenDecimal = MARKET_OPEN_HOUR + MARKET_OPEN_MINUTE / 60;
+
   let daysToSubtract = 0;
   if (dayOfWeek === 7) {
+    // Sunday → Friday
     daysToSubtract = 2;
   } else if (dayOfWeek === 6) {
+    // Saturday → Friday
     daysToSubtract = 1;
   } else if (dayOfWeek === 1) {
+    // Monday → Friday (previous week)
     daysToSubtract = 3;
+  } else if (dayOfWeek === 2 && timeDecimal < marketOpenDecimal) {
+    // Tuesday before market open → Monday
+    daysToSubtract = 1;
+  } else if (dayOfWeek === 3 && timeDecimal < marketOpenDecimal) {
+    // Wednesday before market open → Tuesday
+    daysToSubtract = 1;
+  } else if (dayOfWeek === 4 && timeDecimal < marketOpenDecimal) {
+    // Thursday before market open → Wednesday
+    daysToSubtract = 1;
+  } else if (dayOfWeek === 5 && timeDecimal < marketOpenDecimal) {
+    // Friday before market open → Thursday
+    daysToSubtract = 1;
   }
+  // If market has opened today, daysToSubtract stays 0 (today is the trading day)
 
   const lastTradingDate = new Date(now);
   lastTradingDate.setDate(lastTradingDate.getDate() - daysToSubtract);
@@ -261,7 +291,7 @@ export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
   const periodLabel = getPeriodLabel(timeRange, marketIsOpen);
 
   const timeRangeOptions: { value: TimeRange; label: string }[] = [
-    { value: '1d', label: 'Last Trading Day' },
+    { value: '1d', label: marketIsOpen ? 'Today (Live)' : 'Previous Close' },
     { value: '7d', label: 'Last 7 Days' },
     { value: '30d', label: 'Last 30 Days' },
   ];

@@ -185,6 +185,75 @@ class DatabaseService {
     }
   }
 
+  /**
+   * Get hybrid candles for 1D view: 1h aggregates for completed hours + 1m for current hour
+   * This provides the accuracy of minute data for the current hour with the efficiency of hourly data
+   */
+  async getHybrid1DCandles(
+    symbol: string,
+    from: Date,
+    to: Date,
+  ): Promise<StockCandle[]> {
+    // Get the start of the current hour for splitting the query
+    const currentHourStart = new Date(to);
+    currentHourStart.setMinutes(0, 0, 0);
+
+    try {
+      // Query 1: Get 1h aggregates for completed hours (up to but not including current hour)
+      const hourlyQuery = `
+        SELECT time, symbol, open, high, low, close, volume, source
+        FROM stock_candles_1h_aggregation
+        WHERE symbol = $1 AND time >= $2 AND time < $3
+        ORDER BY time ASC
+      `;
+
+      const hourlyResult = await this.pool.query(hourlyQuery, [symbol, from, currentHourStart]);
+      const hourlyCandles: StockCandle[] = hourlyResult.rows.map((row) => ({
+        time: row.time,
+        symbol: row.symbol,
+        open: parseFloat(row.open),
+        high: parseFloat(row.high),
+        low: parseFloat(row.low),
+        close: parseFloat(row.close),
+        volume: parseInt(row.volume, 10),
+        source: 'aggregated',
+      }));
+
+      // Query 2: Get 1m data for current hour (from current hour start to now)
+      // This provides minute-level granularity for the most recent data
+      const minuteQuery = `
+        SELECT time, symbol, open, high, low, close, volume, source
+        FROM stock_candles_1m
+        WHERE symbol = $1 AND time >= $2 AND time <= $3
+        ORDER BY time ASC
+      `;
+
+      const minuteResult = await this.pool.query(minuteQuery, [symbol, currentHourStart, to]);
+      const minuteCandles: StockCandle[] = minuteResult.rows.map((row) => ({
+        time: row.time,
+        symbol: row.symbol,
+        open: parseFloat(row.open),
+        high: parseFloat(row.high),
+        low: parseFloat(row.low),
+        close: parseFloat(row.close),
+        volume: parseInt(row.volume, 10),
+        source: 'realtime',
+      }));
+
+      // Merge: hourly data + minute data for current hour
+      // If we have minute data for the current hour, use it; otherwise fall back to hourly
+      const result: StockCandle[] = [...hourlyCandles, ...minuteCandles];
+
+      console.log(`[Database] Hybrid 1D query for ${symbol}: ${hourlyCandles.length} hourly + ${minuteCandles.length} minute candles`);
+
+      return result;
+    } catch (error) {
+      console.error('[Database] Error fetching hybrid candles:', error);
+      // Fall back to regular 1h query on error
+      return this.getCandles(symbol, from, to, '1h');
+    }
+  }
+
   // Get latest quote for a symbol
   async getLatestQuote(symbol: string): Promise<LatestQuote | null> {
     const query = `

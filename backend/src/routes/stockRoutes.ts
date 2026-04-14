@@ -210,7 +210,14 @@ router.get('/stocks/:symbol/history', async (req, res) => {
     const dataRange = await databaseService.getDataRange(uppercaseSymbol);
 
     // Fetch from database first
-    let dbCandles = await databaseService.getCandles(uppercaseSymbol, from, to, resolution);
+    // Use hybrid query for 1D view to get minute-level data for current hour
+    let dbCandles: Awaited<ReturnType<typeof databaseService.getCandles>>;
+    if (range === '1d' && resolution === '1h') {
+      // Hybrid: 1h aggregates for completed hours + 1m for current hour
+      dbCandles = await databaseService.getHybrid1DCandles(uppercaseSymbol, from, to);
+    } else {
+      dbCandles = await databaseService.getCandles(uppercaseSymbol, from, to, resolution);
+    }
 
     // If no data in DB and Finnhub is configured, fetch from API
     // BUT: Only fetch if rate limit allows (save calls for real-time data)

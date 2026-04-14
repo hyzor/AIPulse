@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 
 import { stockService } from '../services/stockService';
 import { checkMarketOpen } from '../utils/format';
@@ -22,10 +22,10 @@ const TimeRangeContext = createContext<TimeRangeContextType | undefined>(undefin
 
 interface TimeRangeProviderProps {
   children: React.ReactNode;
-  lastUpdatedSymbol?: string | null; // Symbol that was just updated via WebSocket
+  historicalUpdates?: Map<string, number>; // Map of symbol -> timestamp of last update
 }
 
-export function TimeRangeProvider({ children, lastUpdatedSymbol }: TimeRangeProviderProps) {
+export function TimeRangeProvider({ children, historicalUpdates }: TimeRangeProviderProps) {
   const [timeRange, setTimeRangeState] = useState<TimeRange>('1d');
   const [historicalData, setHistoricalData] = useState<HistoricalDataCache>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -170,13 +170,35 @@ export function TimeRangeProvider({ children, lastUpdatedSymbol }: TimeRangeProv
     }
   }, [timeRange, symbols, fetchAllHistory, historicalData]);
 
-  // External refresh for individual symbol (from WebSocket historical updates)
+  // External refresh for updated symbols (from WebSocket historical updates)
+  // Process ALL symbols that have been updated, not just the last one
+  const processedUpdates = useRef<Set<string>>(new Set());
+
   useEffect(() => {
-    if (lastUpdatedSymbol && timeRange === '1d') {
-      // Refresh just this symbol's history
-      fetchHistory(lastUpdatedSymbol);
+    if (!historicalUpdates || timeRange !== '1d') { return; }
+
+    // Find symbols that haven't been processed yet
+    const symbolsToUpdate: string[] = [];
+    historicalUpdates.forEach((timestamp, symbol) => {
+      const key = `${symbol}-${timestamp}`;
+      if (!processedUpdates.current.has(key)) {
+        processedUpdates.current.add(key);
+        symbolsToUpdate.push(symbol);
+      }
+    });
+
+    // Clean up old entries (keep only last 50 to prevent memory leak)
+    if (processedUpdates.current.size > 100) {
+      const entries = Array.from(processedUpdates.current);
+      processedUpdates.current = new Set(entries.slice(-50));
     }
-  }, [lastUpdatedSymbol, timeRange, fetchHistory]);
+
+    // Refresh all updated symbols
+    if (symbolsToUpdate.length > 0) {
+      console.log(`[TimeRange] Refreshing ${symbolsToUpdate.length} updated symbols: ${symbolsToUpdate.join(', ')}`);
+      symbolsToUpdate.forEach((symbol) => { fetchHistory(symbol); });
+    }
+  }, [historicalUpdates, timeRange, fetchHistory]);
 
   const getSymbolData = useCallback((symbol: string): SymbolHistoryState | undefined => {
     return historicalData[symbol]?.[timeRange];

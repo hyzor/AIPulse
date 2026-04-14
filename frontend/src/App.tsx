@@ -270,10 +270,10 @@ function AppContent({ realtimeQuotes, isConnected, wsError, subscribe }: {
 }
 
 function App() {
-  const { quotes: realtimeQuotes, isConnected, error: wsError, subscribe, lastUpdatedSymbol } = useWebSocket();
+  const { quotes: realtimeQuotes, isConnected, error: wsError, subscribe, historicalUpdates } = useWebSocket();
 
   return (
-    <TimeRangeProvider lastUpdatedSymbol={lastUpdatedSymbol}>
+    <TimeRangeProvider historicalUpdates={historicalUpdates}>
       <AppContent
         realtimeQuotes={realtimeQuotes}
         isConnected={isConnected}

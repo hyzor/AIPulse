@@ -29,7 +29,6 @@ interface UseWebSocketReturn {
   subscribe: (_symbol: string) => void;
   unsubscribe: (_symbol: string) => void;
   historicalUpdates: Map<string, number>; // symbol -> timestamp of last update
-  lastUpdatedSymbol: string | null; // The most recently updated symbol
 }
 
 export function useWebSocket(): UseWebSocketReturn {
@@ -37,7 +36,6 @@ export function useWebSocket(): UseWebSocketReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [historicalUpdates, setHistoricalUpdates] = useState<Map<string, number>>(new Map());
-  const [lastUpdatedSymbol, setLastUpdatedSymbol] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const subscribedSymbols = useRef<Set<string>>(new Set());
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -97,7 +95,6 @@ export function useWebSocket(): UseWebSocketReturn {
                   newUpdates.set(message.symbol!, Date.now());
                   return newUpdates;
                 });
-                setLastUpdatedSymbol(message.symbol); // Track which symbol was updated
               }
               break;
           }
@@ -174,7 +171,7 @@ export function useWebSocket(): UseWebSocketReturn {
     }
   }, []);
 
-  return { quotes, isConnected, error, subscribe, unsubscribe, historicalUpdates, lastUpdatedSymbol };
+  return { quotes, isConnected, error, subscribe, unsubscribe, historicalUpdates };
 }
 
 export function useAutoRefresh(

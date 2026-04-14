@@ -170,12 +170,15 @@ router.get('/stocks/:symbol/history', async (req, res) => {
   const range = (req.query.range as string) || '7d';
   const resolution = (req.query.resolution as '1m' | '1h' | '1d') || '1h';
 
-  // Calculate time range
-  const now = new Date();
+  // Use client's timestamp if provided (for timezone-aware ranges), otherwise use server time
+  const clientNow = req.query.now ? new Date(parseInt(req.query.now as string, 10)) : null;
+  const now = clientNow || new Date();
   let from: Date;
+  const to: Date = now;
 
   switch (range) {
     case '1d':
+      // Rolling 24-hour window from user's current time
       from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       break;
     case '7d':
@@ -207,7 +210,7 @@ router.get('/stocks/:symbol/history', async (req, res) => {
     const dataRange = await databaseService.getDataRange(uppercaseSymbol);
 
     // Fetch from database first
-    let dbCandles = await databaseService.getCandles(uppercaseSymbol, from, now, resolution);
+    let dbCandles = await databaseService.getCandles(uppercaseSymbol, from, to, resolution);
 
     // If no data in DB and Finnhub is configured, fetch from API
     // BUT: Only fetch if rate limit allows (save calls for real-time data)
@@ -287,7 +290,7 @@ router.get('/stocks/:symbol/history', async (req, res) => {
       symbol: uppercaseSymbol,
       resolution,
       from: from.toISOString(),
-      to: now.toISOString(),
+      to: to.toISOString(),
       candles,
       cached: !fetchedFromApi, // True if came from DB, false if fetched from API
       partial: isPartial,

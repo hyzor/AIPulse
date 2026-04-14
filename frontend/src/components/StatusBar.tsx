@@ -10,11 +10,84 @@ interface StatusBarProps {
   rateLimit?: RateLimitStatus | null;
 }
 
-// US Market hours: 9:30 AM - 4:00 PM ET
+// US Market hours: 9:30 - 16:00 ET (24-hour format)
 const MARKET_OPEN_HOUR = 9;
 const MARKET_OPEN_MINUTE = 30;
 const MARKET_CLOSE_HOUR = 16;
 const MARKET_CLOSE_MINUTE = 0;
+
+/**
+ * Convert ET market hours to local timezone hours
+ * Returns local hours in 24-hour format
+ */
+function convertToLocalHour(etHour: number, etMinute: number): { hour: number; minute: number } {
+  // Get today's date in ET timezone
+  const now = new Date();
+  const etDateFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+
+  const parts = etDateFormatter.formatToParts(now);
+  const year = parts.find((p) => p.type === 'year')?.value;
+  const month = parts.find((p) => p.type === 'month')?.value;
+  const day = parts.find((p) => p.type === 'day')?.value;
+
+  // Create the ET time as a string with explicit ET timezone offset
+  // We'll use a trial-and-error approach to find the correct UTC time
+  // that corresponds to our target ET time
+  const targetETTimeStr = `${year}-${month}-${day}T${etHour.toString().padStart(2, '0')}:${etMinute.toString().padStart(2, '0')}:00`;
+
+  // Try different UTC offsets to find the one that gives us the right ET time
+  // ET is either UTC-5 (EST) or UTC-4 (EDT)
+  const etOffsets = [-4, -5]; // Try EDT first, then EST
+
+  for (const offset of etOffsets) {
+    const offsetStr = offset < 0 ? `-0${Math.abs(offset)}:00` : `+0${offset}:00`;
+    const utcDateStr = `${targetETTimeStr}${offsetStr}`;
+    const testDate = new Date(utcDateStr);
+
+    if (isNaN(testDate.getTime())) { continue; }
+
+    // Check if this UTC time converts back to our target ET time
+    const etFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false,
+    });
+    const etParts = etFormatter.formatToParts(testDate);
+    const etH = parseInt(etParts.find((p) => p.type === 'hour')?.value || '0', 10);
+    const etM = parseInt(etParts.find((p) => p.type === 'minute')?.value || '0', 10);
+
+    if (etH === etHour && etM === etMinute) {
+      // Found the correct UTC time - now convert to local
+      const localFormatter = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: false,
+      });
+      const localParts = localFormatter.formatToParts(testDate);
+      const localHour = parseInt(localParts.find((p) => p.type === 'hour')?.value || '0', 10);
+      const localMinute = parseInt(localParts.find((p) => p.type === 'minute')?.value || '0', 10);
+      return { hour: localHour, minute: localMinute };
+    }
+  }
+
+  // Fallback: assume ET is UTC-4 and calculate
+  const fallbackDate = new Date(`${targetETTimeStr}-04:00`);
+  const localFormatter = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  });
+  const localParts = localFormatter.formatToParts(fallbackDate);
+  const localHour = parseInt(localParts.find((p) => p.type === 'hour')?.value || '0', 10);
+  const localMinute = parseInt(localParts.find((p) => p.type === 'minute')?.value || '0', 10);
+  return { hour: localHour, minute: localMinute };
+}
 
 function getMarketStatus() {
   const now = new Date();
@@ -81,7 +154,16 @@ function getMarketStatus() {
   const nextOpenUTC = Date.UTC(etYear, etMonth, targetETDay, MARKET_OPEN_HOUR + 5, MARKET_OPEN_MINUTE, 0);
   const nextOpen = new Date(nextOpenUTC);
 
-  return { isOpen, nextOpen, hours: '9:30 AM - 4:00 PM ET' };
+  // Convert market hours to local timezone
+  const localOpen = convertToLocalHour(MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE);
+  const localClose = convertToLocalHour(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE);
+
+  const formatTime = (h: number, m: number): string => `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+
+  // Format: 9:30 - 16:00 ET (15:30 - 22:00 local)
+  const hours = `${formatTime(MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE)} - ${formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET (${formatTime(localOpen.hour, localOpen.minute)} - ${formatTime(localClose.hour, localClose.minute)} local)`;
+
+  return { isOpen, nextOpen, hours };
 }
 
 export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: StatusBarProps) {

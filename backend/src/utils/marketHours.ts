@@ -184,6 +184,130 @@ export interface MarketStatus {
 }
 
 /**
+ * Get the start and end of a trading day in Eastern Time
+ * Returns UTC timestamps for the trading day bounds (9:30 AM - 4:00 PM ET)
+ *
+ * This properly handles DST transitions by using Intl.DateTimeFormat to
+ * convert between ET local time and UTC.
+ *
+ * @param date The date to get trading hours for (defaults to current date)
+ * @returns Object with from (market open) and to (market close) in UTC
+ */
+export function getTradingDayBounds(date: Date = new Date()): { from: Date; to: Date } {
+  // Get the date components in Eastern Time
+  const etDateFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+
+  const parts = etDateFormatter.formatToParts(date);
+  const year = parts.find((p) => p.type === 'year')?.value;
+  const month = parts.find((p) => p.type === 'month')?.value;
+  const day = parts.find((p) => p.type === 'day')?.value;
+
+  // Create date strings for market open (9:30 AM) and close (4:00 PM) in ET
+  // We construct ISO strings and parse them to get proper UTC timestamps
+  const marketOpenET = `${year}-${month}-${day}T09:30:00`;
+  const marketCloseET = `${year}-${month}-${day}T16:00:00`;
+
+  // Use Intl.DateTimeFormat to convert ET times to UTC
+  // We create dates by parsing the ET datetime and calculating the offset
+  const createUTCFromET = (etDateStr: string): Date => {
+    // Parse the ET date
+    const [datePart, timePart] = etDateStr.split('T');
+    const [y, m, d] = datePart.split('-').map(Number);
+    const [h, min] = timePart.split(':').map(Number);
+
+    // Create a date object and format it to see what time it is in UTC
+    const testDate = new Date(Date.UTC(y, m - 1, d, h, min));
+
+    // Get the ET representation of this UTC time to calculate offset
+    const etTimeFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false,
+    });
+
+    // Try different UTC hours to find when ET matches our target
+    // Binary search for the correct UTC time that corresponds to our ET target
+    let utcGuess = testDate.getTime();
+    const dayMs = 24 * 60 * 60 * 1000;
+
+    for (let attempts = 0; attempts < 10; attempts++) {
+      const guessDate = new Date(utcGuess);
+      const etParts = etTimeFormatter.formatToParts(guessDate);
+      const etHour = parseInt(etParts.find((p) => p.type === 'hour')?.value ?? '0', 10);
+      const etMinute = parseInt(etParts.find((p) => p.type === 'minute')?.value ?? '0', 10);
+
+      const targetMinutes = h * 60 + min;
+      const etMinutes = etHour * 60 + etMinute;
+
+      if (etMinutes === targetMinutes) {
+        // Check if the day matches too
+        const etDayFormatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        });
+        const dayParts = etDayFormatter.formatToParts(guessDate);
+        const etYear = dayParts.find((p) => p.type === 'year')?.value;
+        const etMonth = dayParts.find((p) => p.type === 'month')?.value;
+        const etDay = dayParts.find((p) => p.type === 'day')?.value;
+
+        if (etYear === year && etMonth === month && etDay === day) {
+          return guessDate;
+        }
+      }
+
+      // Adjust guess
+      const diffMinutes = targetMinutes - etMinutes;
+      utcGuess += diffMinutes * 60 * 1000;
+
+      // Handle day boundaries
+      if (diffMinutes > 720) {
+        utcGuess -= dayMs;
+      } else if (diffMinutes < -720) {
+        utcGuess += dayMs;
+      }
+    }
+
+    // Fallback: return the test date if we couldn't converge
+    return testDate;
+  };
+
+  return {
+    from: createUTCFromET(marketOpenET),
+    to: createUTCFromET(marketCloseET),
+  };
+}
+
+/**
+ * Get the previous trading day bounds (for when market is closed)
+ * Returns UTC timestamps for the previous trading day's market hours
+ *
+ * @param date The reference date (defaults to current date)
+ * @returns Object with from (market open) and to (market close) in UTC
+ */
+export function getPreviousTradingDayBounds(date: Date = new Date()): { from: Date; to: Date } {
+  // Start from yesterday and find the most recent trading day
+  let checkDate = new Date(date);
+
+  for (let i = 1; i < 10; i++) {
+    checkDate = new Date(date.getTime() - i * 24 * 60 * 60 * 1000);
+    if (isTradingDay(checkDate)) {
+      return getTradingDayBounds(checkDate);
+    }
+  }
+
+  // Fallback to 1 day ago
+  return getTradingDayBounds(new Date(date.getTime() - 24 * 60 * 60 * 1000));
+}
+
+/**
  * Get detailed market status
  */
 export function getMarketStatus(now: Date = new Date()): MarketStatus {

@@ -63,8 +63,11 @@ class StockService {
       resolution = range === '30d' ? '1d' : '1h';
     }
 
+    // Send client's current timestamp so server calculates range from user's timezone
+    const now = Date.now();
+
     const response = await fetch(
-      `${API_URL}/api/stocks/${symbol}/history?range=${range}&resolution=${resolution}`,
+      `${API_URL}/api/stocks/${symbol}/history?range=${range}&resolution=${resolution}&now=${now}`,
     );
     const data: ApiResponse<HistoryResponse> = await response.json();
 

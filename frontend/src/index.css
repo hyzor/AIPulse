@@ -1,4 +1,6 @@
+/* Font imports must be at the very top (before any other CSS rules) */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,7 +8,6 @@
 
 /* Emoji font support for country flags - Windows compatible */
 /* Noto Color Emoji provides actual flag images on all platforms */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap');
 
 :root {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;

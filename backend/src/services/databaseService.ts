@@ -230,23 +230,20 @@ class DatabaseService {
 
         // Only append if quote is newer than last hourly candle
         if (quoteTime > lastCandleTime) {
-          // Check if market is closed - if so, round to the hour close (16:00 ET / 20:00 UTC)
+          // Check if market is closed - if so, use market close hour (16:00 ET = 20:00 or 21:00 UTC depending on DST)
           let displayTime = latestQuote.timestamp;
           const marketOpen = isMarketOpen();
-          const now = new Date();
 
           if (!marketOpen) {
-            // Market is closed - round timestamp to the next hour (market close time)
-            // BUT: Don't round to a future time - cap at current time
-            const roundedTime = new Date(latestQuote.timestamp);
-            roundedTime.setMinutes(0, 0, 0);
-            roundedTime.setHours(roundedTime.getHours() + 1);
-
-            // Only use rounded time if it's not in the future
-            if (roundedTime.getTime() <= now.getTime()) {
-              displayTime = roundedTime;
-            }
-            // If rounded time is in the future, keep the original timestamp
+            // Market is closed - round timestamp to the market close hour
+            // The latestQuote is from market close, so display it at that hour mark (22:00, not 21:59)
+            const marketCloseTime = new Date(latestQuote.timestamp);
+            marketCloseTime.setMinutes(0, 0, 0);
+            // If minutes were > 0, we're after the hour start, so this IS the close hour
+            // e.g., 21:45 -> 21:00, but we want 22:00 (next hour = market close)
+            // Actually, if market closes at 22:00, the last quote at 21:59 should show at 22:00
+            marketCloseTime.setHours(marketCloseTime.getHours() + 1);
+            displayTime = marketCloseTime;
           }
 
           // Add current real-time price as a separate data point

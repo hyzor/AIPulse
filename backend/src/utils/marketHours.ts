@@ -117,6 +117,51 @@ function getTimeInET(date: Date): { hour: number; minute: number; timeDecimal: n
 }
 
 /**
+ * Check if market is about to close (within next X minutes)
+ * Used to trigger final data collection before market close
+ */
+export function isMarketClosingSoon(minutesBeforeClose: number = 1, now: Date = new Date()): boolean {
+  // If market is already closed, return false
+  if (!isMarketOpen(now)) {
+    return false;
+  }
+
+  // Check if we're within X minutes of market close
+  const { timeDecimal } = getTimeInET(now);
+  const closeDecimal = MARKET_CLOSE_HOUR + MARKET_CLOSE_MINUTE / 60;
+
+  // Minutes until close
+  const minutesUntilClose = (closeDecimal - timeDecimal) * 60;
+
+  return minutesUntilClose > 0 && minutesUntilClose <= minutesBeforeClose;
+}
+
+/**
+ * Check if market is about to open (within next X minutes)
+ * Used to trigger immediate collection at market open
+ */
+export function isMarketOpeningSoon(minutesBeforeOpen: number = 1, now: Date = new Date()): boolean {
+  // If market is already open, return false
+  if (isMarketOpen(now)) {
+    return false;
+  }
+
+  // If not a trading day, return false
+  if (!isTradingDay(now)) {
+    return false;
+  }
+
+  // Check if we're within X minutes of market open
+  const { timeDecimal } = getTimeInET(now);
+  const openDecimal = MARKET_OPEN_HOUR + MARKET_OPEN_MINUTE / 60;
+
+  // Minutes until open
+  const minutesUntilOpen = (openDecimal - timeDecimal) * 60;
+
+  return minutesUntilOpen > 0 && minutesUntilOpen <= minutesBeforeOpen;
+}
+
+/**
  * Check if the US stock market is currently open
  *
  * Market is considered OPEN when:

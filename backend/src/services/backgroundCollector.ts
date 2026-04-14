@@ -1,7 +1,7 @@
 import { TRACKED_STOCKS } from '../constants';
 import { candleBufferService } from './candleBufferService';
 import { finnhubService } from './finnhubService';
-import { isMarketOpen, getMarketStatus } from '../utils/marketHours';
+import { isMarketOpen, getMarketStatus, isMarketClosingSoon, isMarketOpeningSoon } from '../utils/marketHours';
 
 // Callback for notifying when historical data is updated
 let onHistoricalUpdate: ((_symbol: string) => void) | null = null;
@@ -119,6 +119,30 @@ class BackgroundCollector {
    * Main collection tick - called on each interval
    */
   private async tick(): Promise<void> {
+    // Check if market is about to open (within 1 minute) - trigger immediate collection
+    if (isMarketOpeningSoon(1)) {
+      console.log('[BackgroundCollector] Market opening soon - triggering opening bell collection');
+      try {
+        await this.collectAll();
+        return; // Skip normal collection after opening fetch
+      } catch (error) {
+        console.error('[BackgroundCollector] Opening collection failed:', error);
+        this.stats.errors++;
+      }
+    }
+
+    // Check if market is about to close (within 1 minute) - do final fetch
+    if (isMarketClosingSoon(1)) {
+      console.log('[BackgroundCollector] Market closing soon - triggering final collection');
+      try {
+        await this.collectAll();
+        return; // Skip normal collection after final fetch
+      } catch (error) {
+        console.error('[BackgroundCollector] Final collection failed:', error);
+        this.stats.errors++;
+      }
+    }
+
     // Skip if market is closed
     if (!isMarketOpen()) {
       return;

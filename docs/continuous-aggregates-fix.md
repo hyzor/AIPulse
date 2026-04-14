@@ -243,6 +243,21 @@ The two results are combined automatically, giving you the best of both worlds.
 
 ### Apply the Fix
 
+#### Option 1: Using the Migration Script (Recommended)
+
+```bash
+# Run the migration script directly
+docker exec -i aipulse-db psql -U postgres -d aipulse < backend/src/db/migrations/001_enable_realtime_aggregation.sql
+```
+
+**What this does:**
+1. Enables real-time aggregation for 1-hour candles
+2. Enables real-time aggregation for 1-day candles
+3. Refreshes the views to ensure data is current
+4. Shows verification output
+
+#### Option 2: Manual SQL Commands
+
 ```bash
 # Access database container and run commands
 docker exec -it aipulse-db psql -U postgres -d aipulse

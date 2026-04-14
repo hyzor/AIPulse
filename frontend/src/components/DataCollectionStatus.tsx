@@ -292,7 +292,6 @@ export function DataCollectionStatus() {
           {[...TRACKED_STOCKS].sort().map((symbol) => {
             const has1m = stats.symbols?.includes(symbol);
             const has1h = stats.symbols1h?.includes(symbol);
-            const has1d = stats.symbols1d?.includes(symbol);
             // Show different colors based on what's available
             const symbolStatus = has1h
               ? 'chart-ready'
@@ -317,7 +316,7 @@ export function DataCollectionStatus() {
                   size="sm"
                 />
                 <span className="font-medium">{symbol}</span>
-                {has1d && <span className="text-[8px]">7D</span>}
+                {has1dData && estimatedHours >= 72 && <span className="text-[8px]">7D</span>}
               </span>
             );
           })}

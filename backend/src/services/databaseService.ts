@@ -224,22 +224,29 @@ class DatabaseService {
         const lastCandleTime = new Date(lastCandle.time).getTime();
         const quoteTime = latestQuote.timestamp.getTime();
 
-        // Only append if quote is newer than last hourly candle and within current hour
+        // Only append if quote is newer than last hourly candle
         if (quoteTime > lastCandleTime) {
-          // Check if we're in the same hour as the last candle
+          // Check if we're in the same hour bucket as the last candle
           const lastCandleHour = new Date(lastCandle.time);
           lastCandleHour.setMinutes(0, 0, 0);
           const quoteHour = new Date(latestQuote.timestamp);
           quoteHour.setMinutes(0, 0, 0);
 
           if (lastCandleHour.getTime() === quoteHour.getTime()) {
-            // Same hour: update the last candle with latest price (high/low/close)
-            lastCandle.close = latestQuote.currentPrice;
-            lastCandle.high = Math.max(lastCandle.high, latestQuote.currentPrice);
-            lastCandle.low = Math.min(lastCandle.low, latestQuote.currentPrice);
-            lastCandle.source = 'realtime';
+            // Same hour bucket: keep the hourly 21:00 point AND add current minute point
+            // This shows both the completed hour price and current real-time price
+            candles.push({
+              time: latestQuote.timestamp,
+              symbol,
+              open: latestQuote.currentPrice,
+              high: latestQuote.currentPrice,
+              low: latestQuote.currentPrice,
+              close: latestQuote.currentPrice,
+              volume: latestQuote.volume,
+              source: 'realtime',
+            });
           } else {
-            // New hour: add a new candle with latest quote
+            // New hour bucket started: add a new candle with latest quote at current time
             candles.push({
               time: latestQuote.timestamp,
               symbol,
@@ -252,7 +259,7 @@ class DatabaseService {
             });
           }
 
-          console.log(`[Database] Smooth 1D query for ${symbol}: ${candles.length} candles (updated to ${latestQuote.currentPrice})`);
+          console.log(`[Database] Smooth 1D query for ${symbol}: ${candles.length} candles (added ${latestQuote.currentPrice} at ${latestQuote.timestamp.toISOString()})`);
         }
       }
 

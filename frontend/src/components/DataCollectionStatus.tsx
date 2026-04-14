@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 
 import { stockService } from '../services/stockService';
 import { TRACKED_STOCKS, STOCK_COUNTRIES } from '../types';
+import { FlagIcon } from './FlagIcon';
 
 interface DataStats {
   total1mCandles: number;
@@ -164,7 +165,10 @@ export function DataCollectionStatus() {
                 }`}
                 title={STOCK_COUNTRIES[symbol]?.country || ''}
               >
-                <span className="flag-emoji">{STOCK_COUNTRIES[symbol]?.flag || ''}</span>
+                <FlagIcon
+                  countryCode={STOCK_COUNTRIES[symbol]?.countryCode || 'us'}
+                  size="sm"
+                />
                 <span className="font-medium">{symbol}</span>
               </span>
             );

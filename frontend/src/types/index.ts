@@ -93,22 +93,27 @@ export const STOCK_EXCHANGES: Record<string, StockExchange> = {
 };
 
 // Country flags and origins for each stock (where the company was founded/headquartered)
-export const STOCK_COUNTRIES: Record<string, { country: string; flag: string; origin: string }> = {
-  NVDA: { country: 'United States', flag: '🇺🇸', origin: 'Santa Clara, CA' },
-  AMD: { country: 'United States', flag: '🇺🇸', origin: 'Sunnyvale, CA' },
-  AVGO: { country: 'United States', flag: '🇺🇸', origin: 'Palo Alto, CA' },
-  TSM: { country: 'Taiwan', flag: '🇹🇼', origin: 'Hsinchu, Taiwan' },
-  ASML: { country: 'Netherlands', flag: '🇳🇱', origin: 'Veldhoven, Netherlands' },
-  ARM: { country: 'United Kingdom', flag: '🇬🇧', origin: 'Cambridge, UK' },
-  MU: { country: 'United States', flag: '🇺🇸', origin: 'Boise, ID' },
-  SNDK: { country: 'United States', flag: '🇺🇸', origin: 'Milpitas, CA' },
-  MSFT: { country: 'United States', flag: '🇺🇸', origin: 'Redmond, WA' },
-  GOOGL: { country: 'United States', flag: '🇺🇸', origin: 'Mountain View, CA' },
-  META: { country: 'United States', flag: '🇺🇸', origin: 'Menlo Park, CA' },
-  AMZN: { country: 'United States', flag: '🇺🇸', origin: 'Seattle, WA' },
-  AAPL: { country: 'United States', flag: '🇺🇸', origin: 'Cupertino, CA' },
-  ORCL: { country: 'United States', flag: '🇺🇸', origin: 'Austin, TX' },
-  TSLA: { country: 'United States', flag: '🇺🇸', origin: 'Austin, TX' },
+export const STOCK_COUNTRIES: Record<string, {
+  country: string;
+  flag: string;
+  origin: string;
+  countryCode: string; // ISO 3166-1 alpha-2 for flag images
+}> = {
+  NVDA: { country: 'United States', flag: '🇺🇸', origin: 'Santa Clara, CA', countryCode: 'us' },
+  AMD: { country: 'United States', flag: '🇺🇸', origin: 'Sunnyvale, CA', countryCode: 'us' },
+  AVGO: { country: 'United States', flag: '🇺🇸', origin: 'Palo Alto, CA', countryCode: 'us' },
+  TSM: { country: 'Taiwan', flag: '🇹🇼', origin: 'Hsinchu, Taiwan', countryCode: 'tw' },
+  ASML: { country: 'Netherlands', flag: '🇳🇱', origin: 'Veldhoven, Netherlands', countryCode: 'nl' },
+  ARM: { country: 'United Kingdom', flag: '🇬🇧', origin: 'Cambridge, UK', countryCode: 'gb' },
+  MU: { country: 'United States', flag: '🇺🇸', origin: 'Boise, ID', countryCode: 'us' },
+  SNDK: { country: 'United States', flag: '🇺🇸', origin: 'Milpitas, CA', countryCode: 'us' },
+  MSFT: { country: 'United States', flag: '🇺🇸', origin: 'Redmond, WA', countryCode: 'us' },
+  GOOGL: { country: 'United States', flag: '🇺🇸', origin: 'Mountain View, CA', countryCode: 'us' },
+  META: { country: 'United States', flag: '🇺🇸', origin: 'Menlo Park, CA', countryCode: 'us' },
+  AMZN: { country: 'United States', flag: '🇺🇸', origin: 'Seattle, WA', countryCode: 'us' },
+  AAPL: { country: 'United States', flag: '🇺🇸', origin: 'Cupertino, CA', countryCode: 'us' },
+  ORCL: { country: 'United States', flag: '🇺🇸', origin: 'Austin, TX', countryCode: 'us' },
+  TSLA: { country: 'United States', flag: '🇺🇸', origin: 'Austin, TX', countryCode: 'us' },
 };
 
 export interface RateLimitStatus {

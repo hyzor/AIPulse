@@ -1,6 +1,7 @@
 import { TrendingUp, TrendingDown, Activity, Database, Cpu, Code2, Rocket, Zap } from 'lucide-react';
 
 import { STOCK_DISPLAY_NAMES, STOCK_CATEGORIES, STOCK_COUNTRIES } from '../types';
+import { FlagIcon } from './FlagIcon';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { MiniAreaChart } from './MiniAreaChart';
 import { useTimeRange } from '../contexts/TimeRangeContext';
@@ -104,9 +105,11 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
       <div className="flex items-start justify-between mb-3">
         <div>
           <div className="flex items-center gap-2">
-            <span className="flag-emoji" title={STOCK_COUNTRIES[quote.symbol]?.country || ''}>
-              {STOCK_COUNTRIES[quote.symbol]?.flag || '🌐'}
-            </span>
+            <FlagIcon
+              countryCode={STOCK_COUNTRIES[quote.symbol]?.countryCode || 'us'}
+              size="md"
+              title={STOCK_COUNTRIES[quote.symbol]?.country}
+            />
             <h3 className="text-xl font-bold text-white tracking-tight">{quote.symbol}</h3>
           </div>
           <p className="text-sm text-gray-400 ml-7">{displayName}</p>

@@ -186,8 +186,8 @@ class DatabaseService {
   }
 
   /**
-   * Get smooth 1D candles: hourly aggregates with current real-time price appended
-   * Shows clean hourly chart with just the current price as the final point
+   * Get smooth 1D candles: hourly open prices with current real-time price appended
+   * Shows the price AT each hour mark (not the close), plus current real-time price
    */
   async getSmooth1DCandles(
     symbol: string,
@@ -204,19 +204,21 @@ class DatabaseService {
       `;
 
       const hourlyResult = await this.pool.query(hourlyQuery, [symbol, from, to]);
+      // Use OPEN price for each hour - this shows the price AT that hour mark
+      // More intuitive than close price which represents end of hour
       const candles: StockCandle[] = hourlyResult.rows.map((row) => ({
         time: row.time,
         symbol: row.symbol,
         open: parseFloat(row.open),
-        high: parseFloat(row.high),
-        low: parseFloat(row.low),
-        close: parseFloat(row.close),
+        high: parseFloat(row.open), // Use open as high/low/close for the hour mark point
+        low: parseFloat(row.open),
+        close: parseFloat(row.open), // Show open price (what stock was at this hour)
         volume: parseInt(row.volume, 10),
         source: 'aggregated',
       }));
 
       // Query 2: Get latest real-time quote to append as current price
-      // This ensures chart shows price up to current minute without jagged minute data
+      // This adds a separate point showing current price at current time
       const latestQuote = await this.getLatestQuote(symbol);
 
       if (latestQuote && candles.length > 0) {
@@ -226,40 +228,20 @@ class DatabaseService {
 
         // Only append if quote is newer than last hourly candle
         if (quoteTime > lastCandleTime) {
-          // Check if we're in the same hour bucket as the last candle
-          const lastCandleHour = new Date(lastCandle.time);
-          lastCandleHour.setMinutes(0, 0, 0);
-          const quoteHour = new Date(latestQuote.timestamp);
-          quoteHour.setMinutes(0, 0, 0);
+          // Add current real-time price as a separate data point
+          // This shows: price at 19:00 (194.89) AND price now at 19:27 (196.23)
+          candles.push({
+            time: latestQuote.timestamp,
+            symbol,
+            open: latestQuote.currentPrice,
+            high: latestQuote.currentPrice,
+            low: latestQuote.currentPrice,
+            close: latestQuote.currentPrice,
+            volume: latestQuote.volume,
+            source: 'realtime',
+          });
 
-          if (lastCandleHour.getTime() === quoteHour.getTime()) {
-            // Same hour bucket: keep the hourly 21:00 point AND add current minute point
-            // This shows both the completed hour price and current real-time price
-            candles.push({
-              time: latestQuote.timestamp,
-              symbol,
-              open: latestQuote.currentPrice,
-              high: latestQuote.currentPrice,
-              low: latestQuote.currentPrice,
-              close: latestQuote.currentPrice,
-              volume: latestQuote.volume,
-              source: 'realtime',
-            });
-          } else {
-            // New hour bucket started: add a new candle with latest quote at current time
-            candles.push({
-              time: latestQuote.timestamp,
-              symbol,
-              open: latestQuote.currentPrice,
-              high: latestQuote.currentPrice,
-              low: latestQuote.currentPrice,
-              close: latestQuote.currentPrice,
-              volume: latestQuote.volume,
-              source: 'realtime',
-            });
-          }
-
-          console.log(`[Database] Smooth 1D query for ${symbol}: ${candles.length} candles (added ${latestQuote.currentPrice} at ${latestQuote.timestamp.toISOString()})`);
+          console.log(`[Database] Smooth 1D query for ${symbol}: ${candles.length} candles (hourly open: ${lastCandle.close}, current: ${latestQuote.currentPrice})`);
         }
       }
 

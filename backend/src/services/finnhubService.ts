@@ -385,7 +385,7 @@ class FinnhubService {
         }
 
         const batchPromises = batch.map(async (symbol) => {
-          const quote = await this.getQuote(symbol);
+          const quote = await this.getQuote(symbol); // Use cache if available
           return quote;
         });
 
@@ -434,7 +434,7 @@ class FinnhubService {
 
       // Process this batch normally
       const batchPromises = batch.map(async (symbol) => {
-        const quote = await this.getQuote(symbol);
+        const quote = await this.getQuote(symbol); // Allow cache for normal flow
         return quote;
       });
 

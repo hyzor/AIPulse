@@ -162,35 +162,36 @@ class BackgroundCollector {
       }
 
       try {
-        // Fetch batch
-        const quotes = await finnhubService.getQuotes(batch, {
-          batchSize: this.batchSize,
-          delayMs: 0, // No additional delay, we're managing it here
+        // Fetch each symbol individually with skipCache=true
+        // This ensures we ALWAYS get fresh API data for accurate historical charts
+        // getQuotes() uses cache which would return stale data every 60s cycle
+        const batchPromises = batch.map(async (symbol) => {
+          const quote = await finnhubService.getQuote(symbol, true); // Force fresh API call
+          return quote;
         });
+
+        const quotes = await Promise.all(batchPromises);
 
         // Update candle buffers
         for (const quote of quotes) {
           if (quote) {
-            // Mark as fresh data (not cached) since we just fetched it from API
-            const freshQuote = { ...quote, isCached: false };
-
             // Update candle buffer for historical chart data
             candleBufferService.updatePrice(
-              freshQuote.symbol,
-              freshQuote.currentPrice,
+              quote.symbol,
+              quote.currentPrice,
               0, // Volume not available from Finnhub quote
               Date.now(),
             );
 
-            // Also update latest quote for real-time chart endpoint
-            await candleBufferService.updateLatestQuote(freshQuote.symbol, {
-              currentPrice: freshQuote.currentPrice,
-              change: freshQuote.change,
-              changePercent: freshQuote.changePercent,
-              high: freshQuote.highPrice,
-              low: freshQuote.lowPrice,
-              open: freshQuote.openPrice,
-              previousClose: freshQuote.previousClose,
+            // Update latest quote for real-time chart endpoint
+            await candleBufferService.updateLatestQuote(quote.symbol, {
+              currentPrice: quote.currentPrice,
+              change: quote.change,
+              changePercent: quote.changePercent,
+              high: quote.highPrice,
+              low: quote.lowPrice,
+              open: quote.openPrice,
+              previousClose: quote.previousClose,
               volume: 0,
             }, 'api', Date.now());
 

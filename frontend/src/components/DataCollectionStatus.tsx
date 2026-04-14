@@ -62,9 +62,11 @@ export function DataCollectionStatus() {
   const totalCandles1h = stats.total1hCandles;
   const totalCandles1d = stats.total1dCandles;
 
-  const symbolsWith1mData = stats.symbols?.length || 0;
-  const symbolsWith1hData = stats.symbols1h?.length || 0;
-  const symbolsWith1dData = stats.symbols1d?.length || 0;
+  // Filter to only count symbols that are currently being tracked
+  const trackedSymbolsSet = new Set(TRACKED_STOCKS);
+  const symbolsWith1mData = stats.symbols?.filter((s) => trackedSymbolsSet.has(s)).length || 0;
+  const symbolsWith1hData = stats.symbols1h?.filter((s) => trackedSymbolsSet.has(s)).length || 0;
+  const symbolsWith1dData = stats.symbols1d?.filter((s) => trackedSymbolsSet.has(s)).length || 0;
 
   const has1mData = totalCandles1m > 0;
   const has1hData = totalCandles1h > 0;

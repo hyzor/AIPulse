@@ -174,12 +174,26 @@ class BackgroundCollector {
             // Mark as fresh data (not cached) since we just fetched it from API
             const freshQuote = { ...quote, isCached: false };
 
+            // Update candle buffer for historical chart data
             candleBufferService.updatePrice(
               freshQuote.symbol,
               freshQuote.currentPrice,
               0, // Volume not available from Finnhub quote
               Date.now(),
             );
+
+            // Also update latest quote for real-time chart endpoint
+            await candleBufferService.updateLatestQuote(freshQuote.symbol, {
+              currentPrice: freshQuote.currentPrice,
+              change: freshQuote.change,
+              changePercent: freshQuote.changePercent,
+              high: freshQuote.highPrice,
+              low: freshQuote.lowPrice,
+              open: freshQuote.openPrice,
+              previousClose: freshQuote.previousClose,
+              volume: 0,
+            }, 'api', Date.now());
+
             totalCandles++;
           }
         }

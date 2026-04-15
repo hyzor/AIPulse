@@ -67,8 +67,10 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
   const showLiveIndicator = isMarketOpen && isFromToday && isRealtime;
   // "LIVE" (small green) - Market open, today, 1D view with HTTP polling
   const show1DLiveIndicator = isMarketOpen && isFromToday && timeRange === '1d' && !isRealtime;
-  // "CLOSED" (gray) - Market is closed (consistent, no flickering)
+  // "CLOSED" (gray) - Market is closed AND we have today's data
   const showClosedIndicator = !isMarketOpen && isFromToday;
+  // "NO DATA" (orange/red) - No data for current/most recent trading day
+  const showNoDataIndicator = !isFromToday;
 
   return (
     <div
@@ -112,11 +114,21 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
           </div>
         )}
 
-        {/* Market closed indicator - shows when market is closed (consistent, no flickering) */}
+        {/* Market closed indicator - shows when market is closed AND we have today's data */}
         {showClosedIndicator && (
-          <div className="flex items-center gap-1.5" title="Market closed">
+          <div className="flex items-center gap-1.5" title="Market closed - showing latest available data from today's session">
             <Database className="w-3 h-3 text-gray-400" />
             <span className="text-xs font-semibold text-gray-400">CLOSED</span>
+          </div>
+        )}
+
+        {/* No data indicator - shows when there's no data for today/most recent trading day */}
+        {showNoDataIndicator && (
+          <div className="flex items-center gap-1.5" title="No trading data available for this symbol. Start the server during market hours (9:30 AM - 4:00 PM ET) to collect data.">
+            <span className="relative flex h-2 w-2">
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+            </span>
+            <span className="text-xs font-semibold text-orange-500">NO DATA</span>
           </div>
         )}
       </div>

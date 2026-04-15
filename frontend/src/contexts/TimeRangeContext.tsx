@@ -48,55 +48,33 @@ export function TimeRangeProvider({ children, historicalUpdates }: TimeRangeProv
 
   const isLive = timeRange === '1d';
 
-  // Calculate available trading days from stats
-  const calculateDataAvailability = useCallback((stats: {
-    total1mCandles: number;
-    total1hCandles: number;
-    total1dCandles: number;
-    symbols: string[];
-    symbols1h: string[];
-    symbols1d: string[];
-  } | null, currentTimeRange: TimeRange, currentAvailability: DataAvailabilityInfo): DataAvailabilityInfo => {
-    if (!stats) {
-      // Keep existing availability data if we have it, just return current state
-      return currentAvailability;
-    }
-
-    // Calculate trading days from 1m candles (same logic as DataCollectionStatus)
-    const symbolsWith1m = stats.symbols?.length || 0;
-    const avgCandlesPerSymbol = symbolsWith1m > 0 ? stats.total1mCandles / symbolsWith1m : 0;
-    const estimatedHours = symbolsWith1m > 0 ? Math.floor(avgCandlesPerSymbol / 60) : 0;
-    const tradingDays = Math.floor(estimatedHours / 6.5);
-
-    // Generate warning based on current time range
-    let warning: string | null = null;
-    if (currentTimeRange === '7d' && tradingDays < 7 && tradingDays > 0) {
-      warning = `Need 7 trading days of history. Currently have ${tradingDays}.`;
-    } else if (currentTimeRange === '30d' && tradingDays < 30 && tradingDays > 0) {
-      warning = `Need 30 trading days of history. Currently have ${tradingDays}.`;
-    }
-
-    return {
-      availableTradingDays: tradingDays,
-      hasEnoughDataFor7D: tradingDays >= 7,
-      hasEnoughDataFor30D: tradingDays >= 30,
-      warning,
-    };
-  }, []);
-
-  // Fetch data stats and update availability
+  // Fetch data stats - only gets trading days, warning is calculated on demand
   const fetchDataStats = useCallback(async () => {
     try {
       const health = await stockService.checkHealth();
       if (health && 'dataStats' in health) {
-        setDataAvailability((prev) =>
-          calculateDataAvailability(health.dataStats, timeRange, prev),
-        );
+        const stats = health.dataStats as {
+          total1mCandles: number;
+          symbols: string[];
+        };
+
+        // Calculate trading days from 1m candles (same logic as DataCollectionStatus)
+        const symbolsWith1m = stats.symbols?.length || 0;
+        const avgCandlesPerSymbol = symbolsWith1m > 0 ? stats.total1mCandles / symbolsWith1m : 0;
+        const estimatedHours = symbolsWith1m > 0 ? Math.floor(avgCandlesPerSymbol / 60) : 0;
+        const tradingDays = Math.floor(estimatedHours / 6.5);
+
+        setDataAvailability((prev) => ({
+          ...prev,
+          availableTradingDays: tradingDays,
+          hasEnoughDataFor7D: tradingDays >= 7,
+          hasEnoughDataFor30D: tradingDays >= 30,
+        }));
       }
     } catch (err) {
       console.error('[TimeRange] Failed to fetch data stats:', err);
     }
-  }, [calculateDataAvailability, timeRange]);
+  }, []);
 
   // Initial fetch and periodic refresh of data stats
   useEffect(() => {
@@ -104,25 +82,6 @@ export function TimeRangeProvider({ children, historicalUpdates }: TimeRangeProv
     const interval = setInterval(fetchDataStats, 30000); // Refresh every 30 seconds
     return () => { clearInterval(interval); };
   }, [fetchDataStats]);
-
-  // Re-calculate warning when timeRange changes (using existing stats)
-  useEffect(() => {
-    // Only update warning based on existing data, don't clear trading days
-    if (dataAvailability.availableTradingDays > 0) {
-      setDataAvailability((prev) => {
-        const tradingDays = prev.availableTradingDays;
-        let warning: string | null = null;
-
-        if (timeRange === '7d' && tradingDays < 7) {
-          warning = `Need 7 trading days of history. Currently have ${tradingDays}.`;
-        } else if (timeRange === '30d' && tradingDays < 30) {
-          warning = `Need 30 trading days of history. Currently have ${tradingDays}.`;
-        }
-
-        return { ...prev, warning };
-      });
-    }
-  }, [timeRange, dataAvailability.availableTradingDays]);
 
   const setTimeRange = useCallback((range: TimeRange) => {
     setTimeRangeState(range);
@@ -301,6 +260,23 @@ export function TimeRangeProvider({ children, historicalUpdates }: TimeRangeProv
     }
   }, [fetchAllHistory, historicalData]);
 
+  // Calculate warning based on current timeRange and available data
+  const getDataWarning = useCallback((): string | null => {
+    const tradingDays = dataAvailability.availableTradingDays;
+
+    if (tradingDays === 0) {
+      return null; // Don't show warning until we have data
+    }
+
+    if (timeRange === '7d' && tradingDays < 7) {
+      return `Need 7 trading days of history. Currently have ${tradingDays}.`;
+    }
+    if (timeRange === '30d' && tradingDays < 30) {
+      return `Need 30 trading days of history. Currently have ${tradingDays}.`;
+    }
+    return null;
+  }, [timeRange, dataAvailability.availableTradingDays]);
+
   return (
     <TimeRangeContext.Provider
       value={{
@@ -314,7 +290,10 @@ export function TimeRangeProvider({ children, historicalUpdates }: TimeRangeProv
         error,
         refreshData,
         isLive,
-        dataAvailability,
+        dataAvailability: {
+          ...dataAvailability,
+          warning: getDataWarning(),
+        },
       }}
     >
       {children}

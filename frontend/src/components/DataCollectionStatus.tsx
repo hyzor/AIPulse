@@ -114,25 +114,25 @@ export function DataCollectionStatus() {
       description: '1-hour aggregates ready',
     },
     {
-      label: 'Building 1D',
-      completed: chartsReady && estimatedTradingDays >= 4, // ~24 hours of market data
+      label: 'Building History',
+      completed: chartsReady && estimatedTradingDays >= 4,
       inProgress: chartsReady && estimatedTradingDays >= 1 && estimatedTradingDays < 4,
-      progressPercent: 50 + Math.min(25, (estimatedTradingDays / 4) * 25), // 50-75% based on days
-      description: 'Collecting 24h of market data',
+      progressPercent: 50 + Math.min(25, (estimatedTradingDays / 4) * 25),
+      description: 'Collecting market history',
     },
     {
-      label: 'Full 1D',
+      label: 'History Ready',
       completed: chartsReady && estimatedTradingDays >= 4,
       inProgress: false,
       progressPercent: 75,
-      description: '4+ days of market data',
+      description: '4+ trading days collected',
     },
     {
-      label: '7D+ Views',
-      completed: has1dData && estimatedTradingDays >= 7, // 7+ actual trading days
+      label: '7D+ Ready',
+      completed: has1dData && estimatedTradingDays >= 7,
       inProgress: false,
       progressPercent: 100,
-      description: '7+ trading days for full 7D view',
+      description: '7+ trading days for 7D view',
     },
   ];
 
@@ -176,13 +176,13 @@ export function DataCollectionStatus() {
     statusColor = 'text-neon-blue';
     statusDetail = `${symbolsWith1hData}/${TRACKED_STOCKS.length} symbols showing charts. Building history...`;
   } else if (estimatedTradingDays < 4) {
-    status = 'Building 1D view...';
+    status = 'Building history...';
     statusColor = 'text-neon-blue';
-    statusDetail = `${estimatedTradingDays} trading day${estimatedTradingDays === 1 ? '' : 's'} collected. Need 4+ days for full 1D view.`;
+    statusDetail = `${estimatedTradingDays} trading day${estimatedTradingDays === 1 ? '' : 's'} of history. 1D view active.`;
   } else if (estimatedTradingDays < 7) {
-    status = '1D view complete';
+    status = 'Building 7D view...';
     statusColor = 'text-neon-green';
-    statusDetail = `Full 1D view ready (${estimatedTradingDays} days). Collecting for 7D view...`;
+    statusDetail = `${estimatedTradingDays} trading days collected. Need 7+ for 7D view.`;
   } else if (!has1dData) {
     status = 'Building 7D view...';
     statusColor = 'text-neon-green';
@@ -364,13 +364,13 @@ export function DataCollectionStatus() {
             '1-hour aggregates are being built from raw data. Charts will display once this completes (auto-refreshes hourly).'
           )}
           {currentMilestoneIndex === 2 && (
-            'Charts are displaying! Building up 4+ trading days of market history for complete 1D view.'
+            '1D view is active (shows today\'s market hours). Building history for multi-day views.'
           )}
           {currentMilestoneIndex === 3 && (
-            `1D view is complete (${estimatedTradingDays} days). 7D view needs 7+ trading days to finish processing.`
+            `Have ${estimatedTradingDays} trading days of history. 7D view needs 7+ trading days.`
           )}
           {currentMilestoneIndex === -1 && (
-            `All stages complete! ${estimatedTradingDays}+ trading days available. 1D, 7D, and 30D+ views are fully functional.`
+            `All views available! ${estimatedTradingDays}+ trading days of history collected.`
           )}
         </p>
       </div>

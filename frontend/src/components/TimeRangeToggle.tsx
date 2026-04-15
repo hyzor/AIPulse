@@ -9,9 +9,9 @@ interface TimeRangeOption {
 }
 
 const timeRangeOptions: TimeRangeOption[] = [
-  { value: '1d', label: '1D', description: 'Today (market hours)' },
-  { value: '7d', label: '7D', description: '7 trading days' },
-  { value: '30d', label: '30D', description: '30 trading days' },
+  { value: '1d', label: '1D', description: 'Today (intraday)' },
+  { value: '7d', label: '7D', description: 'Last 7 sessions' },
+  { value: '30d', label: '30D', description: 'Last 30 sessions' },
 ];
 
 export function TimeRangeToggle() {

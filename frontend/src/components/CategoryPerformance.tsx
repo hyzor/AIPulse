@@ -200,32 +200,37 @@ export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
   // Calculate stats for each category
   const calculateCategoryStats = (categoryName: string, symbols: string[]): CategoryStats => {
     let totalChange = 0;
-    let totalChangePercent = 0;
+    let totalCurrentPrice = 0;
     let upStocks = 0;
     let downStocks = 0;
     let count = 0;
 
     symbols.forEach((symbol) => {
       let change: number | undefined;
-      let changePercent: number | undefined;
+      let currentPrice: number | undefined;
 
       if (timeRange === '1d') {
         // Use current stock data for today
         const quote = stocks.get(symbol);
         if (quote) {
-          ({ change, changePercent } = quote);
+          change = quote.change;
+          currentPrice = quote.currentPrice;
         }
       } else {
         // Use historical data for 7d/30d
         const histChange = historicalChanges.get(symbol);
         if (histChange) {
-          ({ change, changePercent } = histChange);
+          change = histChange.change;
+          // Derive approximate current price from change and changePercent for historical data
+          currentPrice = histChange.changePercent !== 0
+            ? Math.abs(histChange.change / (histChange.changePercent / 100))
+            : 0;
         }
       }
 
-      if (change !== undefined && changePercent !== undefined) {
+      if (change !== undefined && currentPrice !== undefined && currentPrice > 0) {
         totalChange += change;
-        totalChangePercent += changePercent;
+        totalCurrentPrice += currentPrice;
         count++;
         if (change >= 0) {
           upStocks++;
@@ -238,12 +243,20 @@ export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
     const hasData = count > 0;
     const expectedCount = symbols.length;
 
+    // Calculate average dollar change
+    const avgChange = hasData ? totalChange / count : 0;
+    // Calculate percentage change based on total dollar performance vs total value
+    // This ensures consistency: if avgChange is positive, avgChangePercent will be positive
+    const avgChangePercent = hasData && totalCurrentPrice > 0
+      ? (totalChange / totalCurrentPrice) * 100
+      : 0;
+
     return {
       name: categoryName,
       icon: getCategoryIcon(categoryName),
       color: getCategoryColor(categoryName),
-      avgChange: hasData ? totalChange / count : 0,
-      avgChangePercent: hasData ? totalChangePercent / count : 0,
+      avgChange,
+      avgChangePercent,
       stockCount: count,
       upStocks,
       downStocks,

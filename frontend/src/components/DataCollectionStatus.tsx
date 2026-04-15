@@ -323,7 +323,7 @@ export function DataCollectionStatus() {
                   size="sm"
                 />
                 <span className="font-medium">{symbol}</span>
-                {has1dData && estimatedHours >= 72 && <span className="text-[8px]">7D</span>}
+                {has1dData && estimatedTradingDays >= 7 && <span className="text-[8px]">7D</span>}
               </span>
             );
           })}

@@ -75,14 +75,14 @@ export function DataCollectionStatus() {
   // Charts need 1h data for 1D view and 1d data for longer views
   const chartsReady = has1hData && symbolsWith1hData > 0;
 
-  // Calculate estimated hours of market data (based on 1m data)
-  // Note: Markets are open ~6.5 hours/day, so 24h market data ≈ 3-4 calendar days
-  // 1m candles = 1-minute candles, so divide by 60 to get hours
-  const avgCandlesPerSymbol = symbolsWith1mData > 0 ? totalCandles1m / symbolsWith1mData : 0;
-  const estimatedHours = has1mData ? Math.max(1, Math.floor(avgCandlesPerSymbol / 60)) : 0;
-
-  // Estimate trading days based on market hours (~6.5 hours per trading day)
-  const estimatedTradingDays = Math.floor(estimatedHours / 6.5);
+  // Calculate estimated trading days based on 1h aggregate candles
+  // This is more accurate and stable than 1m-based calculation because:
+  // 1. New symbols without 1h data don't affect the count until they have enough data
+  // 2. Untracked symbols are excluded (symbolsWith1hData is filtered to tracked symbols)
+  // 3. 1h aggregates represent "chart-ready" hours, not raw collection time
+  const estimatedTradingDays = (totalCandles1h > 0 && symbolsWith1hData > 0)
+    ? Math.floor((totalCandles1h / symbolsWith1hData) / 6.5)
+    : 0;
 
   // Define milestones for data collection progress
   // Clear progression: Data → Today → Week → Multi-week

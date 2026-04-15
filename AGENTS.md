@@ -42,7 +42,7 @@ When working on this codebase:
 │  │                     Express + WebSocket Server                      │ │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐ │ │
 │  │  │ stockRoutes │  │     WS      │  │      Auto-refresh Loop        │ │ │
-│  │  │  (HTTP)     │  │  (Socket)   │  │   (120s interval, batched)   │ │ │
+│  │  │  (HTTP)     │  │  (Socket)   │  │   (60s interval, batched)   │ │ │
 │  │  └──────┬──────┘  └──────┬──────┘  └─────────────┬───────────────┘ │ │
 │  │         │                │                       │                 │ │
 │  │         └────────────────┴───────────────────────┘                 │ │
@@ -220,7 +220,7 @@ function useAutoRefresh(
 
 **Usage:**
 ```typescript
-useAutoRefresh(fetchStocks, 120000, true);      // Stocks every 120s (conservative)
+useAutoRefresh(fetchStocks, 60000, true);      // Stocks every 60s
 useAutoRefresh(fetchRateLimit, 15000, true);   // Rate limit every 15s
 ```
 
@@ -314,7 +314,7 @@ interface FinnhubQuote {
 
 ```typescript
 // Example test cases
-- "Fetching 12 stocks stays under rate limit"
+- "Fetching 15 stocks stays under rate limit"
 - "WebSocket reconnect resubscribes to symbols"
 - "Rate limit hit serves cached data"
 - "Cache expires after TTL"
@@ -364,11 +364,11 @@ interface FinnhubQuote {
 
 2. **Re-renders**: All StockCards re-render on any quote update
    - React.memo() could help if performance degrades
-   - Currently fine with 12 stocks
+    - Currently fine with 15 stocks
 
 3. **WebSocket Message Volume**: One message per quote update
    - Could batch WS messages if needed
-   - Currently fine for 12 stocks × 120s refresh
+    - Currently fine for 15 stocks × 60s refresh
 
 ---
 

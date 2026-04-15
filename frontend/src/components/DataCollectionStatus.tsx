@@ -77,8 +77,9 @@ export function DataCollectionStatus() {
 
   // Calculate estimated hours of market data (based on 1m data)
   // Note: Markets are open ~6.5 hours/day, so 24h market data ≈ 3-4 calendar days
+  // 1m candles = 1-minute candles, so divide by 60 to get hours
   const avgCandlesPerSymbol = symbolsWith1mData > 0 ? totalCandles1m / symbolsWith1mData : 0;
-  const estimatedHours = has1mData ? Math.max(1, Math.floor(avgCandlesPerSymbol / 3)) : 0;
+  const estimatedHours = has1mData ? Math.max(1, Math.floor(avgCandlesPerSymbol / 60)) : 0;
 
   // Estimate trading days based on market hours (~6.5 hours per trading day)
   const estimatedTradingDays = Math.floor(estimatedHours / 6.5);

@@ -76,15 +76,19 @@ export function DataCollectionStatus() {
   const chartsReady = has1hData && symbolsWith1hData > 0;
 
   // Calculate estimated hours of market data (based on 1m data)
+  // Note: Markets are open ~6.5 hours/day, so 24h market data ≈ 3-4 calendar days
   const avgCandlesPerSymbol = symbolsWith1mData > 0 ? totalCandles1m / symbolsWith1mData : 0;
   const estimatedHours = has1mData ? Math.max(1, Math.floor(avgCandlesPerSymbol / 3)) : 0;
+
+  // Estimate trading days based on market hours (~6.5 hours per trading day)
+  const estimatedTradingDays = Math.floor(estimatedHours / 6.5);
 
   // Define milestones for data collection progress
   // Stage 1: Raw data collection (1m candles)
   // Stage 2: Charts displaying (1h aggregates ready)
-  // Stage 3: Building 1D view (in progress 6-24 hours)
-  // Stage 4: Full 1D view (24+ hours)
-  // Stage 5: 7D+ views (72+ hours with 1d aggregates)
+  // Stage 3: Building 1D view (in progress 6-24 hours ≈ 1-4 trading days)
+  // Stage 4: Full 1D view (24+ hours ≈ 4+ trading days)
+  // Stage 5: 7D+ views (7+ trading days with 1d aggregates)
   type Milestone = {
     label: string;
     completed: boolean;
@@ -110,24 +114,24 @@ export function DataCollectionStatus() {
     },
     {
       label: 'Building 1D',
-      completed: chartsReady && estimatedHours >= 24, // Complete once Full 1D is reached
-      inProgress: chartsReady && estimatedHours >= 6 && estimatedHours < 24,
-      progressPercent: 50 + Math.min(25, (estimatedHours / 24) * 25), // 50-75% based on hours
-      description: 'Collecting 24h of data',
+      completed: chartsReady && estimatedTradingDays >= 4, // ~24 hours of market data
+      inProgress: chartsReady && estimatedTradingDays >= 1 && estimatedTradingDays < 4,
+      progressPercent: 50 + Math.min(25, (estimatedTradingDays / 4) * 25), // 50-75% based on days
+      description: 'Collecting 24h of market data',
     },
     {
       label: 'Full 1D',
-      completed: chartsReady && estimatedHours >= 24,
+      completed: chartsReady && estimatedTradingDays >= 4,
       inProgress: false,
       progressPercent: 75,
-      description: '24 hours of market data',
+      description: '4+ days of market data',
     },
     {
       label: '7D+ Views',
-      completed: has1dData && estimatedHours >= 72,
+      completed: has1dData && estimatedTradingDays >= 7, // 7+ actual trading days
       inProgress: false,
       progressPercent: 100,
-      description: '72+ hours for 7D view',
+      description: '7+ trading days for full 7D view',
     },
   ];
 
@@ -147,9 +151,9 @@ export function DataCollectionStatus() {
       : milestones[currentMilestoneIndex]?.progressPercent ?? 0;
   }
 
-  // Cap progress at 75% until we actually have 72 hours for 7D+ Views
+  // Cap progress at 75% until we actually have 7+ trading days for 7D+ Views
   // This prevents the bar from jumping to 100% when Full 1D is reached
-  if (progress > 75 && estimatedHours < 72) {
+  if (progress > 75 && estimatedTradingDays < 7) {
     progress = 75;
   }
 
@@ -166,22 +170,22 @@ export function DataCollectionStatus() {
     status = 'Processing for charts...';
     statusColor = 'text-yellow-400';
     statusDetail = `1m data: ${totalCandles1m.toLocaleString()} candles. 1h aggregates refresh hourly`;
-  } else if (estimatedHours < 6) {
+  } else if (estimatedTradingDays < 1) {
     status = 'Charts displaying';
     statusColor = 'text-neon-blue';
     statusDetail = `${symbolsWith1hData}/${TRACKED_STOCKS.length} symbols showing charts. Building history...`;
-  } else if (estimatedHours < 24) {
+  } else if (estimatedTradingDays < 4) {
     status = 'Building 1D view...';
     statusColor = 'text-neon-blue';
-    statusDetail = `${estimatedHours}h of market data collected. Need 24h for full 1D view.`;
-  } else if (estimatedHours < 72) {
+    statusDetail = `${estimatedTradingDays} trading day${estimatedTradingDays === 1 ? '' : 's'} collected. Need 4+ days for full 1D view.`;
+  } else if (estimatedTradingDays < 7) {
     status = '1D view complete';
     statusColor = 'text-neon-green';
-    statusDetail = 'Full 24h 1D view ready. Collecting for 7D view...';
+    statusDetail = `Full 1D view ready (${estimatedTradingDays} days). Collecting for 7D view...`;
   } else if (!has1dData) {
     status = 'Building 7D view...';
     statusColor = 'text-neon-green';
-    statusDetail = '72+ hours collected. 7D aggregates processing...';
+    statusDetail = `${estimatedTradingDays} trading days collected. 7D aggregates processing...`;
   } else {
     status = 'Collection complete';
     statusColor = 'text-neon-green';
@@ -359,13 +363,13 @@ export function DataCollectionStatus() {
             '1-hour aggregates are being built from raw data. Charts will display once this completes (auto-refreshes hourly).'
           )}
           {currentMilestoneIndex === 2 && (
-            'Charts are displaying! Building up 24 hours of market history for complete 1D view.'
+            'Charts are displaying! Building up 4+ trading days of market history for complete 1D view.'
           )}
           {currentMilestoneIndex === 3 && (
-            '1D view is complete. 7D view needs daily aggregates to finish processing.'
+            `1D view is complete (${estimatedTradingDays} days). 7D view needs 7+ trading days to finish processing.`
           )}
           {currentMilestoneIndex === -1 && (
-            'All stages complete! Raw data, 1D charts, and 7D+ views are fully available.'
+            `All stages complete! ${estimatedTradingDays}+ trading days available. 1D, 7D, and 30D+ views are fully functional.`
           )}
         </p>
       </div>

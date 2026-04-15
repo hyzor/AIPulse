@@ -66,7 +66,7 @@ export interface StockCandle {
 // API response for historical data
 export interface HistoryResponse {
   symbol: string;
-  resolution: '1m' | '10m' | '1h' | '4h' | '1d';
+  resolution: '1m' | '5m' | '10m' | '30m' | '1h' | '4h' | '1d';
   from: string;
   to: string;
   candles: CandleData[];

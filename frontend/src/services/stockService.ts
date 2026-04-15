@@ -57,7 +57,7 @@ class StockService {
     return data.data;
   }
 
-  async getHistory(symbol: string, range: TimeRange, resolution?: '1m' | '10m' | '1h' | '4h' | '1d'): Promise<HistoryResponse> {
+  async getHistory(symbol: string, range: TimeRange, resolution?: '1m' | '5m' | '10m' | '30m' | '1h' | '4h' | '1d'): Promise<HistoryResponse> {
     // Send client's current timestamp so server calculates range from user's timezone
     const now = Date.now();
 

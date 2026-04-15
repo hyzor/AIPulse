@@ -148,16 +148,23 @@ class DatabaseService {
     }
   }
 
-  // Get candles with resolution (uses continuous aggregates for 1h and 1d, generates 10m and 4h from 1m)
+  // Get candles with resolution (uses continuous aggregates for 1h and 1d, generates others from 1m)
   async getCandles(
     symbol: string,
     from: Date,
     to: Date,
-    resolution: '1m' | '10m' | '1h' | '4h' | '1d',
+    resolution: '1m' | '5m' | '10m' | '30m' | '1h' | '4h' | '1d',
   ): Promise<StockCandle[]> {
-    // For 10m and 4h, generate from 1m data using time_bucket
-    if (resolution === '10m' || resolution === '4h') {
-      const bucketSize = resolution === '10m' ? '10 minutes' : '4 hours';
+    // For generated resolutions (5m, 10m, 30m, 4h), create from 1m data using time_bucket
+    const generatedResolutions: Record<string, string> = {
+      '5m': '5 minutes',
+      '10m': '10 minutes',
+      '30m': '30 minutes',
+      '4h': '4 hours',
+    };
+
+    if (generatedResolutions[resolution]) {
+      const bucketSize = generatedResolutions[resolution];
       const query = `
         SELECT 
           time_bucket('${bucketSize}', time) as bucket_time,

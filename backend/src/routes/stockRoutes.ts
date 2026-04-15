@@ -169,21 +169,21 @@ router.get('/stocks/:symbol/history', async (req, res) => {
   // Parse query parameters
   const range = (req.query.range as string) || '7d';
   // Chart resolution strategy (trading-hours focused, not 24h):
-  // - 1D: 10m resolution (granular intraday view, ~39 points for 6.5h trading day)
-  // - 7D: 1h resolution (hourly, ~45 points for 6.5h × 7 days)
-  // - 30D: 4h resolution (4-hour buckets, ~48 points for 30 days)
+  // - 1D: 5m resolution (granular intraday view, ~78 points for 6.5h trading day)
+  // - 7D: 30m resolution (30-min buckets, ~91 points for 6.5h × 7 days)
+  // - 30D: 1h resolution (hourly candles from aggregates, ~195 points for 30 days)
   // - 90D, 1y: 1d resolution (daily)
-  let resolution = (req.query.resolution as '1m' | '10m' | '1h' | '4h' | '1d');
+  let resolution = (req.query.resolution as '1m' | '5m' | '10m' | '30m' | '1h' | '4h' | '1d');
   if (!resolution) {
     switch (range) {
       case '1d':
-        resolution = '10m';
+        resolution = '5m';
         break;
       case '7d':
-        resolution = '1h';
+        resolution = '30m';
         break;
       case '30d':
-        resolution = '4h';
+        resolution = '1h';
         break;
       case '90d':
       case '1y':

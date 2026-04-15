@@ -264,16 +264,26 @@ export function TimeRangeProvider({ children, historicalUpdates }: TimeRangeProv
   const getDataWarning = useCallback((): string | null => {
     const tradingDays = dataAvailability.availableTradingDays;
 
-    if (tradingDays === 0) {
-      return null; // Don't show warning until we have data
+    // Show warning for 7D view when insufficient data
+    if (timeRange === '7d') {
+      if (tradingDays === 0) {
+        return 'Need 7 trading days of history. Data collection in progress.';
+      }
+      if (tradingDays < 7) {
+        return `Need 7 trading days of history. Currently have ${tradingDays}.`;
+      }
     }
 
-    if (timeRange === '7d' && tradingDays < 7) {
-      return `Need 7 trading days of history. Currently have ${tradingDays}.`;
+    // Show warning for 30D view when insufficient data
+    if (timeRange === '30d') {
+      if (tradingDays === 0) {
+        return 'Need 30 trading days of history. Data collection in progress.';
+      }
+      if (tradingDays < 30) {
+        return `Need 30 trading days of history. Currently have ${tradingDays}.`;
+      }
     }
-    if (timeRange === '30d' && tradingDays < 30) {
-      return `Need 30 trading days of history. Currently have ${tradingDays}.`;
-    }
+
     return null;
   }, [timeRange, dataAvailability.availableTradingDays]);
 

@@ -46,10 +46,10 @@ const MARKET_HOLIDAYS = new Set([
 
 // Market hours in Eastern Time (ET)
 // Regular hours: 9:30 AM - 4:00 PM ET
-const MARKET_OPEN_HOUR = 9;
-const MARKET_OPEN_MINUTE = 30;
-const MARKET_CLOSE_HOUR = 16;
-const MARKET_CLOSE_MINUTE = 0;
+export const MARKET_OPEN_HOUR = 9;
+export const MARKET_OPEN_MINUTE = 30;
+export const MARKET_CLOSE_HOUR = 16;
+export const MARKET_CLOSE_MINUTE = 0;
 
 /**
  * Format a date as YYYY-MM-DD string in Eastern Time

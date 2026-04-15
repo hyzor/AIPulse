@@ -148,13 +148,50 @@ class DatabaseService {
     }
   }
 
-  // Get candles with resolution (uses continuous aggregates for 1h and 1d)
+  // Get candles with resolution (uses continuous aggregates for 1h and 1d, generates 10m and 4h from 1m)
   async getCandles(
     symbol: string,
     from: Date,
     to: Date,
-    resolution: '1m' | '1h' | '1d',
+    resolution: '1m' | '10m' | '1h' | '4h' | '1d',
   ): Promise<StockCandle[]> {
+    // For 10m and 4h, generate from 1m data using time_bucket
+    if (resolution === '10m' || resolution === '4h') {
+      const bucketSize = resolution === '10m' ? '10 minutes' : '4 hours';
+      const query = `
+        SELECT 
+          time_bucket('${bucketSize}', time) as bucket_time,
+          symbol,
+          first(open, time) as open,
+          max(high) as high,
+          min(low) as low,
+          last(close, time) as close,
+          sum(volume) as volume,
+          'generated' as source
+        FROM stock_candles_1m
+        WHERE symbol = $1 AND time >= $2 AND time <= $3
+        GROUP BY bucket_time, symbol
+        ORDER BY bucket_time ASC
+      `;
+
+      try {
+        const result = await this.pool.query(query, [symbol, from, to]);
+        return result.rows.map((row) => ({
+          time: row.bucket_time,
+          symbol: row.symbol,
+          open: parseFloat(row.open),
+          high: parseFloat(row.high),
+          low: parseFloat(row.low),
+          close: parseFloat(row.close),
+          volume: parseInt(row.volume, 10),
+          source: row.source,
+        }));
+      } catch (error) {
+        console.error(`[Database] Error fetching ${resolution} candles:`, error);
+        throw error;
+      }
+    }
+
     // Use continuous aggregate views for 1h and 1d, actual table for 1m
     const tableOrView = resolution === '1h'
       ? 'stock_candles_1h_aggregation'

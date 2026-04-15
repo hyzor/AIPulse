@@ -7,7 +7,7 @@ import { ExpandedChartModal } from './components/ExpandedChartModal';
 import { Header } from './components/Header';
 import { StatusBar } from './components/StatusBar';
 import { StockGrid } from './components/StockGrid';
-import { TimeRangeProvider } from './contexts/TimeRangeContext';
+import { TimeRangeProvider, useTimeRange } from './contexts/TimeRangeContext';
 import { useWebSocket, useAutoRefresh } from './hooks/useWebSocket';
 import { stockService } from './services/stockService';
 import { STOCK_CATEGORIES, TRACKED_STOCKS } from './types';
@@ -20,6 +20,7 @@ function AppContent({ realtimeQuotes, isConnected, wsError, subscribe }: {
   wsError: string | null;
   subscribe: (_symbol: string) => void;
 }) {
+  const { dataAvailability, timeRange } = useTimeRange();
   const [stocks, setStocks] = useState<Map<string, StockQuote>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -172,6 +173,17 @@ function AppContent({ realtimeQuotes, isConnected, wsError, subscribe }: {
 
       {/* Category Performance Overview */}
       <CategoryPerformance stocks={mergedStocks} />
+
+      {/* Data availability warning for 7D/30D views - shown below category performance, above charts */}
+      {timeRange !== '1d' && dataAvailability.warning && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-2">
+          <div className="flex items-center gap-2 py-2 px-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+            <span className="text-xs text-yellow-400">
+              ⚠️ {dataAvailability.warning} Charts show available data; full view requires more history.
+            </span>
+          </div>
+        </div>
+      )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* All Stocks Grid */}

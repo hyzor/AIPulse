@@ -147,7 +147,7 @@ function getPeriodLabel(timeRange: TimeRange, marketIsOpen: boolean): string {
 }
 
 export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
-  const { timeRange, setTimeRange, fetchAllHistory, historicalData, isLoading, dataAvailability } = useTimeRange();
+  const { timeRange, setTimeRange, fetchAllHistory, historicalData, isLoading } = useTimeRange();
   const [historicalChanges, setHistoricalChanges] = useState<Map<string, HistoricalChange>>(new Map());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
@@ -362,15 +362,6 @@ export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
           <div className="flex items-center justify-center py-4">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-neon-blue"></div>
             <span className="ml-2 text-xs text-gray-400">Loading historical data...</span>
-          </div>
-        )}
-
-        {/* Data availability warning - unified yellow warning */}
-        {timeRange !== '1d' && dataAvailability.warning && dataAvailability.availableTradingDays > 0 && (
-          <div className="flex items-center gap-2 py-2 px-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg mb-3">
-            <span className="text-xs text-yellow-400">
-              ⚠️ {dataAvailability.warning} Charts will populate as more market data is collected.
-            </span>
           </div>
         )}
 

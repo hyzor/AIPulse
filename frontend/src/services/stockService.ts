@@ -57,17 +57,16 @@ class StockService {
     return data.data;
   }
 
-  async getHistory(symbol: string, range: TimeRange, resolution?: '1m' | '1h' | '1d'): Promise<HistoryResponse> {
-    // Auto-determine resolution if not provided
-    if (!resolution) {
-      resolution = range === '30d' ? '1d' : '1h';
-    }
-
+  async getHistory(symbol: string, range: TimeRange, resolution?: '1m' | '10m' | '1h' | '4h' | '1d'): Promise<HistoryResponse> {
     // Send client's current timestamp so server calculates range from user's timezone
     const now = Date.now();
 
+    // Build query params - only include resolution if explicitly provided
+    // Let backend decide default resolution for best data availability
+    const resolutionParam = resolution ? `&resolution=${resolution}` : '';
+
     const response = await fetch(
-      `${API_URL}/api/stocks/${symbol}/history?range=${range}&resolution=${resolution}&now=${now}`,
+      `${API_URL}/api/stocks/${symbol}/history?range=${range}${resolutionParam}&now=${now}`,
     );
     const data: ApiResponse<HistoryResponse> = await response.json();
 

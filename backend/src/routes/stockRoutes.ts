@@ -7,7 +7,7 @@ import { candleBufferService } from '../services/candleBufferService';
 import { databaseService } from '../services/databaseService';
 import { finnhubService } from '../services/finnhubService';
 import { redisService } from '../services/redisService';
-import { isMarketOpen, getMarketStatus } from '../utils/marketHours';
+import { isMarketOpen, getMarketStatus, getTradingDayBounds, getPreviousTradingDayBounds } from '../utils/marketHours';
 
 import type { HistoryResponse, CandleData, FlushResult } from '../types';
 
@@ -168,19 +168,57 @@ router.get('/stocks/:symbol/history', async (req, res) => {
 
   // Parse query parameters
   const range = (req.query.range as string) || '7d';
-  const resolution = (req.query.resolution as '1m' | '1h' | '1d') || '1h';
+  // Chart resolution strategy (trading-hours focused, not 24h):
+  // - 1D: 10m resolution (granular intraday view, ~39 points for 6.5h trading day)
+  // - 7D: 1h resolution (hourly, ~45 points for 6.5h × 7 days)
+  // - 30D: 4h resolution (4-hour buckets, ~48 points for 30 days)
+  // - 90D, 1y: 1d resolution (daily)
+  let resolution = (req.query.resolution as '1m' | '10m' | '1h' | '4h' | '1d');
+  if (!resolution) {
+    switch (range) {
+      case '1d':
+        resolution = '10m';
+        break;
+      case '7d':
+        resolution = '1h';
+        break;
+      case '30d':
+        resolution = '4h';
+        break;
+      case '90d':
+      case '1y':
+        resolution = '1d';
+        break;
+      default:
+        resolution = '1h';
+    }
+  }
 
   // Use client's timestamp if provided (for timezone-aware ranges), otherwise use server time
   const clientNow = req.query.now ? new Date(parseInt(req.query.now as string, 10)) : null;
   const now = clientNow || new Date();
   let from: Date;
-  const to: Date = now;
+  let to: Date = now;
 
   switch (range) {
-    case '1d':
-      // Rolling 24-hour window from user's current time
-      from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    case '1d': {
+      // 1D view: Show the last trading day's market hours (9:30 AM - 4:00 PM ET)
+      // If market is open, show current trading day from market open
+      // If market is closed, show the most recent completed trading day
+      if (isMarketOpen(now)) {
+        // Market is open - show from today's market open to now
+        const bounds = getTradingDayBounds(now);
+        from = bounds.from;
+      } else {
+        // Market is closed - show the most recent completed trading day
+        const bounds = getPreviousTradingDayBounds(now);
+        from = bounds.from;
+        // When market is closed, also adjust 'to' to market close time
+        const prevBounds = getPreviousTradingDayBounds(now);
+        to = prevBounds.to;
+      }
       break;
+    }
     case '7d':
       from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       break;
@@ -210,7 +248,7 @@ router.get('/stocks/:symbol/history', async (req, res) => {
     const dataRange = await databaseService.getDataRange(uppercaseSymbol);
 
     // Fetch from database first
-    // Use smooth query for 1D view: hourly data with current price appended
+    // Use smooth query for 1D view with 1h resolution: hourly data with current price appended
     let dbCandles: Awaited<ReturnType<typeof databaseService.getCandles>>;
     if (range === '1d' && resolution === '1h') {
       // Smooth: 1h aggregates with latest real-time price (no jagged minute data)

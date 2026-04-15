@@ -125,7 +125,7 @@ function getMarketStatus() {
   const isWithinHours = timeDecimal >= openDecimal && timeDecimal < closeDecimal;
   const isOpen = isWeekday && isWithinHours;
 
-  // Calculate next open time (in user's local time)
+  // Calculate next open time (in user's local timezone)
   let daysUntilOpen: number;
   if (isOpen) {
     daysUntilOpen = dayOfWeek === 5 ? 3 : 1;
@@ -137,7 +137,8 @@ function getMarketStatus() {
     daysUntilOpen = dayOfWeek === 7 ? 1 : 2;
   }
 
-  // Create the next market open date in ET
+  // Create the next market open date using proper timezone conversion
+  // Find the UTC time that corresponds to 9:30 AM ET on the target day
   const etDateFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York',
     year: 'numeric',
@@ -147,12 +148,44 @@ function getMarketStatus() {
 
   const etParts = etDateFormatter.formatToParts(now);
   const etYear = parseInt(etParts.find((p) => p.type === 'year')?.value || '0', 10);
-  const etMonth = parseInt(etParts.find((p) => p.type === 'month')?.value || '0', 10) - 1;
+  const etMonth = parseInt(etParts.find((p) => p.type === 'month')?.value || '0', 10);
   const etDay = parseInt(etParts.find((p) => p.type === 'day')?.value || '0', 10);
 
-  const targetETDay = etDay + daysUntilOpen;
-  const nextOpenUTC = Date.UTC(etYear, etMonth, targetETDay, MARKET_OPEN_HOUR + 5, MARKET_OPEN_MINUTE, 0);
-  const nextOpen = new Date(nextOpenUTC);
+  // Build the target ET date string and find corresponding UTC time
+  const targetETDateStr = `${etYear.toString().padStart(4, '0')}-${etMonth.toString().padStart(2, '0')}-${(etDay + daysUntilOpen).toString().padStart(2, '0')}`;
+  const targetETTimeStr = `${targetETDateStr}T09:30:00`;
+
+  // Try EDT (UTC-4) first, then EST (UTC-5)
+  let nextOpen: Date | null = null;
+  for (const offset of [-4, -5]) {
+    const offsetStr = offset < 0 ? `-${String(Math.abs(offset)).padStart(2, '0')}:00` : `+${String(offset).padStart(2, '0')}:00`;
+    const testDate = new Date(`${targetETTimeStr}${offsetStr}`);
+
+    // Verify this UTC time corresponds to 9:30 AM ET
+    const verifyFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false,
+    });
+    const verifyParts = verifyFormatter.formatToParts(testDate);
+    const verifyHour = parseInt(verifyParts.find((p) => p.type === 'hour')?.value || '0', 10);
+    const verifyMinute = parseInt(verifyParts.find((p) => p.type === 'minute')?.value || '0', 10);
+
+    if (verifyHour === 9 && verifyMinute === 30) {
+      nextOpen = testDate;
+      break;
+    }
+  }
+
+  // Fallback if conversion failed
+  if (!nextOpen) {
+    // Assume EDT (UTC-4) for now
+    const targetDay = new Date();
+    targetDay.setDate(targetDay.getDate() + daysUntilOpen);
+    targetDay.setHours(9 + 4, 30, 0, 0); // ET 9:30 = UTC 13:30 (during EDT)
+    nextOpen = targetDay;
+  }
 
   // Convert market hours to local timezone
   const localOpen = convertToLocalHour(MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE);

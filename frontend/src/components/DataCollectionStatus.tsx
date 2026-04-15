@@ -239,21 +239,21 @@ export function DataCollectionStatus() {
       {/* Stats by resolution */}
       <div className="grid grid-cols-3 gap-2 text-sm mb-3">
         <div className={`flex flex-col p-2 rounded ${has1mData ? 'bg-dark-700/50' : 'bg-dark-800/30'}`}>
-          <span className="text-xs text-gray-500">1m Data</span>
+          <span className="text-xs text-gray-500">1-Minute Points</span>
           <span className={`font-mono font-medium ${has1mData ? 'text-white' : 'text-gray-600'}`}>
             {totalCandles1m.toLocaleString()}
           </span>
           <span className="text-[10px] text-gray-500">{symbolsWith1mData} symbols</span>
         </div>
         <div className={`flex flex-col p-2 rounded ${has1hData ? 'bg-dark-700/50' : 'bg-dark-800/30'}`}>
-          <span className="text-xs text-gray-500">1h Charts</span>
+          <span className="text-xs text-gray-500">Hourly Candles</span>
           <span className={`font-mono font-medium ${has1hData ? 'text-neon-blue' : 'text-gray-600'}`}>
             {totalCandles1h.toLocaleString()}
           </span>
           <span className="text-[10px] text-gray-500">{symbolsWith1hData} symbols</span>
         </div>
         <div className={`flex flex-col p-2 rounded ${has1dData ? 'bg-dark-700/50' : 'bg-dark-800/30'}`}>
-          <span className="text-xs text-gray-500">1d Charts</span>
+          <span className="text-xs text-gray-500">Daily Candles</span>
           <span className={`font-mono font-medium ${has1dData ? 'text-neon-green' : 'text-gray-600'}`}>
             {totalCandles1d.toLocaleString()}
           </span>

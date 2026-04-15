@@ -85,11 +85,7 @@ export function DataCollectionStatus() {
   const estimatedTradingDays = Math.floor(estimatedHours / 6.5);
 
   // Define milestones for data collection progress
-  // Stage 1: Raw data collection (1m candles)
-  // Stage 2: Charts displaying (1h aggregates ready)
-  // Stage 3: Building 1D view (in progress 6-24 hours ≈ 1-4 trading days)
-  // Stage 4: Full 1D view (24+ hours ≈ 4+ trading days)
-  // Stage 5: 7D+ views (7+ trading days with 1d aggregates)
+  // Clear progression: Data → Today → Week → Multi-week
   type Milestone = {
     label: string;
     completed: boolean;
@@ -100,97 +96,99 @@ export function DataCollectionStatus() {
 
   const milestones: Milestone[] = [
     {
-      label: 'Raw Data',
+      label: 'Data',
       completed: has1mData,
-      inProgress: false,
-      progressPercent: 25,
-      description: 'Collecting price ticks',
+      inProgress: !has1mData,
+      progressPercent: 20,
+      description: 'Collecting 1-minute price ticks',
     },
     {
-      label: 'Charts',
+      label: 'Today',
       completed: chartsReady,
-      inProgress: false,
-      progressPercent: 50,
-      description: '1-hour aggregates ready',
+      inProgress: has1mData && !chartsReady,
+      progressPercent: 40,
+      description: '1-hour charts ready for current day',
     },
     {
-      label: 'Building History',
-      completed: chartsReady && estimatedTradingDays >= 4,
-      inProgress: chartsReady && estimatedTradingDays >= 1 && estimatedTradingDays < 4,
-      progressPercent: 50 + Math.min(25, (estimatedTradingDays / 4) * 25),
-      description: 'Collecting market history',
+      label: 'Week',
+      completed: chartsReady && estimatedTradingDays >= 2,
+      inProgress: chartsReady && estimatedTradingDays >= 1 && estimatedTradingDays < 2,
+      progressPercent: 60,
+      description: '2+ days for 1D view comparison',
     },
     {
-      label: 'History Ready',
-      completed: chartsReady && estimatedTradingDays >= 4,
-      inProgress: false,
-      progressPercent: 75,
-      description: '4+ trading days collected',
+      label: '7 Day',
+      completed: chartsReady && estimatedTradingDays >= 7,
+      inProgress: chartsReady && estimatedTradingDays >= 2 && estimatedTradingDays < 7,
+      progressPercent: 80,
+      description: '7 days for 7D view',
     },
     {
-      label: '7D+ Ready',
-      completed: has1dData && estimatedTradingDays >= 7,
-      inProgress: false,
+      label: '30 Day',
+      completed: has1dData && estimatedTradingDays >= 30,
+      inProgress: chartsReady && estimatedTradingDays >= 7 && estimatedTradingDays < 30,
       progressPercent: 100,
-      description: '7+ trading days for 7D view',
+      description: '30 days for 30D view',
     },
   ];
 
-  // Find current milestone (one that's in progress, or first incomplete)
-  const inProgressIndex = milestones.findIndex((m) => m.inProgress);
-  const currentMilestoneIndex = inProgressIndex >= 0
-    ? inProgressIndex
-    : milestones.findIndex((m) => !m.completed);
-
-  // Calculate progress - use in-progress milestone's percent, or next incomplete
+  // Calculate progress based on actual data state
   let progress: number;
-  if (currentMilestoneIndex >= 0 && milestones[currentMilestoneIndex]?.inProgress) {
-    progress = milestones[currentMilestoneIndex].progressPercent;
+
+  if (!has1mData) {
+    // Stage 1: Data (0-20%)
+    progress = 10;
+  } else if (!chartsReady) {
+    // Stage 2: Today (20-40%)
+    progress = 30;
+  } else if (estimatedTradingDays < 2) {
+    // Stage 3: Week milestone not yet reached (40-60%)
+    // Only advance within this range as we collect the first day's data
+    // With <1 day, we're still early in this range
+    const dayFraction = Math.max(0, estimatedTradingDays - 1); // 0 if <1 day, approaching 1 as we near 2 days
+    progress = 40 + (dayFraction * 20);
+  } else if (estimatedTradingDays < 7) {
+    // Stage 4: 7 Day milestone (60-80%)
+    const dayProgress = (estimatedTradingDays / 7) * 20;
+    progress = 60 + dayProgress;
+  } else if (estimatedTradingDays < 30) {
+    // Stage 5: 30 Day milestone (80-100%)
+    const dayProgress = ((estimatedTradingDays - 7) / 23) * 20;
+    progress = 80 + dayProgress;
   } else {
-    progress = currentMilestoneIndex === -1
-      ? 100
-      : milestones[currentMilestoneIndex]?.progressPercent ?? 0;
+    // Complete
+    progress = 100;
   }
 
-  // Cap progress at 75% until we actually have 7+ trading days for 7D+ Views
-  // This prevents the bar from jumping to 100% when Full 1D is reached
-  if (progress > 75 && estimatedTradingDays < 7) {
-    progress = 75;
-  }
-
-  // Status text based on current stage
+  // Status text based on current stage - clear and actionable
   let status: string;
   let statusColor: string;
   let statusDetail: string;
 
   if (!has1mData) {
-    status = 'Starting collection...';
+    status = 'Waiting for market data...';
     statusColor = 'text-gray-400';
-    statusDetail = 'Waiting for first price data';
+    statusDetail = 'Collection starts when markets open (9:30 AM ET)';
   } else if (!chartsReady) {
-    status = 'Processing for charts...';
+    status = 'Preparing charts...';
     statusColor = 'text-yellow-400';
-    statusDetail = `1m data: ${totalCandles1m.toLocaleString()} candles. 1h aggregates refresh hourly`;
-  } else if (estimatedTradingDays < 1) {
-    status = 'Charts displaying';
+    statusDetail = `Processing ${totalCandles1m.toLocaleString()} price points into hourly charts`;
+  } else if (estimatedTradingDays < 2) {
+    status = '1D charts ready';
     statusColor = 'text-neon-blue';
-    statusDetail = `${symbolsWith1hData}/${TRACKED_STOCKS.length} symbols showing charts. Building history...`;
-  } else if (estimatedTradingDays < 4) {
-    status = 'Building history...';
-    statusColor = 'text-neon-blue';
-    statusDetail = `${estimatedTradingDays} trading day${estimatedTradingDays === 1 ? '' : 's'} of history. 1D view active.`;
+    statusDetail = `Showing today's ${symbolsWith1hData} stocks. Collecting more days for 7D view...`;
   } else if (estimatedTradingDays < 7) {
-    status = 'Building 7D view...';
+    status = 'Building 7D charts...';
+    statusColor = 'text-neon-blue';
+    statusDetail = `${estimatedTradingDays} of 7 trading days collected. 7D view unlocks at 7 days.`;
+  } else if (estimatedTradingDays < 30) {
+    status = 'Building 30D charts...';
     statusColor = 'text-neon-green';
-    statusDetail = `${estimatedTradingDays} trading days collected. Need 7+ for 7D view.`;
-  } else if (!has1dData) {
-    status = 'Building 7D view...';
-    statusColor = 'text-neon-green';
-    statusDetail = `${estimatedTradingDays} trading days collected. 7D aggregates processing...`;
+    statusDetail = `${estimatedTradingDays} of 30 trading days collected. 30D view unlocks at 30 days.`;
   } else {
-    status = 'Collection complete';
+    status = 'All charts ready';
     statusColor = 'text-neon-green';
-    statusDetail = 'All chart time ranges (1D, 7D, 30D+) available';
+    statusDetail = `${estimatedTradingDays}+ days of history. All views (1D, 7D, 30D) available.`;
   }
 
   return (
@@ -212,16 +210,14 @@ export function DataCollectionStatus() {
 
       {/* Progress bar with milestones */}
       <div className="mb-3">
-        <div className="flex justify-between text-[10px] text-gray-500 mb-1">
-          {milestones.map((milestone, index) => {
-            // Completed = green, In Progress = white/active, Future = gray
+        <div className="flex justify-between text-[10px] mb-1">
+          {milestones.map((milestone) => {
+            // Completed = green, In Progress = blue/active, Future = gray
             const labelClass = milestone.completed
               ? 'text-neon-green' // Completed
               : milestone.inProgress
-                ? 'text-white font-medium' // Currently in progress
-                : index === currentMilestoneIndex
-                  ? 'text-white font-medium' // Next target (if none in progress)
-                  : 'text-gray-600'; // Future/not reached
+                ? 'text-neon-blue font-medium' // Currently in progress (blue, not white)
+                : 'text-gray-600'; // Future/not reached
             return (
               <span key={milestone.label} className={labelClass}>
                 {milestone.label}
@@ -354,23 +350,26 @@ export function DataCollectionStatus() {
         })()}
       </div>
 
-      {/* Help text - explains current stage */}
+      {/* Help text - explains current stage in plain language */}
       <div className="mt-3 pt-3 border-t border-dark-700">
         <p className="text-xs text-gray-500">
-          {currentMilestoneIndex === 0 && (
-            'Collecting 1-minute price data during market hours. Charts will appear once aggregates are processed.'
+          {!has1mData && (
+            'Markets are closed or data collection is starting. Charts will appear when trading begins.'
           )}
-          {currentMilestoneIndex === 1 && (
-            '1-hour aggregates are being built from raw data. Charts will display once this completes (auto-refreshes hourly).'
+          {has1mData && !chartsReady && (
+            'Raw price data is being processed into hourly chart candles. This happens automatically every hour.'
           )}
-          {currentMilestoneIndex === 2 && (
-            '1D view is active (shows today\'s market hours). Building history for multi-day views.'
+          {chartsReady && estimatedTradingDays < 2 && (
+            '1D view shows intraday charts for current trading day. Come back tomorrow to compare days.'
           )}
-          {currentMilestoneIndex === 3 && (
-            `Have ${estimatedTradingDays} trading days of history. 7D view needs 7+ trading days.`
+          {chartsReady && estimatedTradingDays >= 2 && estimatedTradingDays < 7 && (
+            `You can view ${estimatedTradingDays} days of history. Keep collecting to unlock 7D view (shows week trends).`
           )}
-          {currentMilestoneIndex === -1 && (
-            `All views available! ${estimatedTradingDays}+ trading days of history collected.`
+          {chartsReady && estimatedTradingDays >= 7 && estimatedTradingDays < 30 && (
+            `7D view is now available! Keep collecting to unlock 30D view (shows monthly trends). Currently at ${estimatedTradingDays} days.`
+          )}
+          {chartsReady && estimatedTradingDays >= 30 && (
+            'All time range views are available: 1D (today), 7D (week), 30D (month).'
           )}
         </p>
       </div>

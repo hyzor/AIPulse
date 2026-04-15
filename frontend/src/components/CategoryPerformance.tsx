@@ -365,21 +365,11 @@ export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
           </div>
         )}
 
-        {/* Time range data availability warning */}
-        {timeRange !== '1d' && dataAvailability.warning && (
-          <div className="flex items-center gap-2 py-2 px-3 bg-orange-500/10 border border-orange-500/30 rounded-lg mb-3">
-            <span className="text-xs text-orange-400">
-              ⚠️ {dataAvailability.warning} Charts will populate as more market data is collected.
-            </span>
-          </div>
-        )}
-
-        {/* Insufficient data warning (per-category) */}
-        {timeRange !== '1d' && !isLoading && categoryStats.some((c) => !c.hasData) && (
+        {/* Data availability warning - unified yellow warning */}
+        {timeRange !== '1d' && dataAvailability.warning && dataAvailability.availableTradingDays > 0 && (
           <div className="flex items-center gap-2 py-2 px-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg mb-3">
             <span className="text-xs text-yellow-400">
-              ⚠️ Some categories have no data. Showing {categoryStats.filter((c) => c.hasData).length} of {categoryStats.length} categories.
-              Charts may display &quot;No data&quot; for some symbols.
+              ⚠️ {dataAvailability.warning} Charts will populate as more market data is collected.
             </span>
           </div>
         )}

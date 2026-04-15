@@ -147,7 +147,7 @@ function getPeriodLabel(timeRange: TimeRange, marketIsOpen: boolean): string {
 }
 
 export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
-  const { timeRange, setTimeRange, fetchAllHistory, historicalData, isLoading } = useTimeRange();
+  const { timeRange, setTimeRange, fetchAllHistory, historicalData, isLoading, dataAvailability } = useTimeRange();
   const [historicalChanges, setHistoricalChanges] = useState<Map<string, HistoricalChange>>(new Map());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
@@ -365,11 +365,20 @@ export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
           </div>
         )}
 
-        {/* Insufficient data warning */}
+        {/* Time range data availability warning */}
+        {timeRange !== '1d' && dataAvailability.warning && (
+          <div className="flex items-center gap-2 py-2 px-3 bg-orange-500/10 border border-orange-500/30 rounded-lg mb-3">
+            <span className="text-xs text-orange-400">
+              ⚠️ {dataAvailability.warning} Charts will populate as more market data is collected.
+            </span>
+          </div>
+        )}
+
+        {/* Insufficient data warning (per-category) */}
         {timeRange !== '1d' && !isLoading && categoryStats.some((c) => !c.hasData) && (
           <div className="flex items-center gap-2 py-2 px-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg mb-3">
             <span className="text-xs text-yellow-400">
-              ⚠️ Insufficient historical data. Showing {categoryStats.filter((c) => c.hasData).length} of {categoryStats.length} categories.
+              ⚠️ Some categories have no data. Showing {categoryStats.filter((c) => c.hasData).length} of {categoryStats.length} categories.
               Charts may display &quot;No data&quot; for some symbols.
             </span>
           </div>

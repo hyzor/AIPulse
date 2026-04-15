@@ -374,6 +374,17 @@ interface FinnhubQuote {
 
 ## Adding New Features
 
+### Feature Ideas Backlog
+
+**REMINDER:** There are two tracking documents in `docs/` folder:
+1. **`docs/MONITORING_IDEAS.md`** - Comprehensive list of potential monitoring features organized by category (Data Health, Market Context, Smart Alerts, etc.)
+2. **`docs/IMPLEMENTATION_TRACKING.md`** - Tracks what's been implemented with status (✅ Complete, 🚧 In Progress, 📋 Planned)
+
+**When implementing a feature from these docs:**
+- Mark it as done in `IMPLEMENTATION_TRACKING.md`
+- Move it to the "Recent Completed" section with date
+- Update the metrics summary (% complete)
+
 ### Checklist for New Features
 
 Before implementing:

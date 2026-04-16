@@ -120,7 +120,7 @@ This document tracks the implementation status of features and enhancements for 
 
 | Feature | Status | Priority | Effort |
 |---------|--------|----------|--------|
-| Data freshness indicator | 📋 | High | Low |
+| Data freshness indicator | ✅ | 2026-04-16 | Shows "Updated 2m ago" per symbol |
 | Stale data warning | 📋 | High | Low |
 | Per-symbol status dots | 🚧 | High | Medium |
 | Last update timestamp | 📋 | High | Low |
@@ -196,9 +196,9 @@ This document tracks the implementation status of features and enhancements for 
 ## Metrics
 
 - **Total Features**: 45+ tracked
-- **Complete**: 35 (78%)
-- **In Progress**: 3 (7%)
-- **Planned**: 7 (15%)
+- **Complete**: 36 (80%)
+- **In Progress**: 2 (4%)
+- **Planned**: 6 (13%)
 - **Ideas**: ~20 in MONITORING_IDEAS.md
 
 ---
@@ -212,8 +212,9 @@ This document tracks the implementation status of features and enhancements for 
 5. ✅ Data stat labels (1-Minute Points, Hourly Candles, Daily Candles)
 6. ✅ DST-aware market open calculation
 7. ✅ Warning positioning and messaging
+8. ✅ Data freshness indicator - "Updated 2m ago" per symbol with color coding
 
 ---
 
-*Last Updated: April 2026*
+*Last Updated: April 16, 2026*
 *Next Review: Weekly or after major feature completion*

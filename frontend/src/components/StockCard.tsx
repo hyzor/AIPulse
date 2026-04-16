@@ -5,7 +5,7 @@ import { FlagIcon } from './FlagIcon';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { MiniAreaChart } from './MiniAreaChart';
 import { useTimeRange } from '../contexts/TimeRangeContext';
-import { formatCurrency, formatChange, getChangeColor, getChangeBgColor, getChangeLabel, checkMarketOpen, getExchangeForSymbol, isSameTradingDay, isBeforeMarketOpen } from '../utils/format';
+import { formatCurrency, formatChange, getChangeColor, getChangeBgColor, getChangeLabel, checkMarketOpen, getExchangeForSymbol, isSameTradingDay, isBeforeMarketOpen, formatRelativeTime, getFreshnessColor } from '../utils/format';
 
 import type { StockQuote } from '../types';
 
@@ -66,6 +66,24 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
 
   // Check if we have any historical data (from any day)
   const hasHistoricalData = candles.length > 0;
+
+  // Calculate data freshness - use the most recent valid timestamp across all sources
+  // Filter out invalid timestamps (0, undefined, NaN)
+  const validTimestamps = [
+    quoteTimestampMs,
+    chartTimestampMs,
+  ].filter((ts): ts is number => ts > 0 && !Number.isNaN(ts));
+
+  // Only calculate freshness if we have valid timestamps
+  const hasValidTimestamp = validTimestamps.length > 0;
+  const freshnessTimestamp = hasValidTimestamp ? Math.max(...validTimestamps) : null;
+
+  // Only show freshness warnings when market is open - otherwise show neutral info
+  // When market is closed/pre-market, stale data is expected, not a problem
+  const freshnessText = freshnessTimestamp ? formatRelativeTime(freshnessTimestamp) : null;
+  const freshnessColor = isMarketOpen && freshnessTimestamp
+    ? getFreshnessColor(freshnessTimestamp) // Color-coded freshness during market hours
+    : 'text-gray-500'; // Neutral gray when market is closed (no expectation of updates)
 
   // Check data completeness - compare last candle timestamp to expected market close
   // Market closes at 4:00 PM ET = 16:00 = 16 * 60 = 960 minutes from midnight
@@ -226,6 +244,18 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
           {' '}
           {getChangeLabel(quote.symbol, quote.timestamp)}
         </p>
+        {/* Data freshness indicator - only relevant when market is open */}
+        {freshnessText && freshnessTimestamp && (
+          <p
+            className={`text-xs font-medium mt-1 ${freshnessColor}`}
+            title={isMarketOpen
+              ? `Last update: ${new Date(freshnessTimestamp).toLocaleTimeString()}`
+              : `Market closed - Last update from previous session: ${new Date(freshnessTimestamp).toLocaleTimeString()}`}
+          >
+            {isMarketOpen ? 'Updated ' : 'Last session '}
+            {freshnessText}
+          </p>
+        )}
       </div>
 
       {/* Chart Area */}

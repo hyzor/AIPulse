@@ -46,6 +46,59 @@ export function formatTimestamp(timestamp: number): string {
   });
 }
 
+/**
+ * Format a timestamp as relative time (e.g., "2 min ago", "just now", "1 hour ago")
+ * @param timestamp - Unix timestamp in milliseconds
+ * @returns Human-readable relative time string
+ */
+export function formatRelativeTime(timestamp: number): string {
+  const now = Date.now();
+  const diffMs = now - timestamp;
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffSeconds < 10) {
+    return 'just now';
+  }
+  if (diffSeconds < 60) {
+    return `${diffSeconds}s ago`;
+  }
+  if (diffMinutes < 60) {
+    return `${diffMinutes}m ago`;
+  }
+  if (diffHours < 24) {
+    return `${diffHours}h ago`;
+  }
+  if (diffDays === 1) {
+    return 'yesterday';
+  }
+  return `${diffDays}d ago`;
+}
+
+/**
+ * Get a color class based on data freshness
+ * @param timestamp - Unix timestamp in milliseconds
+ * @returns Tailwind CSS color class
+ */
+export function getFreshnessColor(timestamp: number): string {
+  const now = Date.now();
+  const diffMs = now - timestamp;
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+  if (diffMinutes < 1) {
+    return 'text-neon-green'; // Fresh: < 1 minute
+  }
+  if (diffMinutes < 5) {
+    return 'text-green-400'; // Recent: 1-5 minutes
+  }
+  if (diffMinutes < 15) {
+    return 'text-yellow-400'; // Stale: 5-15 minutes
+  }
+  return 'text-orange-400'; // Very stale: > 15 minutes
+}
+
 // Exchange market hours in Eastern Time (ET) - 9:30 AM to 4:00 PM
 // These times are in 24-hour format (9.5 = 9:30 AM, 16 = 4:00 PM)
 // ET is UTC-5 (EST) or UTC-4 (EDT), but we check in ET timezone directly

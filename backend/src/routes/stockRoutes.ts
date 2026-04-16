@@ -6,10 +6,57 @@ import { cacheService } from '../services/cacheService';
 import { candleBufferService } from '../services/candleBufferService';
 import { databaseService } from '../services/databaseService';
 import { finnhubService } from '../services/finnhubService';
-import { redisService } from '../services/redisService';
+import { redisService, type RedisCandle } from '../services/redisService';
 import { isMarketOpen, getMarketStatus, getTradingDayBounds, getPreviousTradingDayBounds } from '../utils/marketHours';
 
 import type { HistoryResponse, CandleData, FlushResult } from '../types';
+
+/**
+ * Aggregate 1m candles to a higher resolution (5m, 10m, 30m, 4h)
+ * This is used when merging Redis 1m data with DB data for chart freshness
+ */
+function aggregateCandles(candles: CandleData[], targetResolution: string): CandleData[] {
+  const resolutionMs: Record<string, number> = {
+    '5m': 5 * 60 * 1000,
+    '10m': 10 * 60 * 1000,
+    '30m': 30 * 60 * 1000,
+    '4h': 4 * 60 * 60 * 1000,
+  };
+
+  const bucketSize = resolutionMs[targetResolution];
+  if (!bucketSize || candles.length === 0) {
+    return candles;
+  }
+
+  const buckets = new Map<number, CandleData>();
+
+  for (const candle of candles) {
+    // Round timestamp to bucket start
+    const bucketTime = Math.floor(candle.t / bucketSize) * bucketSize;
+
+    const existing = buckets.get(bucketTime);
+    if (existing) {
+      // Aggregate: first open, max high, min low, last close, sum volume
+      existing.h = Math.max(existing.h, candle.h);
+      existing.l = Math.min(existing.l, candle.l);
+      existing.c = candle.c; // Last close wins
+      existing.v = (existing.v || 0) + (candle.v || 0);
+    } else {
+      // First candle in bucket
+      buckets.set(bucketTime, {
+        t: bucketTime,
+        o: candle.o,
+        h: candle.h,
+        l: candle.l,
+        c: candle.c,
+        v: candle.v || 0,
+      });
+    }
+  }
+
+  // Convert map to sorted array
+  return Array.from(buckets.values()).sort((a, b) => a.t - b.t);
+}
 
 const router = Router();
 
@@ -243,6 +290,10 @@ router.get('/stocks/:symbol/history', async (req, res) => {
     }
   }
 
+  // Resolutions that need to be generated from 1m data
+  const generatedResolutions = ['5m', '10m', '30m', '4h'];
+  const isGeneratedResolution = generatedResolutions.includes(resolution);
+
   try {
     // Check what data range we have in DB
     const dataRange = await databaseService.getDataRange(uppercaseSymbol);
@@ -253,6 +304,10 @@ router.get('/stocks/:symbol/history', async (req, res) => {
     if (range === '1d' && resolution === '1h') {
       // Smooth: 1h aggregates with latest real-time price (no jagged minute data)
       dbCandles = await databaseService.getSmooth1DCandles(uppercaseSymbol, from, to);
+    } else if (isGeneratedResolution) {
+      // For generated resolutions (5m, 10m, 30m, 4h), fetch 1m first
+      // We'll merge with Redis and aggregate in JS for fresh data
+      dbCandles = await databaseService.getCandles(uppercaseSymbol, from, to, '1m');
     } else {
       dbCandles = await databaseService.getCandles(uppercaseSymbol, from, to, resolution);
     }
@@ -314,29 +369,70 @@ router.get('/stocks/:symbol/history', async (req, res) => {
       console.log(`[API] Historical fetch disabled for ${uppercaseSymbol} (ENABLE_HISTORICAL_FETCH not set)`);
     }
 
-    // Check if we have recent data in Redis (for the "partial" flag)
-    const redisLatest = await redisService.getLatestTimestamp(uppercaseSymbol);
+    // Check if we have recent data in Redis and merge it with DB data
+    // This ensures charts show the most recent data (Redis is updated every 30s, DB every 5min)
     const dbLatest = dbCandles.length > 0 ? dbCandles[dbCandles.length - 1].time.getTime() : 0;
 
-    // Determine if data is partial (Redis has newer data not yet in DB)
-    const isPartial = redisLatest !== null && redisLatest > dbLatest;
+    // Fetch from Redis for the time range (if Redis has data newer than DB)
+    let redisCandles: RedisCandle[] = [];
+    if (redisService.getConnectionStatus()) {
+      try {
+        redisCandles = await redisService.getCandles(uppercaseSymbol, from.getTime(), to.getTime());
+      } catch (err) {
+        console.log(`[API] Redis fetch failed for ${uppercaseSymbol}:`, err);
+      }
+    }
 
-    // Convert to response format
-    const candles: CandleData[] = dbCandles.map((c) => ({
-      t: c.time.getTime(),
-      o: c.open,
-      h: c.high,
-      l: c.low,
-      c: c.close,
-      v: c.volume,
-    }));
+    // Merge DB and Redis data:
+    // - Use DB data for all candles up to dbLatest
+    // - Use Redis data for candles after dbLatest (newer data not yet flushed to DB)
+    const mergedCandles: CandleData[] = [];
+
+    // Add all DB candles first
+    for (const c of dbCandles) {
+      mergedCandles.push({
+        t: c.time.getTime(),
+        o: c.open,
+        h: c.high,
+        l: c.low,
+        c: c.close,
+        v: c.volume,
+      });
+    }
+
+    // Add Redis candles that are newer than the last DB candle
+    const lastDbTimestamp = dbLatest;
+    const newRedisCandles = redisCandles.filter((rc) => rc.time > lastDbTimestamp);
+
+    for (const rc of newRedisCandles) {
+      mergedCandles.push({
+        t: rc.time,
+        o: rc.open,
+        h: rc.high,
+        l: rc.low,
+        c: rc.close,
+        v: rc.volume,
+      });
+    }
+
+    // Sort by timestamp to ensure proper order
+    mergedCandles.sort((a, b) => a.t - b.t);
+
+    // If we need to aggregate to a higher resolution (5m, 10m, 30m, 4h), do it now
+    let finalCandles = mergedCandles;
+    if (isGeneratedResolution && mergedCandles.length > 0) {
+      finalCandles = aggregateCandles(mergedCandles, resolution);
+    }
+
+    // Determine if we have partial data (using fallback to Redis)
+    const isPartial = newRedisCandles.length > 0;
 
     const response: HistoryResponse = {
       symbol: uppercaseSymbol,
       resolution,
       from: from.toISOString(),
       to: to.toISOString(),
-      candles,
+      candles: finalCandles,
       cached: !fetchedFromApi, // True if came from DB, false if fetched from API
       partial: isPartial,
     };
@@ -346,8 +442,9 @@ router.get('/stocks/:symbol/history', async (req, res) => {
       data: response,
       meta: {
         dbRange: dataRange,
-        totalCandles: candles.length,
+        totalCandles: finalCandles.length,
         fetchedFromApi,
+        redisAugmented: isPartial, // Indicate that Redis data was merged
       },
       timestamp: Date.now(),
     });

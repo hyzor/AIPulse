@@ -78,10 +78,23 @@ class DatabaseService {
   async insertCandles1m(candles: StockCandle[]): Promise<number> {
     if (candles.length === 0) { return 0; }
 
+    // Deduplicate candles by (time, symbol) - keep last occurrence
+    // This prevents "ON CONFLICT DO UPDATE command cannot affect row a second time" errors
+    const uniqueCandles = new Map<string, StockCandle>();
+    for (const candle of candles) {
+      const key = `${candle.symbol}:${candle.time.getTime()}`;
+      uniqueCandles.set(key, candle); // Later candles overwrite earlier ones
+    }
+    const dedupedCandles = Array.from(uniqueCandles.values());
+
+    if (dedupedCandles.length !== candles.length) {
+      console.log(`[Database] Deduplicated ${candles.length - dedupedCandles.length} duplicate candles (${dedupedCandles.length} unique)`);
+    }
+
     const values: (string | number | Date)[] = [];
     const placeholders: string[] = [];
 
-    candles.forEach((candle, index) => {
+    dedupedCandles.forEach((candle, index) => {
       const offset = index * 8;
       placeholders.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8})`);
       values.push(

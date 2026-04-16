@@ -89,6 +89,10 @@ class RedisService {
       v: candle.volume,
     });
 
+    // Remove any existing entries with the same timestamp first (UPSERT behavior)
+    // This prevents duplicates when the same minute is flushed multiple times
+    await this.client.zRemRangeByScore(key, candle.time, candle.time);
+
     // Use the timestamp as the score for sorted set ordering
     await this.client.zAdd(key, { score: candle.time, value });
   }
@@ -98,6 +102,12 @@ class RedisService {
     if (!this.client) { throw new Error('Redis not connected'); }
 
     const key = `quotes:${symbol}`;
+
+    // Remove existing entries for timestamps we're about to add (prevent duplicates)
+    for (const candle of candles) {
+      await this.client.zRemRangeByScore(key, candle.time, candle.time);
+    }
+
     const members = candles.map((candle) => ({
       score: candle.time,
       value: JSON.stringify({

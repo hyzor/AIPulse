@@ -186,11 +186,13 @@ export function isMarketOpen(now: Date = new Date()): boolean {
   }
 
   // Check market hours (9:30 AM - 4:00 PM ET)
+  // Note: We include the closing minute (timeDecimal <= closeDecimal) to ensure
+  // we collect the final candle at exactly 4:00 PM ET (market close)
   const { timeDecimal } = getTimeInET(now);
   const openDecimal = MARKET_OPEN_HOUR + MARKET_OPEN_MINUTE / 60; // 9.5
   const closeDecimal = MARKET_CLOSE_HOUR + MARKET_CLOSE_MINUTE / 60; // 16.0
 
-  return timeDecimal >= openDecimal && timeDecimal < closeDecimal;
+  return timeDecimal >= openDecimal && timeDecimal <= closeDecimal;
 }
 
 /**

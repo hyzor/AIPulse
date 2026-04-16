@@ -195,6 +195,61 @@ export function isSameTradingDay(_exchange: string, timestamp: number): boolean 
 }
 
 /**
+ * Check if current time is before market opens today (pre-market hours)
+ * Used to distinguish between pre-market (before 9:30 AM ET) and post-market (after 4:00 PM ET)
+ *
+ * @param exchange - The exchange symbol
+ * @param now - Current date (defaults to now)
+ * @returns true if we're before market open today
+ */
+export function isBeforeMarketOpen(exchange: string, now: Date = new Date()): boolean {
+  const hours = EXCHANGE_HOURS[exchange];
+  if (!hours) { return false; }
+
+  // Get current time components in the exchange's timezone
+  const timeOptions: Intl.DateTimeFormatOptions = {
+    timeZone: hours.timezone,
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: true,
+  };
+
+  const timeFormatter = new Intl.DateTimeFormat('en-US', timeOptions);
+  const timeParts = timeFormatter.formatToParts(now);
+
+  const hourStr = timeParts.find((p) => p.type === 'hour')?.value || '0';
+  const minuteStr = timeParts.find((p) => p.type === 'minute')?.value || '0';
+  const dayPeriod = timeParts.find((p) => p.type === 'dayPeriod')?.value || 'AM';
+
+  let hour = parseInt(hourStr);
+  const minute = parseInt(minuteStr);
+
+  // Convert to 24-hour format
+  if (dayPeriod === 'PM' && hour !== 12) {
+    hour += 12;
+  } else if (dayPeriod === 'AM' && hour === 12) {
+    hour = 0;
+  }
+
+  const timeDecimal = hour + minute / 60;
+
+  // Check if it's a weekday
+  const dayFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: hours.timezone,
+    weekday: 'short',
+  });
+  const dayName = dayFormatter.format(now);
+  const dayMap: Record<string, number> = {
+    Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 0,
+  };
+  const dayOfWeek = dayMap[dayName];
+  const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+
+  // Before market open: before 9:30 AM ET on a weekday
+  return isWeekday && timeDecimal < hours.open;
+}
+
+/**
  * Get the start of the day in a specific timezone
  */
 export function getDayInTimezone(date: Date, timezone: string): Date {

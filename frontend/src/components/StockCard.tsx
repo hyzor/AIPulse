@@ -5,7 +5,7 @@ import { FlagIcon } from './FlagIcon';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { MiniAreaChart } from './MiniAreaChart';
 import { useTimeRange } from '../contexts/TimeRangeContext';
-import { formatCurrency, formatChange, getChangeColor, getChangeBgColor, getChangeLabel, checkMarketOpen, getExchangeForSymbol, isSameTradingDay } from '../utils/format';
+import { formatCurrency, formatChange, getChangeColor, getChangeBgColor, getChangeLabel, checkMarketOpen, getExchangeForSymbol, isSameTradingDay, isBeforeMarketOpen } from '../utils/format';
 
 import type { StockQuote } from '../types';
 
@@ -17,7 +17,7 @@ interface StockCardProps {
 
 export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps) {
   const displayName = STOCK_DISPLAY_NAMES[quote.symbol] || quote.symbol;
-  const { getSymbolData, timeRange } = useTimeRange();
+  const { getSymbolData } = useTimeRange();
 
   const historicalData = getSymbolData(quote.symbol);
   const isLoading = historicalData?.loading ?? true;
@@ -58,19 +58,47 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
     'Tech Giants': <Rocket className="w-3 h-3 text-orange-400" />,
   };
 
-  // Check if market is currently open AND the quote is from today
+  // Check market status and data freshness
   const exchange = getExchangeForSymbol(quote.symbol);
   const isMarketOpen = checkMarketOpen(exchange);
   const isFromToday = isSameTradingDay(exchange, quote.timestamp);
+  const beforeMarketOpen = isBeforeMarketOpen(exchange);
 
-  // "LIVE" (green with animation) - Market open, today, WebSocket realtime data
+  // Check if we have any historical data (from any day)
+  const hasHistoricalData = candles.length > 0;
+
+  // Check data completeness - compare last candle timestamp to expected market close
+  // Market closes at 4:00 PM ET = 16:00 = 16 * 60 = 960 minutes from midnight
+  const lastCandleTime = candles.length > 0 ? candles[candles.length - 1].t : 0;
+  const lastCandleDate = new Date(lastCandleTime);
+  const lastCandleHourET = parseInt(lastCandleDate.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }));
+  const hasCompleteData = lastCandleHourET >= 16; // 4:00 PM or later
+
+  // All 7 possible states for a symbol:
+
+  // 1. "NO DATA" (red) - No historical data at all
+  const showNoDataIndicator = !hasHistoricalData;
+
+  // 2. "PRE-MARKET" (blue) - Before 9:30 AM ET, have yesterday's data
+  const showPreMarketIndicator = !isMarketOpen && beforeMarketOpen && hasHistoricalData;
+
+  // 3. "DELAYED" (yellow) - Market open but collection hasn't started yet (first minutes of session)
+  const showDelayedIndicator = isMarketOpen && !isFromToday && hasHistoricalData;
+
+  // 4. "CACHED" (orange) - Market open, serving cached data (rate limit reached)
+  // This is already handled by quote.isCached
+
+  // 5. "LIVE" (green) - Market open, today's data, real-time WebSocket
   const showLiveIndicator = isMarketOpen && isFromToday && isRealtime;
-  // "LIVE" (small green) - Market open, today, 1D view with HTTP polling
-  const show1DLiveIndicator = isMarketOpen && isFromToday && timeRange === '1d' && !isRealtime;
-  // "CLOSED" (gray) - Market is closed AND we have today's data
-  const showClosedIndicator = !isMarketOpen && isFromToday;
-  // "NO DATA" (orange/red) - No data for current/most recent trading day
-  const showNoDataIndicator = !isFromToday;
+
+  // 6. "LIVE HTTP" (light green) - Market open, today's data, HTTP polling
+  const showLiveHttpIndicator = isMarketOpen && isFromToday && !isRealtime;
+
+  // 7. "CLOSED COMPLETE" (gray) - Market closed, have today's complete data through 4:00 PM
+  const showClosedCompleteIndicator = !isMarketOpen && isFromToday && hasCompleteData;
+
+  // 8. "CLOSED INCOMPLETE" (yellow/amber) - Market closed but data stopped before 4:00 PM
+  const showClosedIncompleteIndicator = !isMarketOpen && !beforeMarketOpen && !isFromToday && hasHistoricalData;
 
   return (
     <div
@@ -84,7 +112,45 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
     >
       {/* Top-right indicators - z-10 ensures they appear above the chart */}
       <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
-        {/* LIVE indicator - only when market is actually open and trading */}
+        {/* 1. NO DATA (red) - No historical data at all */}
+        {showNoDataIndicator && (
+          <div className="flex items-center gap-1.5" title="No trading data available. Start the server during market hours (9:30 AM - 4:00 PM ET) to collect data.">
+            <span className="relative flex h-2 w-2">
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+            </span>
+            <span className="text-xs font-semibold text-red-500">NO DATA</span>
+          </div>
+        )}
+
+        {/* 2. PRE-MARKET (blue) - Before 9:30 AM ET, have yesterday's data */}
+        {showPreMarketIndicator && (
+          <div className="flex items-center gap-1.5" title="Pre-market - showing yesterday's closing data. Market opens at 9:30 AM ET.">
+            <span className="relative flex h-2 w-2">
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-400"></span>
+            </span>
+            <span className="text-xs font-semibold text-blue-400">PRE-MARKET</span>
+          </div>
+        )}
+
+        {/* 3. DELAYED (amber) - Market open but collection hasn't started yet */}
+        {showDelayedIndicator && (
+          <div className="flex items-center gap-1.5" title="Market is open - data collection starting soon.">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-pulse relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
+            </span>
+            <span className="text-xs font-semibold text-amber-400">DELAYED</span>
+          </div>
+        )}
+
+        {/* 4. CACHED (yellow) - Rate limit reached, serving cached data */}
+        {quote.isCached && (
+          <div className="flex items-center gap-1.5" title="Rate limit reached - serving cached data">
+            <Database className="w-3 h-3 text-yellow-500" />
+            <span className="text-xs font-semibold text-yellow-500">CACHED</span>
+          </div>
+        )}
+
+        {/* 5. LIVE WebSocket (green with pulse) - Real-time data via WebSocket */}
         {showLiveIndicator && (
           <div className="flex items-center gap-1.5">
             <span className="relative flex h-2.5 w-2.5">
@@ -95,40 +161,31 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
           </div>
         )}
 
-        {/* LIVE indicator for 1D view - only show when market is open */}
-        {show1DLiveIndicator && (
+        {/* 6. LIVE HTTP (light green) - Market open with HTTP polling data */}
+        {showLiveHttpIndicator && (
           <div className="flex items-center gap-1.5">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400"></span>
             </span>
-            <span className="text-xs font-semibold text-green-500">LIVE</span>
+            <span className="text-xs font-semibold text-green-400">LIVE</span>
           </div>
         )}
 
-        {/* Rate limit - cached data indicator */}
-        {quote.isCached && (
-          <div className="flex items-center gap-1.5" title="Rate limit reached - serving cached data">
-            <Database className="w-3 h-3 text-yellow-500" />
-            <span className="text-xs font-semibold text-yellow-500">CACHED</span>
-          </div>
-        )}
-
-        {/* Market closed indicator - shows when market is closed AND we have today's data */}
-        {showClosedIndicator && (
-          <div className="flex items-center gap-1.5" title="Market closed - showing latest available data from today's session">
+        {/* 7. CLOSED COMPLETE (gray) - Market closed, have complete today's data */}
+        {showClosedCompleteIndicator && (
+          <div className="flex items-center gap-1.5" title="Market closed - showing complete data from today's session">
             <Database className="w-3 h-3 text-gray-400" />
             <span className="text-xs font-semibold text-gray-400">CLOSED</span>
           </div>
         )}
 
-        {/* No data indicator - shows when there's no data for today/most recent trading day */}
-        {showNoDataIndicator && (
-          <div className="flex items-center gap-1.5" title="No trading data available for this symbol. Start the server during market hours (9:30 AM - 4:00 PM ET) to collect data.">
+        {/* 8. CLOSED INCOMPLETE (orange) - Market closed but data stopped early */}
+        {showClosedIncompleteIndicator && (
+          <div className="flex items-center gap-1.5" title="Market closed - incomplete data (collection stopped before 4:00 PM ET)">
             <span className="relative flex h-2 w-2">
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-400"></span>
             </span>
-            <span className="text-xs font-semibold text-orange-500">NO DATA</span>
+            <span className="text-xs font-semibold text-orange-400">INCOMPLETE</span>
           </div>
         )}
       </div>

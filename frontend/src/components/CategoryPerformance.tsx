@@ -213,14 +213,13 @@ export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
         // Use current stock data for today
         const quote = stocks.get(symbol);
         if (quote) {
-          change = quote.change;
-          currentPrice = quote.currentPrice;
+          ({ change, currentPrice } = quote);
         }
       } else {
         // Use historical data for 7d/30d
         const histChange = historicalChanges.get(symbol);
         if (histChange) {
-          change = histChange.change;
+          ({ change } = histChange);
           // Derive approximate current price from change and changePercent for historical data
           currentPrice = histChange.changePercent !== 0
             ? Math.abs(histChange.change / (histChange.changePercent / 100))

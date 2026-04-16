@@ -55,8 +55,7 @@ export default [
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
-        project: ['./backend/tsconfig.json', './frontend/tsconfig.json'],
-        tsconfigRootDir: __dirname,
+        projectService: true,
         ecmaVersion: 2024,
         sourceType: 'module',
         ecmaFeatures: {
@@ -171,7 +170,6 @@ export default [
       'import/resolver': {
         typescript: {
           alwaysTryTypes: true,
-          project: ['./backend/tsconfig.json', './frontend/tsconfig.json'],
         },
       },
     },

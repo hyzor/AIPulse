@@ -208,14 +208,14 @@ router.get('/stocks/:symbol/history', async (req, res) => {
       if (isMarketOpen(now)) {
         // Market is open - show from today's market open to now
         const bounds = getTradingDayBounds(now);
-        from = bounds.from;
+        ({ from } = bounds);
       } else {
         // Market is closed - show the most recent completed trading day
         const bounds = getPreviousTradingDayBounds(now);
-        from = bounds.from;
+        ({ from } = bounds);
         // When market is closed, also adjust 'to' to market close time
         const prevBounds = getPreviousTradingDayBounds(now);
-        to = prevBounds.to;
+        ({ to } = prevBounds);
       }
       break;
     }

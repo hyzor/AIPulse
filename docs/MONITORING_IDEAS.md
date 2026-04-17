@@ -78,7 +78,7 @@ Features to improve usability and understanding.
 | **First-Run Guide** | Highlight what each section shows | New user orientation |
 | **Data Quality Score** | Overall data completeness % | Quick health check |
 | **Time Zone Awareness** | All times shown in user's local + ET | Clarity on timing |
-| **Market Status Widget** | Big visual: OPEN / CLOSED / PRE / AFTER | Instant market state |
+| ~~**Market Status Widget**~~ | ~~Big visual: OPEN / CLOSED / PRE / AFTER~~ | ~~Covered by StatusBar~~ |
 | **Keyboard Shortcuts** | Quick navigation (1/7/30 for time ranges) | Power user efficiency |
 
 ## Implementation Priority
@@ -91,7 +91,7 @@ Features to improve usability and understanding.
 ### Phase 2: Market Context (High Value)
 - Market Holiday Countdown
 - Pre/After Hours indicator
-- Market Status Widget
+- ~~Market Status Widget~~ (covered by existing StatusBar)
 
 ### Phase 3: Smart Alerts (Engagement)
 - Unusual Volume detection

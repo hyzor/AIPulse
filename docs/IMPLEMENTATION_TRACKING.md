@@ -74,7 +74,7 @@ This document tracks the implementation status of features and enhancements for 
 | Market open detection | ✅ | 2026-04 | ET timezone aware |
 | DST handling | ✅ | 2026-04-15 | UTC-4/UTC-5 auto-detection |
 | Next open calculation | ✅ | 2026-04-15 | Shows when market reopens |
-| StatusBar display | ✅ | 2026-04 | Shows market status |
+| StatusBar market status | ✅ | 2026-04 | Shows Market Open/Closed with pulse, next open time, hours in ET + local |
 | Holiday handling | ✅ | 2026-04 | Market holidays in backend |
 
 ---
@@ -121,9 +121,9 @@ This document tracks the implementation status of features and enhancements for 
 | Feature | Status | Priority | Effort |
 |---------|--------|----------|--------|
 | Data freshness indicator | ✅ | 2026-04-16 | Shows "Updated 2m ago" per symbol |
-| Stale data warning | 📋 | High | Low |
+| Stale data warning | ✅ | 2026-04-16 | Color-coded freshness indicator (green/yellow/red) |
 | Per-symbol status dots | ✅ | 2026-04-17 | Refactored to SymbolStatus component - user tested |
-| Last update timestamp | 📋 | High | Low |
+| Last update timestamp | ✅ | 2026-04-16 | Exact time shown in tooltip on hover |
 | Collection gap detection | 📋 | Medium | Medium |
 
 ### Phase 2: Market Context (Priority: High)
@@ -132,7 +132,7 @@ This document tracks the implementation status of features and enhancements for 
 |---------|--------|----------|--------|
 | Extended hours indicator | 📋 | High | Medium |
 | Market holiday countdown | 📋 | High | Low |
-| Market Status Widget (big visual) | 📋 | High | Low |
+| Market Status Widget (big visual) | ❌ | - | - | Already implemented via StatusBar component |
 | Earnings calendar | 📋 | Medium | High |
 | Sector heatmap | 📋 | Medium | High |
 
@@ -196,9 +196,9 @@ This document tracks the implementation status of features and enhancements for 
 ## Metrics
 
 - **Total Features**: 45+ tracked
-- **Complete**: 37 (82%)
+- **Complete**: 39 (87%)
 - **In Progress**: 1 (2%)
-- **Planned**: 6 (13%)
+- **Planned**: 4 (9%)
 - **Ideas**: ~20 in MONITORING_IDEAS.md
 
 ---
@@ -207,14 +207,16 @@ This document tracks the implementation status of features and enhancements for 
 
 1. ✅ **SymbolStatus component** - Reusable status indicator with 8 states (NO DATA, PRE-MARKET, DELAYED, CACHED, LIVE, CLOSED, INCOMPLETE)
 2. ✅ Refactored StockCard.tsx to use SymbolStatus component - cleaner code
-3. ✅ Time range resolution (5m/10m/30m/4h/1h/1d)
-4. ✅ Progress checkpoint naming (Data → Today → 2 Days → 7 Days → 30 Days)
-5. ✅ Trading days calculation (1h-based, symbol-resistant)
-6. ✅ NO DATA indicator for missing trading day
-7. ✅ Data stat labels (1-Minute Points, Hourly Candles, Daily Candles)
-8. ✅ DST-aware market open calculation
-9. ✅ Warning positioning and messaging
-10. ✅ Data freshness indicator - "Updated 2m ago" per symbol with color coding
+3. ✅ Stale data warning - Color-coded freshness indicator (green/yellow/red)
+4. ✅ Last update timestamp - Exact time shown in tooltip on hover
+5. ✅ Time range resolution (5m/10m/30m/4h/1h/1d)
+6. ✅ Progress checkpoint naming (Data → Today → 2 Days → 7 Days → 30 Days)
+7. ✅ Trading days calculation (1h-based, symbol-resistant)
+8. ✅ NO DATA indicator for missing trading day
+9. ✅ Data stat labels (1-Minute Points, Hourly Candles, Daily Candles)
+10. ✅ DST-aware market open calculation
+11. ✅ Warning positioning and messaging
+12. ✅ Data freshness indicator - "Updated 2m ago" per symbol with color coding
 
 ---
 

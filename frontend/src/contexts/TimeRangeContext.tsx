@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 
 import { stockService } from '../services/stockService';
+import { TRACKED_STOCKS } from '../types';
 import { checkMarketOpen } from '../utils/format';
 
 import type { TimeRange, HistoricalDataCache, SymbolHistoryState } from '../types';
@@ -58,11 +59,13 @@ export function TimeRangeProvider({ children, historicalUpdates }: TimeRangeProv
           symbols1h: string[];
         };
 
-        // Calculate trading days from 1h candles (more stable than 1m)
-        // Using 1h aggregates is more accurate because:
-        // 1. New symbols without 1h data don't skew the calculation
-        // 2. 1h data represents "chart-ready" hours
-        const symbolsWith1h = stats.symbols1h?.length || 0;
+        // Filter to only tracked symbols (consistent with DataCollectionStatus)
+        const trackedSymbolsSet = new Set(TRACKED_STOCKS);
+        const symbolsWith1h = stats.symbols1h?.filter((s) =>
+          trackedSymbolsSet.has(s as typeof TRACKED_STOCKS[number]),
+        ).length || 0;
+
+        // Calculate trading days from 1h candles (consistent with DataCollectionStatus)
         const tradingDays = (stats.total1hCandles > 0 && symbolsWith1h > 0)
           ? Math.floor((stats.total1hCandles / symbolsWith1h) / 6.5)
           : 0;

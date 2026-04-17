@@ -12,6 +12,7 @@ When working on this codebase:
 3. **Cache aggressively** - Check cache before external API calls
 4. **Maintain type safety** - Use strict TypeScript, no `any` types
 5. **Follow existing patterns** - Look at how similar features are implemented
+6. **Always ask before marking complete** - User must test and confirm features work before updating tracking docs
 
 ---
 
@@ -392,6 +393,13 @@ Before implementing:
 - [ ] Does it need real-time updates? → WebSocket integration needed
 - [ ] Does it store data? → Cache strategy defined
 - [ ] Are there similar features? → Copy existing patterns
+
+**CRITICAL: Completion Process**
+- [ ] Deploy/test changes (if applicable)
+- [ ] **ASK USER**: "Would you like to test this feature before I mark it complete?"
+- [ ] Wait for user confirmation that feature works as expected
+- [ ] Only then update `IMPLEMENTATION_TRACKING.md` to ✅
+- [ ] Never mark features complete without explicit user confirmation
 
 ### Example: Adding Historical Data
 

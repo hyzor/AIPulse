@@ -122,7 +122,7 @@ This document tracks the implementation status of features and enhancements for 
 |---------|--------|----------|--------|
 | Data freshness indicator | ✅ | 2026-04-16 | Shows "Updated 2m ago" per symbol |
 | Stale data warning | 📋 | High | Low |
-| Per-symbol status dots | 🚧 | High | Medium |
+| Per-symbol status dots | ✅ | 2026-04-17 | Refactored to SymbolStatus component - user tested |
 | Last update timestamp | 📋 | High | Low |
 | Collection gap detection | 📋 | Medium | Medium |
 
@@ -196,8 +196,8 @@ This document tracks the implementation status of features and enhancements for 
 ## Metrics
 
 - **Total Features**: 45+ tracked
-- **Complete**: 36 (80%)
-- **In Progress**: 2 (4%)
+- **Complete**: 37 (82%)
+- **In Progress**: 1 (2%)
 - **Planned**: 6 (13%)
 - **Ideas**: ~20 in MONITORING_IDEAS.md
 
@@ -205,16 +205,18 @@ This document tracks the implementation status of features and enhancements for 
 
 ## Recent Completed (Last 7 Days)
 
-1. ✅ Time range resolution (5m/10m/30m/4h/1h/1d)
-2. ✅ Progress checkpoint naming (Data → Today → 2 Days → 7 Days → 30 Days)
-3. ✅ Trading days calculation (1h-based, symbol-resistant)
-4. ✅ NO DATA indicator for missing trading day
-5. ✅ Data stat labels (1-Minute Points, Hourly Candles, Daily Candles)
-6. ✅ DST-aware market open calculation
-7. ✅ Warning positioning and messaging
-8. ✅ Data freshness indicator - "Updated 2m ago" per symbol with color coding
+1. ✅ **SymbolStatus component** - Reusable status indicator with 8 states (NO DATA, PRE-MARKET, DELAYED, CACHED, LIVE, CLOSED, INCOMPLETE)
+2. ✅ Refactored StockCard.tsx to use SymbolStatus component - cleaner code
+3. ✅ Time range resolution (5m/10m/30m/4h/1h/1d)
+4. ✅ Progress checkpoint naming (Data → Today → 2 Days → 7 Days → 30 Days)
+5. ✅ Trading days calculation (1h-based, symbol-resistant)
+6. ✅ NO DATA indicator for missing trading day
+7. ✅ Data stat labels (1-Minute Points, Hourly Candles, Daily Candles)
+8. ✅ DST-aware market open calculation
+9. ✅ Warning positioning and messaging
+10. ✅ Data freshness indicator - "Updated 2m ago" per symbol with color coding
 
 ---
 
-*Last Updated: April 16, 2026*
+*Last Updated: April 17, 2026*
 *Next Review: Weekly or after major feature completion*

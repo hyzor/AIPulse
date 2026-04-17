@@ -54,15 +54,18 @@ export function TimeRangeProvider({ children, historicalUpdates }: TimeRangeProv
       const health = await stockService.checkHealth();
       if (health && 'dataStats' in health) {
         const stats = health.dataStats as {
-          total1mCandles: number;
-          symbols: string[];
+          total1hCandles: number;
+          symbols1h: string[];
         };
 
-        // Calculate trading days from 1m candles (same logic as DataCollectionStatus)
-        const symbolsWith1m = stats.symbols?.length || 0;
-        const avgCandlesPerSymbol = symbolsWith1m > 0 ? stats.total1mCandles / symbolsWith1m : 0;
-        const estimatedHours = symbolsWith1m > 0 ? Math.floor(avgCandlesPerSymbol / 60) : 0;
-        const tradingDays = Math.floor(estimatedHours / 6.5);
+        // Calculate trading days from 1h candles (more stable than 1m)
+        // Using 1h aggregates is more accurate because:
+        // 1. New symbols without 1h data don't skew the calculation
+        // 2. 1h data represents "chart-ready" hours
+        const symbolsWith1h = stats.symbols1h?.length || 0;
+        const tradingDays = (stats.total1hCandles > 0 && symbolsWith1h > 0)
+          ? Math.floor((stats.total1hCandles / symbolsWith1h) / 6.5)
+          : 0;
 
         setDataAvailability((prev) => ({
           ...prev,

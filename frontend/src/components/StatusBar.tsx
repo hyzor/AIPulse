@@ -1,7 +1,9 @@
-import { AlertCircle, CheckCircle2, Clock, Gauge, Wifi, WifiOff } from 'lucide-react';
-import { useMemo } from 'react';
+import { AlertCircle, Calendar, CheckCircle2, Clock, Gauge, Wifi, WifiOff } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
-import type { RateLimitStatus } from '../types';
+import { stockService } from '../services/stockService';
+
+import type { NextTradingDayInfo, RateLimitStatus } from '../types';
 
 interface StatusBarProps {
   isConnected: boolean;
@@ -209,6 +211,26 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
 
   const marketStatus = useMemo(() => getMarketStatus(), []);
 
+  // Fetch next trading day info for holiday countdown
+  const [nextTradingDay, setNextTradingDay] = useState<NextTradingDayInfo | null>(null);
+
+  useEffect(() => {
+    const fetchNextTradingDay = async () => {
+      try {
+        const data = await stockService.getNextTradingDay();
+        setNextTradingDay(data);
+      } catch (err) {
+        // Silently fail - this is non-critical info
+        console.log('Failed to fetch next trading day:', err);
+      }
+    };
+
+    fetchNextTradingDay();
+    // Refresh every 5 minutes
+    const interval = setInterval(fetchNextTradingDay, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="bg-dark-900 border-b border-dark-600">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
@@ -245,6 +267,29 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
                       hour12: false,
                     })}
                   </span>
+                  {/* Holiday/Weekend countdown */}
+                  {nextTradingDay && nextTradingDay.daysUntil > 0 && (
+                    <span
+                      className={`text-sm flex items-center gap-1 ${
+                        nextTradingDay.reason === 'holiday'
+                          ? 'text-yellow-400'
+                          : nextTradingDay.reason === 'weekend'
+                            ? 'text-neon-blue'
+                            : 'text-gray-500'
+                      }`}
+                      title={
+                        nextTradingDay.reason === 'holiday'
+                          ? 'Market closed for holiday'
+                          : nextTradingDay.reason === 'weekend'
+                            ? 'Weekend - Markets closed'
+                            : 'Markets will reopen on next trading day'
+                      }
+                    >
+                      <Calendar className="w-3 h-3" />
+                      Next trading: {nextTradingDay.dayOfWeek}
+                      {nextTradingDay.daysUntil > 1 && ` (${nextTradingDay.daysUntil} days)`}
+                    </span>
+                  )}
                 </div>
               )}
           </div>

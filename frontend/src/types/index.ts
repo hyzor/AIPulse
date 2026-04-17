@@ -129,6 +129,19 @@ export interface RateLimitStatus {
   tier: string;
 }
 
+/**
+ * Information about the next trading day (market holiday countdown)
+ */
+export interface NextTradingDayInfo {
+  date: string; // YYYY-MM-DD format in ET
+  dayOfWeek: string; // e.g., "Monday", "Tuesday"
+  daysUntil: number; // Number of days until next trading day (0 = today, 1 = tomorrow, etc.)
+  isToday: boolean;
+  marketOpenTime: string; // e.g., "09:30 ET"
+  reason?: 'weekend' | 'holiday' | 'closed' | null; // Why market is currently closed
+  holidayName?: string; // Name of the holiday if applicable
+}
+
 // Historical candle data (OHLCV)
 export interface CandleData {
   t: number; // Unix timestamp in milliseconds

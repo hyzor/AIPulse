@@ -397,3 +397,110 @@ export function getMarketStatus(now: Date = new Date()): MarketStatus {
     message,
   };
 }
+
+/**
+ * Information about the next trading day
+ */
+export interface NextTradingDayInfo {
+  date: string; // YYYY-MM-DD format in ET
+  dayOfWeek: string; // e.g., "Monday", "Tuesday"
+  daysUntil: number; // Number of days until next trading day (0 = today, 1 = tomorrow, etc.)
+  isToday: boolean;
+  marketOpenTime: string; // e.g., "09:30 ET"
+  reason?: 'weekend' | 'holiday' | 'closed' | null; // Why market is currently closed
+  holidayName?: string; // Name of the holiday if applicable
+}
+
+/**
+ * Get information about the next trading day
+ * This is useful for showing users when the market will reopen
+ *
+ * @param now Optional date to check (defaults to current time)
+ * @returns NextTradingDayInfo with details about when markets will next be open
+ */
+export function getNextTradingDay(now: Date = new Date()): NextTradingDayInfo {
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  // Check current market status
+  const currentStatus = getMarketStatus(now);
+  const { timeDecimal } = getTimeInET(now);
+  const openDecimal = MARKET_OPEN_HOUR + MARKET_OPEN_MINUTE / 60;
+
+  // If market is currently open, next trading day is today
+  if (currentStatus.isOpen) {
+    const dateStr = formatDateInET(now);
+    const dayOfWeek = getDayOfWeekInET(now);
+    return {
+      date: dateStr,
+      dayOfWeek: dayNames[dayOfWeek],
+      daysUntil: 0,
+      isToday: true,
+      marketOpenTime: `${String(MARKET_OPEN_HOUR).padStart(2, '0')}:${String(MARKET_OPEN_MINUTE).padStart(2, '0')} ET`,
+      reason: null,
+    };
+  }
+
+  // If market hasn't opened yet today (and today is a trading day), next open is today
+  if (currentStatus.isTradingDay && timeDecimal < openDecimal) {
+    const dateStr = formatDateInET(now);
+    const dayOfWeek = getDayOfWeekInET(now);
+    return {
+      date: dateStr,
+      dayOfWeek: dayNames[dayOfWeek],
+      daysUntil: 0,
+      isToday: true,
+      marketOpenTime: `${String(MARKET_OPEN_HOUR).padStart(2, '0')}:${String(MARKET_OPEN_MINUTE).padStart(2, '0')} ET`,
+      reason: 'closed',
+    };
+  }
+
+  // Find the next trading day by checking future dates
+  let daysToCheck = 1;
+  const maxDaysToCheck = 10; // Safety limit
+
+  while (daysToCheck <= maxDaysToCheck) {
+    const checkDate = new Date(now.getTime() + daysToCheck * 24 * 60 * 60 * 1000);
+    const checkDayOfWeek = getDayOfWeekInET(checkDate);
+    const checkDateStr = formatDateInET(checkDate);
+
+    // Skip weekends (0 = Sunday, 6 = Saturday)
+    if (checkDayOfWeek === 0 || checkDayOfWeek === 6) {
+      daysToCheck++;
+      continue;
+    }
+
+    // Skip holidays
+    if (MARKET_HOLIDAYS.has(checkDateStr)) {
+      daysToCheck++;
+      continue;
+    }
+
+    // Found the next trading day
+    const reason: 'weekend' | 'holiday' | 'closed' = currentStatus.isWeekend
+      ? 'weekend'
+      : currentStatus.isHoliday
+        ? 'holiday'
+        : 'closed';
+
+    return {
+      date: checkDateStr,
+      dayOfWeek: dayNames[checkDayOfWeek],
+      daysUntil: daysToCheck,
+      isToday: false,
+      marketOpenTime: `${String(MARKET_OPEN_HOUR).padStart(2, '0')}:${String(MARKET_OPEN_MINUTE).padStart(2, '0')} ET`,
+      reason,
+    };
+  }
+
+  // Fallback - should never happen with valid holiday data
+  const fallbackDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const fallbackDayOfWeek = getDayOfWeekInET(fallbackDate);
+  return {
+    date: formatDateInET(fallbackDate),
+    dayOfWeek: dayNames[fallbackDayOfWeek],
+    daysUntil: 1,
+    isToday: false,
+    marketOpenTime: `${String(MARKET_OPEN_HOUR).padStart(2, '0')}:${String(MARKET_OPEN_MINUTE).padStart(2, '0')} ET`,
+    reason: 'closed',
+  };
+}

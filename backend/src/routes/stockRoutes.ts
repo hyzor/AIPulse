@@ -7,7 +7,7 @@ import { candleBufferService } from '../services/candleBufferService';
 import { databaseService } from '../services/databaseService';
 import { finnhubService } from '../services/finnhubService';
 import { redisService, type RedisCandle } from '../services/redisService';
-import { isMarketOpen, getMarketStatus, getTradingDayBounds, getPreviousTradingDayBounds } from '../utils/marketHours';
+import { isMarketOpen, getMarketStatus, getTradingDayBounds, getPreviousTradingDayBounds, getNextTradingDay } from '../utils/marketHours';
 
 import type { HistoryResponse, CandleData, FlushResult } from '../types';
 
@@ -242,8 +242,22 @@ router.get('/stocks/:symbol/history', async (req, res) => {
   }
 
   // Use client's timestamp if provided (for timezone-aware ranges), otherwise use server time
+  // Protect against clients with wrong system time or malicious future dates
+  const MAX_TIME_DRIFT_MS = 24 * 60 * 60 * 1000; // 1 day tolerance
   const clientNow = req.query.now ? new Date(parseInt(req.query.now as string, 10)) : null;
-  const now = clientNow || new Date();
+
+  let now: Date;
+  if (clientNow) {
+    const drift = Math.abs(clientNow.getTime() - Date.now());
+    if (drift > MAX_TIME_DRIFT_MS) {
+      console.warn(`[API] Rejecting suspicious client time (drift: ${Math.round(drift / 1000 / 60)}min), using server time`);
+      now = new Date();
+    } else {
+      now = clientNow;
+    }
+  } else {
+    now = new Date();
+  }
   let from: Date;
   let to: Date = now;
 
@@ -315,6 +329,8 @@ router.get('/stocks/:symbol/history', async (req, res) => {
     // If no data in DB and Finnhub is configured, fetch from API
     // BUT: Only fetch if rate limit allows (save calls for real-time data)
     // NOTE: Historical fetching requires paid Finnhub tier (free tier = 403 Forbidden)
+    // This is DISABLED by default - only enabled for users with paid Finnhub tier
+    // who want to backfill historical data instead of waiting for collector
     let fetchedFromApi = false;
     const rateLimitStatus = finnhubService.getRateLimitStatus();
     const enableHistoricalFetch = process.env.ENABLE_HISTORICAL_FETCH === 'true';
@@ -330,12 +346,14 @@ router.get('/stocks/:symbol/history', async (req, res) => {
         const finnhubResolution: '60' | 'D' = resolution === '1d' ? 'D' : '60';
 
         try {
-          // Fetch from Finnhub
+          // Fetch from Finnhub - ALWAYS use server time for API calls
+          // Client time is only used for database queries, never external API
+          const serverNow = new Date();
           const apiCandles = await finnhubService.getHistoricalCandles(
             uppercaseSymbol,
             finnhubResolution,
             from.getTime() / 1000,
-            now.getTime() / 1000,
+            serverNow.getTime() / 1000,
           );
 
           if (apiCandles && apiCandles.length > 0) {
@@ -494,6 +512,17 @@ router.get('/admin/buffer-stats', (_req, res) => {
   res.json({
     success: true,
     data: stats,
+    timestamp: Date.now(),
+  });
+});
+
+// Get next trading day information
+router.get('/market/next-trading-day', (_req, res) => {
+  const nextTradingDay = getNextTradingDay();
+
+  res.json({
+    success: true,
+    data: nextTradingDay,
     timestamp: Date.now(),
   });
 });

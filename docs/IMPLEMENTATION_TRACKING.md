@@ -131,7 +131,7 @@ This document tracks the implementation status of features and enhancements for 
 | Feature | Status | Priority | Effort |
 |---------|--------|----------|--------|
 | Extended hours indicator | ❌ | - | - | Not feasible on Finnhub free tier - lacks extended hours price data |
-| Market holiday countdown | 📋 | High | Low |
+| Market holiday countdown | ✅ | 2026-04-17 | Low | Shows next trading day countdown in StatusBar when market is closed (weekends/holidays) |
 | Market Status Widget (big visual) | ❌ | - | - | Already implemented via StatusBar component |
 | Earnings calendar | 📋 | Medium | High |
 | Sector heatmap | 📋 | Medium | High |
@@ -196,29 +196,30 @@ This document tracks the implementation status of features and enhancements for 
 ## Metrics
 
 - **Total Features**: 45+ tracked
-- **Complete**: 39 (87%)
+- **Complete**: 40 (89%)
 - **In Progress**: 1 (2%)
-- **Planned**: 4 (9%)
+- **Planned**: 3 (7%)
 - **Ideas**: ~20 in MONITORING_IDEAS.md
 
 ---
 
 ## Recent Completed (Last 7 Days)
 
-1. ✅ **SymbolStatus component** - Reusable status indicator with 8 states (NO DATA, PRE-OPEN, DELAYED, CACHED, LIVE, CLOSED, INCOMPLETE)
-2. ✅ Refactored StockCard.tsx to use SymbolStatus component - cleaner code
-3. ✅ Stale data warning - Color-coded freshness indicator (green/yellow/red)
-4. ✅ Last update timestamp - Exact time shown in tooltip on hover
-5. ✅ Time range resolution (5m/10m/30m/4h/1h/1d)
-6. ✅ Progress checkpoint naming (Data → Today → 2 Days → 7 Days → 30 Days)
-7. ✅ Trading days calculation (1h-based, symbol-resistant)
-8. ✅ NO DATA indicator for missing trading day
-9. ✅ Data stat labels (1-Minute Points, Hourly Candles, Daily Candles)
-10. ✅ DST-aware market open calculation
-11. ✅ Warning positioning and messaging
-12. ✅ Data freshness indicator - "Updated 2m ago" per symbol with color coding
+1. ✅ **Market holiday countdown** - Shows "Next trading: Monday (3 days)" with calendar icon in StatusBar when market is closed for weekends/holidays
+2. ✅ **SymbolStatus component** - Reusable status indicator with 8 states (NO DATA, PRE-OPEN, DELAYED, CACHED, LIVE, CLOSED, INCOMPLETE)
+3. ✅ Refactored StockCard.tsx to use SymbolStatus component - cleaner code
+4. ✅ Stale data warning - Color-coded freshness indicator (green/yellow/red)
+5. ✅ Last update timestamp - Exact time shown in tooltip on hover
+6. ✅ Time range resolution (5m/10m/30m/4h/1h/1d)
+7. ✅ Progress checkpoint naming (Data → Today → 2 Days → 7 Days → 30 Days)
+8. ✅ Trading days calculation (1h-based, symbol-resistant)
+9. ✅ NO DATA indicator for missing trading day
+10. ✅ Data stat labels (1-Minute Points, Hourly Candles, Daily Candles)
+11. ✅ DST-aware market open calculation
+12. ✅ Warning positioning and messaging
+13. ✅ Data freshness indicator - "Updated 2m ago" per symbol with color coding
 
 ---
 
-*Last Updated: April 17, 2026*
+*Last Updated: April 17, 2026 (Market holiday countdown completed)*
 *Next Review: Weekly or after major feature completion*

@@ -205,7 +205,7 @@ This document tracks the implementation status of features and enhancements for 
 
 ## Recent Completed (Last 7 Days)
 
-1. ✅ **SymbolStatus component** - Reusable status indicator with 8 states (NO DATA, PRE-MARKET, DELAYED, CACHED, LIVE, CLOSED, INCOMPLETE)
+1. ✅ **SymbolStatus component** - Reusable status indicator with 8 states (NO DATA, PRE-OPEN, DELAYED, CACHED, LIVE, CLOSED, INCOMPLETE)
 2. ✅ Refactored StockCard.tsx to use SymbolStatus component - cleaner code
 3. ✅ Stale data warning - Color-coded freshness indicator (green/yellow/red)
 4. ✅ Last update timestamp - Exact time shown in tooltip on hover

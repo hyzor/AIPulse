@@ -13,7 +13,7 @@ export type { CandleData };
 
 export type SymbolStatus =
   | 'no-data'
-  | 'pre-market'
+  | 'pre-open'
   | 'delayed'
   | 'cached'
   | 'live-ws'
@@ -45,11 +45,11 @@ const statusConfigs: Record<SymbolStatus, StatusConfig> = {
     label: 'NO DATA',
     title: 'No trading data available. Start the server during market hours (9:30 AM - 4:00 PM ET) to collect data.',
   },
-  'pre-market': {
+  'pre-open': {
     color: 'text-blue-400',
     bgColor: 'bg-blue-400',
-    label: 'PRE-MARKET',
-    title: 'Pre-market - showing yesterday\'s closing data. Market opens at 9:30 AM ET.',
+    label: 'PRE-OPEN',
+    title: 'Before market open - showing yesterday\'s closing data. Market opens at 9:30 AM ET.',
   },
   'delayed': {
     color: 'text-amber-400',
@@ -149,9 +149,11 @@ export function calculateSymbolStatus(
     return 'live-http';
   }
 
-  // 4. Market is closed (pre-market or after-hours)
+  // 4. Market is closed (before open or after-hours)
+  // Note: We don't have actual pre-market trading data on free tier,
+  // so we show "PRE-OPEN" not "PRE-MARKET" to be accurate
   if (beforeMarketOpen) {
-    return 'pre-market';
+    return 'pre-open';
   }
 
   // After-hours: check if data is complete
@@ -168,7 +170,7 @@ export function calculateSymbolStatus(
  *
  * Shows a colored dot (and optional label) representing the current state:
  * - NO DATA (red): No historical data available
- * - PRE-MARKET (blue): Before 9:30 AM ET, showing yesterday's data
+ * - PRE-OPEN (blue): Before 9:30 AM ET, showing yesterday's data (no pre-market data on free tier)
  * - DELAYED (amber): Market open but collection starting
  * - CACHED (yellow): Rate limit hit, serving cached data
  * - LIVE (green): Real-time updates (WebSocket or HTTP)

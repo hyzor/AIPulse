@@ -21,7 +21,7 @@ Provide context about market state and upcoming events.
 
 | Monitor | Description | User Value |
 |---------|-------------|------------|
-| **Pre/After Hours** | Extended hours trading indicator | Context for price moves outside 9:30-4:00 |
+| ~~**Pre/After Hours**~~ | ~~Extended hours trading indicator~~ | ~~Not feasible on Finnhub free tier~~ |
 | **Market Holiday Countdown** | "Next trading day: Monday" | Plan ahead for data gaps |
 | **Earnings Calendar** | Upcoming earnings for tracked stocks | Avoid surprises from earnings moves |
 | **Sector Heatmap** | Visual which AI sector is leading | Quick trend overview (chips vs software) |
@@ -90,7 +90,7 @@ Features to improve usability and understanding.
 
 ### Phase 2: Market Context (High Value)
 - Market Holiday Countdown
-- Pre/After Hours indicator
+- ~~Pre/After Hours indicator~~ (not feasible on free tier)
 - ~~Market Status Widget~~ (covered by existing StatusBar)
 
 ### Phase 3: Smart Alerts (Engagement)

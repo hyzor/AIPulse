@@ -130,7 +130,7 @@ This document tracks the implementation status of features and enhancements for 
 
 | Feature | Status | Priority | Effort |
 |---------|--------|----------|--------|
-| Extended hours indicator | 📋 | High | Medium |
+| Extended hours indicator | ❌ | - | - | Not feasible on Finnhub free tier - lacks extended hours price data |
 | Market holiday countdown | 📋 | High | Low |
 | Market Status Widget (big visual) | ❌ | - | - | Already implemented via StatusBar component |
 | Earnings calendar | 📋 | Medium | High |

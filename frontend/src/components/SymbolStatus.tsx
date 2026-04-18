@@ -5,6 +5,8 @@ import {
   isSameTradingDay,
   isBeforeMarketOpen,
   getExchangeForSymbol,
+  isWeekend,
+  isFromLastTradingDay,
 } from '../utils/format';
 
 import type { StockQuote, CandleData } from '../types';
@@ -159,6 +161,16 @@ export function calculateSymbolStatus(
   // After-hours: check if data is complete
   if (isFromToday) {
     return hasCompleteData ? 'closed-complete' : 'closed-incomplete';
+  }
+
+  // Market is closed (weekend or after-hours) and data is from a previous day
+  // Check if it's from the most recent trading day (e.g., Friday data on Saturday)
+  const isWeekendNow = isWeekend('America/New_York');
+  const isFromLastTradingSession = isFromLastTradingDay(quote.timestamp);
+
+  // On weekends, data from Friday is complete if the session finished (16:00 ET)
+  if (isWeekendNow && isFromLastTradingSession && hasCompleteData) {
+    return 'closed-complete';
   }
 
   // Data is from previous day, market closed

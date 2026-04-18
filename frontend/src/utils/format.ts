@@ -303,6 +303,66 @@ export function isBeforeMarketOpen(exchange: string, now: Date = new Date()): bo
 }
 
 /**
+ * Check if today is a weekend (Saturday or Sunday) in a given timezone
+ */
+export function isWeekend(timezone: string = 'America/New_York'): boolean {
+  const now = new Date();
+  const dayFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    weekday: 'short',
+  });
+  const dayName = dayFormatter.format(now);
+  return dayName === 'Sat' || dayName === 'Sun';
+}
+
+/**
+ * Get the most recent trading day (Friday if weekend, otherwise today)
+ * Returns the date in the format YYYY-MM-DD for comparison
+ */
+export function getLastTradingDay(timezone: string = 'America/New_York'): string {
+  const now = new Date();
+
+  // Get current day of week in the target timezone
+  const dayFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    weekday: 'short',
+  });
+  const dayName = dayFormatter.format(now);
+
+  // Calculate how many days to go back
+  const dayMap: Record<string, number> = {
+    Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 1, Sun: 2,
+  };
+  const daysToSubtract = dayMap[dayName] || 0;
+
+  // Calculate the last trading day
+  const lastTradingDay = new Date(now);
+  lastTradingDay.setDate(lastTradingDay.getDate() - daysToSubtract);
+
+  // Format as YYYY-MM-DD
+  const year = lastTradingDay.getFullYear();
+  const month = String(lastTradingDay.getMonth() + 1).padStart(2, '0');
+  const day = String(lastTradingDay.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Check if a timestamp is from the most recent trading day
+ */
+export function isFromLastTradingDay(timestamp: number, timezone: string = 'America/New_York'): boolean {
+  const time = new Date(timestamp > 1e10 ? timestamp : timestamp * 1000);
+  const lastTradingDay = getLastTradingDay(timezone);
+
+  const timeYear = time.getFullYear();
+  const timeMonth = String(time.getMonth() + 1).padStart(2, '0');
+  const timeDay = String(time.getDate()).padStart(2, '0');
+  const timeDateStr = `${timeYear}-${timeMonth}-${timeDay}`;
+
+  return timeDateStr === lastTradingDay;
+}
+
+/**
  * Get the start of the day in a specific timezone
  */
 export function getDayInTimezone(date: Date, timezone: string): Date {

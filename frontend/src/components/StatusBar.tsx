@@ -244,9 +244,9 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
             <div className="h-4 w-px bg-dark-600 shrink-0 hidden sm:block" />
 
             {/* Market hours - ET and local */}
-            <span className="text-sm text-gray-300 whitespace-nowrap">
+            <span className="text-sm text-gray-500 whitespace-nowrap">
               {formatTime(MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE)}–{formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET
-              <span className="text-gray-500 hidden md:inline">
+              <span className="text-gray-600 hidden md:inline">
                 {' '}({formatTime(marketStatus.localOpen.hour, marketStatus.localOpen.minute)}–{formatTime(marketStatus.localClose.hour, marketStatus.localClose.minute)})
               </span>
             </span>

@@ -199,7 +199,7 @@ function getMarketStatus() {
   // Format: 9:30 - 16:00 ET (15:30 - 22:00 local)
   const hours = `${formatTime(MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE)} - ${formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET (${formatTime(localOpen.hour, localOpen.minute)} - ${formatTime(localClose.hour, localClose.minute)} local)`;
 
-  return { isOpen, nextOpen, hours };
+  return { isOpen, nextOpen, hours, localOpen, localClose };
 }
 
 export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: StatusBarProps) {
@@ -240,6 +240,18 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
           {/* Market Status - Single row with full info */}
           <div className="flex-1 flex items-center gap-3 px-3 py-2 bg-dark-800/50 border border-dark-600 rounded-lg min-w-0">
             <Clock className="w-4 h-4 text-gray-400 shrink-0" />
+            <span className="text-sm text-gray-400 whitespace-nowrap hidden sm:inline">NYSE/NASDAQ</span>
+            <div className="h-4 w-px bg-dark-600 shrink-0 hidden sm:block" />
+
+            {/* Market hours - ET and local */}
+            <span className="text-sm text-gray-300 whitespace-nowrap">
+              {formatTime(MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE)}–{formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET
+              <span className="text-gray-500 hidden md:inline">
+                {' '}({formatTime(marketStatus.localOpen.hour, marketStatus.localOpen.minute)}–{formatTime(marketStatus.localClose.hour, marketStatus.localClose.minute)})
+              </span>
+            </span>
+
+            <div className="h-4 w-px bg-dark-600 shrink-0" />
 
             {/* Status indicator */}
             {marketStatus.isOpen
@@ -249,22 +261,15 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-green opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-neon-green"></span>
                   </span>
-                  <span className="text-sm text-neon-green font-medium">Open</span>
+                  <span className="text-sm text-neon-green font-medium">Market Open</span>
                 </div>
               )
               : (
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="inline-flex rounded-full h-2 w-2 bg-gray-500"></span>
-                  <span className="text-sm text-gray-400 font-medium">Closed</span>
+                  <span className="text-sm text-gray-400 font-medium">Market Closed</span>
                 </div>
               )}
-
-            <div className="h-4 w-px bg-dark-600 shrink-0" />
-
-            {/* Market hours */}
-            <span className="text-sm text-gray-300 whitespace-nowrap">
-              {formatTime(MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE)}–{formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET
-            </span>
 
             <div className="h-4 w-px bg-dark-600 shrink-0" />
 
@@ -279,7 +284,7 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
                       {nextTradingDay.reason === 'holiday' && nextTradingDay.holidayName && (
                         <span className="text-yellow-400"> ({nextTradingDay.holidayName})</span>
                       )}
-                      {' '}• <span className="text-gray-500">{nextTradingDay.daysUntil} days</span>
+                      {' '}<span className="text-gray-500">({nextTradingDay.daysUntil} days)</span>
                     </>
                   )
                   : `Opens ${marketStatus.nextOpen.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}`

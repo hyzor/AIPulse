@@ -1,4 +1,4 @@
-import { AlertCircle, Calendar, CheckCircle2, Clock, Gauge, Wifi, WifiOff } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, Gauge, Wifi, WifiOff } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { stockService } from '../services/stockService';
@@ -17,6 +17,9 @@ const MARKET_OPEN_HOUR = 9;
 const MARKET_OPEN_MINUTE = 30;
 const MARKET_CLOSE_HOUR = 16;
 const MARKET_CLOSE_MINUTE = 0;
+
+// Helper to format time as HH:MM
+const formatTime = (h: number, m: number): string => `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 
 /**
  * Convert ET market hours to local timezone hours
@@ -193,8 +196,6 @@ function getMarketStatus() {
   const localOpen = convertToLocalHour(MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE);
   const localClose = convertToLocalHour(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE);
 
-  const formatTime = (h: number, m: number): string => `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-
   // Format: 9:30 - 16:00 ET (15:30 - 22:00 local)
   const hours = `${formatTime(MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE)} - ${formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET (${formatTime(localOpen.hour, localOpen.minute)} - ${formatTime(localClose.hour, localClose.minute)} local)`;
 
@@ -236,121 +237,92 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
         {/* Main Status Row */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Market Status - Left side, takes available space */}
+          {/* Market Status - Single row with full info */}
           <div className="flex-1 flex items-center gap-3 px-3 py-2 bg-dark-800/50 border border-dark-600 rounded-lg min-w-0">
-            <div className="flex items-center gap-2 text-gray-400 shrink-0">
-              <Clock className="w-4 h-4" />
-              <span className="text-sm">NYSE/NASDAQ:</span>
-              <span className="text-sm text-gray-300">{marketStatus.hours}</span>
-            </div>
-            <div className="h-4 w-px bg-dark-600 shrink-0" />
+            <Clock className="w-4 h-4 text-gray-400 shrink-0" />
+
+            {/* Status indicator */}
             {marketStatus.isOpen
               ? (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-green opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-neon-green"></span>
                   </span>
-                  <span className="text-sm text-neon-green font-medium">Market Open</span>
+                  <span className="text-sm text-neon-green font-medium">Open</span>
                 </div>
               )
               : (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <span className="inline-flex rounded-full h-2 w-2 bg-gray-500"></span>
-                  <span className="text-sm text-gray-400">Market Closed</span>
-                  <span className="text-sm text-gray-500">
-                    • Opens{' '}
-                    {marketStatus.nextOpen.toLocaleString(undefined, {
-                      weekday: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      hour12: false,
-                    })}
-                  </span>
-                  {/* Holiday/Weekend countdown */}
-                  {nextTradingDay && nextTradingDay.daysUntil > 0 && (
-                    <span
-                      className={`text-sm flex items-center gap-1 ${
-                        nextTradingDay.reason === 'holiday'
-                          ? 'text-yellow-400'
-                          : nextTradingDay.reason === 'weekend'
-                            ? 'text-neon-blue'
-                            : 'text-gray-500'
-                      }`}
-                      title={
-                        nextTradingDay.reason === 'holiday'
-                          ? 'Market closed for holiday'
-                          : nextTradingDay.reason === 'weekend'
-                            ? 'Weekend - Markets closed'
-                            : 'Markets will reopen on next trading day'
-                      }
-                    >
-                      <Calendar className="w-3 h-3" />
-                      Next trading: {nextTradingDay.dayOfWeek}
-                      {nextTradingDay.daysUntil > 1 && ` (${nextTradingDay.daysUntil} days)`}
-                    </span>
-                  )}
+                  <span className="text-sm text-gray-400 font-medium">Closed</span>
                 </div>
               )}
+
+            <div className="h-4 w-px bg-dark-600 shrink-0" />
+
+            {/* Market hours */}
+            <span className="text-sm text-gray-300 whitespace-nowrap">
+              {formatTime(MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE)}–{formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET
+            </span>
+
+            <div className="h-4 w-px bg-dark-600 shrink-0" />
+
+            {/* Next open / closes info */}
+            <span className="text-sm text-gray-400 truncate">
+              {marketStatus.isOpen
+                ? `Closes ${formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET`
+                : nextTradingDay && nextTradingDay.daysUntil > 0
+                  ? (
+                    <>
+                      Opens {nextTradingDay.dayOfWeek}
+                      {nextTradingDay.reason === 'holiday' && nextTradingDay.holidayName && (
+                        <span className="text-yellow-400"> ({nextTradingDay.holidayName})</span>
+                      )}
+                      {' '}• <span className="text-gray-500">{nextTradingDay.daysUntil} days</span>
+                    </>
+                  )
+                  : `Opens ${marketStatus.nextOpen.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}`
+              }
+            </span>
           </div>
 
-          {/* Connection, API, Rate Limit - Right side, grouped together */}
+          {/* System Status - Right side */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* WebSocket Connection */}
+            {/* Connection */}
             <div
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${isConnected ? 'bg-neon-green/10 border-neon-green/30' : 'bg-neon-red/10 border-neon-red/30'}`}
-              title={isConnected ? 'WebSocket connected to server - receiving real-time updates' : 'WebSocket disconnected - updates temporarily paused'}
+              title={isConnected ? 'WebSocket connected' : 'WebSocket disconnected'}
             >
               {isConnected
-                ? (
-                  <>
-                    <Wifi className="w-3.5 h-3.5 text-neon-green" />
-                    <span className="text-xs text-neon-green font-medium">Connected</span>
-                  </>
-                )
-                : (
-                  <>
-                    <WifiOff className="w-3.5 h-3.5 text-neon-red" />
-                    <span className="text-xs text-neon-red font-medium">Disconnected</span>
-                  </>
-                )}
+                ? <Wifi className="w-3.5 h-3.5 text-neon-green" />
+                : <WifiOff className="w-3.5 h-3.5 text-neon-red" />
+              }
+              <span className="text-xs font-medium hidden sm:inline">{isConnected ? 'Live' : 'Offline'}</span>
             </div>
 
-            {/* API Status */}
+            {/* API */}
             {apiConfigured !== null && (
-              <>
+              <div
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${apiConfigured ? 'bg-neon-green/10 border-neon-green/30' : 'bg-neon-red/10 border-neon-red/30'}`}
+                title={apiConfigured ? 'Finnhub API configured' : 'API key missing'}
+              >
                 {apiConfigured
-                  ? (
-                    <div
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-neon-green/10 rounded-lg border border-neon-green/30"
-                      title="Finnhub API key configured - able to fetch fresh stock data"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5 text-neon-green" />
-                      <span className="text-xs text-neon-green font-medium">API</span>
-                    </div>
-                  )
-                  : (
-                    <div
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-neon-red/10 rounded-lg border border-neon-red/30"
-                      title="Finnhub API key not configured - check FINNHUB_API_KEY environment variable"
-                    >
-                      <AlertCircle className="w-3.5 h-3.5 text-neon-red" />
-                      <span className="text-xs text-neon-red font-medium">No API</span>
-                    </div>
-                  )}
-              </>
+                  ? <CheckCircle2 className="w-3.5 h-3.5 text-neon-green" />
+                  : <AlertCircle className="w-3.5 h-3.5 text-neon-red" />
+                }
+                <span className="text-xs font-medium hidden sm:inline">API</span>
+              </div>
             )}
 
-            {/* Rate Limit Indicator */}
+            {/* Rate Limit */}
             {rateLimit && (
               <div
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 bg-dark-700 rounded-lg border border-dark-600 ${getRateLimitColor(rateLimit.percentUsed)}`}
-                title={`API calls remaining: ${rateLimit.callsRemaining} of ${rateLimit.maxPerMinute} per minute (Finnhub free tier limit). When exceeded, cached data is served.`}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dark-600 ${getRateLimitColor(rateLimit.percentUsed)} ${rateLimit.percentUsed >= 80 ? 'bg-neon-red/10' : 'bg-dark-700'}`}
+                title={`${rateLimit.callsRemaining}/${rateLimit.maxPerMinute} calls remaining`}
               >
                 <Gauge className="w-3.5 h-3.5" />
-                <span className="text-xs font-medium">
-                  {rateLimit.callsRemaining}/{rateLimit.maxPerMinute}
-                </span>
+                <span className="text-xs font-medium">{rateLimit.callsRemaining}/{rateLimit.maxPerMinute}</span>
               </div>
             )}
           </div>

@@ -1,11 +1,12 @@
 import { TrendingUp, TrendingDown, Activity, Cpu, Code2, Rocket, Zap } from 'lucide-react';
 
-import { STOCK_DISPLAY_NAMES, STOCK_CATEGORIES, STOCK_COUNTRIES } from '../types';
 import { FlagIcon } from './FlagIcon';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { MiniAreaChart } from './MiniAreaChart';
 import { SymbolStatusIndicator, getSymbolStatusType } from './SymbolStatus';
+import { Tooltip } from './Tooltip';
 import { useTimeRange } from '../contexts/TimeRangeContext';
+import { STOCK_DISPLAY_NAMES, STOCK_CATEGORIES, STOCK_COUNTRIES } from '../types';
 import { formatCurrency, formatChange, getChangeColor, getChangeBgColor, getChangeLabel, checkMarketOpen, getExchangeForSymbol, formatRelativeTime, getFreshnessColor } from '../utils/format';
 
 import type { StockQuote } from '../types';
@@ -57,6 +58,22 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
     'Semiconductors': <Cpu className="w-3 h-3 text-neon-blue" />,
     'AI Software': <Code2 className="w-3 h-3 text-neon-green" />,
     'Tech Giants': <Rocket className="w-3 h-3 text-orange-400" />,
+  };
+
+  // Category descriptions for tooltips
+  const getCategoryDescription = (cat: string): string => {
+    switch (cat) {
+      case 'AI Chips':
+        return 'Companies designing AI-specific processors and accelerators (GPUs, TPUs, NPUs)';
+      case 'Semiconductors':
+        return 'Chip manufacturers and semiconductor equipment suppliers enabling AI hardware';
+      case 'AI Software':
+        return 'Companies building AI platforms, models, and software applications';
+      case 'Tech Giants':
+        return 'Major technology companies with significant AI investments and cloud platforms';
+      default:
+        return 'AI-related stock category';
+    }
   };
 
   // Check market status and data freshness
@@ -118,18 +135,20 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
           </div>
           <p className="text-sm text-gray-400 ml-7">{displayName}</p>
         </div>
-        <div className={`flex items-center gap-1 px-3 py-1.5 rounded-lg ${getChangeBgColor(displayChange)}`}>
-          {displayIsPositive
-            ? (
-              <TrendingUp className="w-4 h-4 text-neon-green" />
-            )
-            : (
-              <TrendingDown className="w-4 h-4 text-neon-red" />
-            )}
-          <span className={`text-sm font-bold ${getChangeColor(displayChange)}`}>
-            {formatChange(displayChangePercent)}
-          </span>
-        </div>
+        <Tooltip content={`Change from previous close: ${displayChange >= 0 ? '+' : ''}${formatCurrency(displayChange)} (${formatChange(displayChangePercent)})`} position="left">
+          <div className={`flex items-center gap-1 px-3 py-1.5 rounded-lg cursor-help ${getChangeBgColor(displayChange)}`}>
+            {displayIsPositive
+              ? (
+                <TrendingUp className="w-4 h-4 text-neon-green" />
+              )
+              : (
+                <TrendingDown className="w-4 h-4 text-neon-red" />
+              )}
+            <span className={`text-sm font-bold ${getChangeColor(displayChange)}`}>
+              {formatChange(displayChangePercent)}
+            </span>
+          </div>
+        </Tooltip>
       </div>
 
       <div className="mb-3">
@@ -181,15 +200,21 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
       <div className="pt-3 border-t border-dark-600">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 px-2 py-1 rounded bg-dark-800 flex items-center gap-1.5">
-              {categoryIcons[category]}
-              {category}
-            </span>
-            <span className="text-xs text-gray-600">
-              {exchange}
-            </span>
+            <Tooltip content={`${category}: ${getCategoryDescription(category)}`} position="bottom">
+              <span className="text-xs text-gray-500 px-2 py-1 rounded bg-dark-800 flex items-center gap-1.5 cursor-help">
+                {categoryIcons[category]}
+                {category}
+              </span>
+            </Tooltip>
+            <Tooltip content={`Exchange: ${exchange} - Market where this stock is primarily traded`} position="bottom">
+              <span className="text-xs text-gray-600 cursor-help">
+                {exchange}
+              </span>
+            </Tooltip>
           </div>
-          <Activity className="w-4 h-4 text-gray-600 group-hover:text-neon-blue transition-colors" />
+          <Tooltip content="Click to view expanded chart with full historical data" position="left">
+            <Activity className="w-4 h-4 text-gray-600 group-hover:text-neon-blue transition-colors cursor-help" />
+          </Tooltip>
         </div>
       </div>
     </div>

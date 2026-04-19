@@ -160,7 +160,7 @@ This document tracks the implementation status of features and enhancements for 
 
 | Feature | Status | Priority | Effort |
 |---------|--------|----------|--------|
-| Comprehensive tooltips | 🚧 | Medium | Medium |
+| Comprehensive tooltips | ✅ | 2026-04-18 | User-tested: Portal-based tooltips across all components - DataCollection, StatusBar, StockCard, Header. Fixed overflow clipping issues for symbol badges. |
 | First-run guide | 📋 | Medium | Medium |
 | Keyboard shortcuts | 📋 | Low | Low |
 | Time zone display | ✅ | 2026-04-15 | Done (both local and ET) |

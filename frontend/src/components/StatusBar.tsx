@@ -1,7 +1,9 @@
-import { AlertCircle, CheckCircle2, Clock, Gauge, Wifi, WifiOff } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, Gauge, Wifi, WifiOff, Calendar } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import { Tooltip } from './Tooltip';
 import { stockService } from '../services/stockService';
+
 
 import type { NextTradingDayInfo, RateLimitStatus } from '../types';
 
@@ -238,97 +240,97 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
         {/* Main Status Row */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Market Status - Single row with full info */}
-          <div className="flex-1 flex items-center gap-3 px-3 py-2 bg-dark-800/50 border border-dark-600 rounded-lg min-w-0">
-            <Clock className="w-4 h-4 text-gray-400 shrink-0" />
-            <span className="text-sm text-gray-400 whitespace-nowrap hidden sm:inline">NYSE/NASDAQ</span>
-            <div className="h-4 w-px bg-dark-600 shrink-0 hidden sm:block" />
+          <Tooltip content={`NYSE/NASDAQ market hours: ${formatTime(MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE)} - ${formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET (${formatTime(marketStatus.localOpen.hour, marketStatus.localOpen.minute)} - ${formatTime(marketStatus.localClose.hour, marketStatus.localClose.minute)} local). Markets open Monday-Friday except holidays.`} position="bottom">
+            <div className="flex-1 flex items-center gap-3 px-3 py-2 bg-dark-800/50 border border-dark-600 rounded-lg min-w-0 cursor-help">
+              <Clock className="w-4 h-4 text-gray-400 shrink-0" />
+              <span className="text-sm text-gray-400 whitespace-nowrap hidden sm:inline">NYSE/NASDAQ</span>
+              <div className="h-4 w-px bg-dark-600 shrink-0 hidden sm:block" />
 
-            {/* Market hours - ET and local */}
-            <span className="text-sm text-gray-500 whitespace-nowrap">
-              {formatTime(MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE)}–{formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET
-              <span className="text-gray-600 hidden md:inline">
-                {' '}({formatTime(marketStatus.localOpen.hour, marketStatus.localOpen.minute)}–{formatTime(marketStatus.localClose.hour, marketStatus.localClose.minute)})
+              {/* Market hours - ET and local */}
+              <span className="text-sm text-gray-500 whitespace-nowrap">
+                {formatTime(MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE)}–{formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET
+                <span className="text-gray-600 hidden md:inline">
+                  {' '}({formatTime(marketStatus.localOpen.hour, marketStatus.localOpen.minute)}–{formatTime(marketStatus.localClose.hour, marketStatus.localClose.minute)})
+                </span>
               </span>
-            </span>
 
-            <div className="h-4 w-px bg-dark-600 shrink-0" />
+              <div className="h-4 w-px bg-dark-600 shrink-0" />
 
-            {/* Status indicator */}
-            {marketStatus.isOpen
-              ? (
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-green opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-neon-green"></span>
-                  </span>
-                  <span className="text-sm text-neon-green font-medium">Market Open</span>
-                </div>
-              )
-              : (
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="inline-flex rounded-full h-2 w-2 bg-gray-500"></span>
-                  <span className="text-sm text-gray-400 font-medium">Market Closed</span>
-                </div>
-              )}
-
-            <div className="h-4 w-px bg-dark-600 shrink-0" />
-
-            {/* Next open / closes info */}
-            <span className="text-sm text-gray-400 truncate">
+              {/* Status indicator */}
               {marketStatus.isOpen
-                ? `Closes ${formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET`
-                : nextTradingDay && nextTradingDay.daysUntil > 0
-                  ? (
-                    <>
-                      Opens {nextTradingDay.dayOfWeek}
-                      {nextTradingDay.reason === 'holiday' && nextTradingDay.holidayName && (
-                        <span className="text-yellow-400"> ({nextTradingDay.holidayName})</span>
-                      )}
-                      {' '}<span className="text-gray-500">({nextTradingDay.daysUntil} days)</span>
-                    </>
-                  )
-                  : `Opens ${marketStatus.nextOpen.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}`
-              }
-            </span>
-          </div>
+                ? (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-green opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-neon-green"></span>
+                    </span>
+                    <span className="text-sm text-neon-green font-medium">Market Open</span>
+                  </div>
+                )
+                : (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="inline-flex rounded-full h-2 w-2 bg-gray-500"></span>
+                    <span className="text-sm text-gray-400 font-medium">Market Closed</span>
+                  </div>
+                )}
+
+              <div className="h-4 w-px bg-dark-600 shrink-0" />
+
+              {/* Next open / closes info */}
+              <span className="text-sm text-gray-400 truncate">
+                {marketStatus.isOpen
+                  ? `Closes ${formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET`
+                  : nextTradingDay && nextTradingDay.daysUntil > 0
+                    ? (
+                      <>
+                        <Calendar className="w-3 h-3 inline mr-1" />
+                        Opens {nextTradingDay.dayOfWeek}
+                        {nextTradingDay.reason === 'holiday' && nextTradingDay.holidayName && (
+                          <span className="text-yellow-400"> ({nextTradingDay.holidayName})</span>
+                        )}
+                        {' '}<span className="text-gray-500">({nextTradingDay.daysUntil} days)</span>
+                      </>
+                    )
+                    : `Opens ${marketStatus.nextOpen.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}`
+                }
+              </span>
+            </div>
+          </Tooltip>
 
           {/* System Status - Right side */}
           <div className="flex items-center gap-2 shrink-0">
             {/* Connection */}
-            <div
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${isConnected ? 'bg-neon-green/10 border-neon-green/30' : 'bg-neon-red/10 border-neon-red/30'}`}
-              title={isConnected ? 'WebSocket connected' : 'WebSocket disconnected'}
-            >
-              {isConnected
-                ? <Wifi className="w-3.5 h-3.5 text-neon-green" />
-                : <WifiOff className="w-3.5 h-3.5 text-neon-red" />
-              }
-              <span className="text-xs font-medium hidden sm:inline">{isConnected ? 'Live' : 'Offline'}</span>
-            </div>
+            <Tooltip content={isConnected ? 'WebSocket connected - Receiving real-time price updates' : 'WebSocket disconnected - Retrying connection...'} position="bottom">
+              <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-help ${isConnected ? 'bg-neon-green/10 border-neon-green/30' : 'bg-neon-red/10 border-neon-red/30'}`}>
+                {isConnected
+                  ? <Wifi className="w-3.5 h-3.5 text-neon-green" />
+                  : <WifiOff className="w-3.5 h-3.5 text-neon-red" />
+                }
+                <span className="text-xs font-medium hidden sm:inline">{isConnected ? 'Live' : 'Offline'}</span>
+              </div>
+            </Tooltip>
 
             {/* API */}
             {apiConfigured !== null && (
-              <div
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${apiConfigured ? 'bg-neon-green/10 border-neon-green/30' : 'bg-neon-red/10 border-neon-red/30'}`}
-                title={apiConfigured ? 'Finnhub API configured' : 'API key missing'}
-              >
-                {apiConfigured
-                  ? <CheckCircle2 className="w-3.5 h-3.5 text-neon-green" />
-                  : <AlertCircle className="w-3.5 h-3.5 text-neon-red" />
-                }
-                <span className="text-xs font-medium hidden sm:inline">API</span>
-              </div>
+              <Tooltip content={apiConfigured ? 'Finnhub API key configured - Fetching live market data' : 'Finnhub API key missing - Add FINNHUB_API_KEY to .env file'} position="bottom">
+                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-help ${apiConfigured ? 'bg-neon-green/10 border-neon-green/30' : 'bg-neon-red/10 border-neon-red/30'}`}>
+                  {apiConfigured
+                    ? <CheckCircle2 className="w-3.5 h-3.5 text-neon-green" />
+                    : <AlertCircle className="w-3.5 h-3.5 text-neon-red" />
+                  }
+                  <span className="text-xs font-medium hidden sm:inline">API</span>
+                </div>
+              </Tooltip>
             )}
 
             {/* Rate Limit */}
             {rateLimit && (
-              <div
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dark-600 ${getRateLimitColor(rateLimit.percentUsed)} ${rateLimit.percentUsed >= 80 ? 'bg-neon-red/10' : 'bg-dark-700'}`}
-                title={`${rateLimit.callsRemaining}/${rateLimit.maxPerMinute} calls remaining`}
-              >
-                <Gauge className="w-3.5 h-3.5" />
-                <span className="text-xs font-medium">{rateLimit.callsRemaining}/{rateLimit.maxPerMinute}</span>
-              </div>
+              <Tooltip content={`${rateLimit.callsRemaining}/${rateLimit.maxPerMinute} API calls remaining per minute. Resets every minute. At 80%+ turns yellow, at 100% uses cached data.`} position="bottom">
+                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dark-600 cursor-help ${getRateLimitColor(rateLimit.percentUsed)} ${rateLimit.percentUsed >= 80 ? 'bg-neon-red/10' : 'bg-dark-700'}`}>
+                  <Gauge className="w-3.5 h-3.5" />
+                  <span className="text-xs font-medium">{rateLimit.callsRemaining}/{rateLimit.maxPerMinute}</span>
+                </div>
+              </Tooltip>
             )}
           </div>
         </div>

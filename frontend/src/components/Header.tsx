@@ -2,6 +2,7 @@ import { Activity, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 
 import { TimeRangeToggle } from './TimeRangeToggle';
+import { Tooltip } from './Tooltip';
 import { checkMarketOpen } from '../utils/format';
 
 interface HeaderProps {
@@ -36,21 +37,23 @@ export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-10 h-10 bg-gradient-to-br from-neon-blue to-neon-purple rounded-lg flex items-center justify-center">
-                <Activity className="w-6 h-6 text-white" />
+          <Tooltip content="AIPulse tracks 15 AI-related stocks in real-time from NYSE/NASDAQ. Data from Finnhub via WebSocket and REST API." position="bottom">
+            <div className="flex items-center gap-3 cursor-help">
+              <div className="relative">
+                <div className="w-10 h-10 bg-gradient-to-br from-neon-blue to-neon-purple rounded-lg flex items-center justify-center">
+                  <Activity className="w-6 h-6 text-white" />
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-neon-green rounded-full border-2 border-dark-800"></div>
               </div>
-              <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-neon-green rounded-full border-2 border-dark-800"></div>
+              <div>
+                <h1 className="text-xl font-bold text-white tracking-tight">
+                  AI
+                  <span className="text-neon-blue">Pulse</span>
+                </h1>
+                <p className="text-xs text-gray-400">Real-time AI Stock Monitor</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">
-                AI
-                <span className="text-neon-blue">Pulse</span>
-              </h1>
-              <p className="text-xs text-gray-400">Real-time AI Stock Monitor</p>
-            </div>
-          </div>
+          </Tooltip>
 
           {/* Status & Controls */}
           <div className="flex items-center gap-4">
@@ -87,28 +90,31 @@ export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
 
             {/* Last Update */}
             {lastUpdate && (
-              <div className="hidden md:block text-right">
-                <p className="text-xs text-gray-500">Last Update</p>
-                <p className="text-sm font-mono text-gray-300">
-                  {lastUpdate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
-                </p>
-              </div>
+              <Tooltip content="Last successful data fetch from Finnhub API. Updates automatically every 60 seconds during market hours." position="bottom">
+                <div className="hidden md:block text-right cursor-help">
+                  <p className="text-xs text-gray-500">Last Update</p>
+                  <p className="text-sm font-mono text-gray-300">
+                    {lastUpdate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                  </p>
+                </div>
+              </Tooltip>
             )}
 
             {/* Refresh Button */}
-            <button
-              onClick={handleRefresh}
-              disabled={isLoading}
-              className="flex items-center gap-2 px-3 py-2 bg-neon-blue/10 hover:bg-neon-blue/20 text-neon-blue rounded-lg border border-neon-blue/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              title={checkMarketOpen('NASDAQ')
-                ? 'Fetch live data for all stocks (market open)'
-                : 'Fetch latest data for all stocks (market closed)'}
-            >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              <span className="text-sm font-medium hidden sm:inline">
-                {isLoading ? 'Fetching...' : 'Refresh'}
-              </span>
-            </button>
+            <Tooltip content={checkMarketOpen('NASDAQ')
+              ? 'Fetch live data for all stocks from Finnhub API. Updates cached data with latest prices.'
+              : 'Fetch latest available data for all stocks. Markets are closed - data may be from last session.'} position="bottom">
+              <button
+                onClick={handleRefresh}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-3 py-2 bg-neon-blue/10 hover:bg-neon-blue/20 text-neon-blue rounded-lg border border-neon-blue/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                <span className="text-sm font-medium hidden sm:inline">
+                  {isLoading ? 'Fetching...' : 'Refresh'}
+                </span>
+              </button>
+            </Tooltip>
           </div>
         </div>
       </div>

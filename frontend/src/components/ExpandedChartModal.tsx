@@ -13,6 +13,7 @@ import {
 import { useTimeRange } from '../contexts/TimeRangeContext';
 import { STOCK_DISPLAY_NAMES } from '../types';
 import { StatsPanel } from './StatsPanel';
+import { SymbolStatusIndicator } from './SymbolStatus';
 import { formatCurrency } from '../utils/format';
 
 import type { StockQuote } from '../types';
@@ -92,15 +93,14 @@ export function ExpandedChartModal({ symbol, quote, onClose }: ExpandedChartModa
             <div className="flex items-center gap-3">
               <h2 className="text-2xl font-bold text-white">{symbol}</h2>
               <span className="text-gray-400">{displayName}</span>
-              {timeRange === '1d' && (
-                <span className="flex items-center gap-1.5 text-xs font-semibold text-green-500 px-2 py-1 bg-green-500/10 rounded">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                  </span>
-                  LIVE
-                </span>
-              )}
+              <SymbolStatusIndicator
+                quote={quote}
+                candles={candles}
+                isRealtime={false}
+                showLabel={true}
+                size="md"
+                useCustomTooltip={true}
+              />
             </div>
             <div className="flex items-center gap-4 mt-2">
               <span className="text-3xl font-bold text-white font-mono">

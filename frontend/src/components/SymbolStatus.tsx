@@ -1,5 +1,6 @@
 import { Database } from 'lucide-react';
 
+import { Tooltip } from './Tooltip';
 import {
   checkMarketOpen,
   isSameTradingDay,
@@ -29,6 +30,7 @@ interface SymbolStatusProps {
   isRealtime?: boolean;
   showLabel?: boolean;
   size?: 'sm' | 'md';
+  useCustomTooltip?: boolean;
 }
 
 interface StatusConfig {
@@ -195,6 +197,7 @@ export function SymbolStatusIndicator({
   isRealtime = false,
   showLabel = true,
   size = 'md',
+  useCustomTooltip = false,
 }: SymbolStatusProps) {
   const status = calculateSymbolStatus(quote, candles, isRealtime);
   const config = statusConfigs[status];
@@ -205,8 +208,8 @@ export function SymbolStatusIndicator({
 
   const dotClasses = `${config.bgColor} ${dotSize}`;
 
-  return (
-    <div className="flex items-center gap-1.5" title={config.title}>
+  const indicator = (
+    <div className="flex items-center gap-1.5" title={useCustomTooltip ? undefined : config.title}>
       {config.icon === 'database' ? (
         <Database className={`${iconSize} ${config.color}`} />
       ) : (
@@ -228,6 +231,16 @@ export function SymbolStatusIndicator({
       )}
     </div>
   );
+
+  if (useCustomTooltip) {
+    return (
+      <Tooltip content={config.title} position="top">
+        {indicator}
+      </Tooltip>
+    );
+  }
+
+  return indicator;
 }
 
 /**
@@ -240,6 +253,7 @@ export function SymbolStatusBadge({
   isRealtime = false,
   showLabel = false,
   size = 'sm',
+  useCustomTooltip = false,
 }: SymbolStatusProps) {
   return (
     <SymbolStatusIndicator
@@ -248,6 +262,7 @@ export function SymbolStatusBadge({
       isRealtime={isRealtime}
       showLabel={showLabel}
       size={size}
+      useCustomTooltip={useCustomTooltip}
     />
   );
 }

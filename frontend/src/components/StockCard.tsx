@@ -7,7 +7,7 @@ import { SymbolStatusIndicator, getSymbolStatusType } from './SymbolStatus';
 import { Tooltip } from './Tooltip';
 import { useTimeRange } from '../contexts/TimeRangeContext';
 import { STOCK_DISPLAY_NAMES, STOCK_CATEGORIES, STOCK_COUNTRIES } from '../types';
-import { formatCurrency, formatChange, getChangeColor, getChangeBgColor, getChangeLabel, checkMarketOpen, getExchangeForSymbol, formatRelativeTime, getFreshnessColor } from '../utils/format';
+import { formatCurrency, formatChange, getChangeColor, getChangeBgColor, getChangeLabel, checkMarketOpen, getExchangeForSymbol, formatRelativeTime } from '../utils/format';
 
 import type { StockQuote } from '../types';
 
@@ -94,9 +94,6 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
   // Only show freshness warnings when market is open - otherwise show neutral info
   // When market is closed/pre-market, stale data is expected, not a problem
   const freshnessText = freshnessTimestamp ? formatRelativeTime(freshnessTimestamp) : null;
-  const freshnessColor = isMarketOpen && freshnessTimestamp
-    ? getFreshnessColor(freshnessTimestamp) // Color-coded freshness during market hours
-    : 'text-gray-500'; // Neutral gray when market is closed (no expectation of updates)
 
   // Get status type for conditional styling (ring around card when live)
   const statusType = getSymbolStatusType(quote, candles, isRealtime);
@@ -112,17 +109,6 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
         ${isLiveWs ? 'ring-2 ring-neon-blue/30' : ''}
       `}
     >
-      {/* Top-right status indicator */}
-      <div className="absolute top-3 right-3 z-10">
-        <SymbolStatusIndicator
-          quote={quote}
-          candles={candles}
-          isRealtime={isRealtime}
-          showLabel={true}
-          size="md"
-        />
-      </div>
-
       <div className="flex items-start justify-between mb-3">
         <div>
           <div className="flex items-center gap-2">
@@ -132,6 +118,14 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
               title={STOCK_COUNTRIES[quote.symbol]?.country}
             />
             <h3 className="text-xl font-bold text-white tracking-tight">{quote.symbol}</h3>
+            <SymbolStatusIndicator
+              quote={quote}
+              candles={candles}
+              isRealtime={isRealtime}
+              showLabel={true}
+              size="sm"
+              useCustomTooltip={true}
+            />
           </div>
           <p className="text-sm text-gray-400 ml-7">{displayName}</p>
         </div>
@@ -164,7 +158,7 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
         {/* Data freshness indicator - only relevant when market is open */}
         {freshnessText && freshnessTimestamp && (
           <p
-            className={`text-xs font-medium mt-1 ${freshnessColor}`}
+            className="text-xs font-normal mt-1 text-gray-500"
             title={isMarketOpen
               ? `Last update: ${new Date(freshnessTimestamp).toLocaleTimeString()}`
               : `Market closed - Last update from previous session: ${new Date(freshnessTimestamp).toLocaleTimeString()}`}

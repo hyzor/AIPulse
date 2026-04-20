@@ -7,6 +7,7 @@ interface TooltipProps {
   position?: 'top' | 'bottom' | 'left' | 'right';
   maxWidth?: string;
   delay?: number;
+  fullWidth?: boolean;
 }
 
 export function Tooltip({
@@ -15,6 +16,7 @@ export function Tooltip({
   position = 'top',
   maxWidth = '400px',
   delay = 300,
+  fullWidth = false,
 }: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -160,7 +162,7 @@ export function Tooltip({
   return (
     <div
       ref={triggerRef}
-      className="inline-flex items-center"
+      className={fullWidth ? 'flex items-center w-full' : 'inline-flex items-center'}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >

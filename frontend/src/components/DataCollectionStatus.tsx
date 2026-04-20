@@ -100,28 +100,28 @@ export function DataCollectionStatus() {
       label: 'Data',
       completed: has1mData,
       inProgress: !has1mData,
-      progressPercent: 20,
+      progressPercent: 0,
       description: 'Collecting 1-minute price ticks',
     },
     {
       label: 'Today',
       completed: chartsReady,
       inProgress: has1mData && !chartsReady,
-      progressPercent: 40,
+      progressPercent: 25,
       description: '1-hour charts ready for current day',
     },
     {
       label: '2 Days',
       completed: chartsReady && estimatedTradingDays >= 2,
       inProgress: chartsReady && estimatedTradingDays >= 1 && estimatedTradingDays < 2,
-      progressPercent: 60,
+      progressPercent: 50,
       description: '2+ days for 1D view comparison',
     },
     {
       label: '7 Days',
       completed: chartsReady && estimatedTradingDays >= 7,
       inProgress: chartsReady && estimatedTradingDays >= 2 && estimatedTradingDays < 7,
-      progressPercent: 80,
+      progressPercent: 75,
       description: '7 trading days for 7D view',
     },
     {
@@ -134,28 +134,32 @@ export function DataCollectionStatus() {
   ];
 
   // Calculate progress based on actual data state
+  // Milestones are at fixed visual positions, progress fills to the appropriate milestone
+  // Data (0%), Today (25%), 2 Days (50%), 7 Days (75%), 30 Days (100%)
   let progress: number;
 
   if (!has1mData) {
-    // Stage 1: Data (0-20%)
-    progress = 10;
+    // Stage 1: Data - filling to 0% milestone
+    progress = 5;
   } else if (!chartsReady) {
-    // Stage 2: Today (20-40%)
-    progress = 30;
+    // Stage 2: Today - filling to 25% milestone
+    progress = 15;
   } else if (estimatedTradingDays < 2) {
-    // Stage 3: Week milestone not yet reached (40-60%)
-    // Only advance within this range as we collect the first day's data
-    // With <1 day, we're still early in this range
-    const dayFraction = Math.max(0, estimatedTradingDays - 1); // 0 if <1 day, approaching 1 as we near 2 days
-    progress = 40 + (dayFraction * 20);
+    // Stage 3: Between Today (25%) and 2 Days (50%)
+    // Only advance when we actually have more than 1 day
+    const dayProgress = Math.max(0, estimatedTradingDays - 1) / 1;
+    progress = 25 + (dayProgress * 25);
   } else if (estimatedTradingDays < 7) {
-    // Stage 4: 7 Day milestone (60-80%)
-    const dayProgress = (estimatedTradingDays / 7) * 20;
-    progress = 60 + dayProgress;
+    // Stage 4: Between 2 Days (50%) and 7 Days (75%)
+    // 6 days should be at ~70%, just before the 7 Days milestone at 75%
+    const daysIntoStage = estimatedTradingDays - 2; // 0 to 5
+    const dayProgress = daysIntoStage / 5;
+    progress = 50 + (dayProgress * 25);
   } else if (estimatedTradingDays < 30) {
-    // Stage 5: 30 Day milestone (80-100%)
-    const dayProgress = ((estimatedTradingDays - 7) / 23) * 20;
-    progress = 80 + dayProgress;
+    // Stage 5: Between 7 Days (75%) and 30 Days (100%)
+    const daysIntoStage = estimatedTradingDays - 7; // 0 to 23
+    const dayProgress = daysIntoStage / 23;
+    progress = 75 + (dayProgress * 25);
   } else {
     // Complete
     progress = 100;
@@ -232,11 +236,11 @@ export function DataCollectionStatus() {
             );
           })}
         </div>
-        <Tooltip content={`${Math.round(progress)}% complete - ${estimatedTradingDays} trading days collected`} position="bottom">
-          <div className="w-full bg-dark-700 rounded-full h-2 cursor-help">
+        <Tooltip content={`${Math.round(progress)}% complete - ${estimatedTradingDays} trading days collected`} position="bottom" fullWidth>
+          <div className="w-full bg-dark-600 rounded-full h-2 cursor-help border border-dark-500/50">
             <div
               className={`h-2 rounded-full transition-all duration-500 ${
-                progress === 100 ? 'bg-neon-green' : progress === 0 ? 'bg-gray-600' : 'bg-neon-blue'
+                progress === 100 ? 'bg-neon-green' : progress === 0 ? 'bg-gray-500' : 'bg-neon-blue'
               }`}
               style={{ width: `${progress}%` }}
             >
@@ -245,10 +249,10 @@ export function DataCollectionStatus() {
         </Tooltip>
       </div>
 
-      {/* Stats by resolution */}
-      <div className="grid grid-cols-3 gap-2 text-sm mb-3">
+      {/* Stats by resolution - centered */}
+      <div className="flex justify-center gap-2 text-sm mb-3">
         <Tooltip content="Raw 1-minute price ticks collected from Finnhub API. Used for real-time quotes and processed into hourly candles for charts." position="top">
-          <div className={`flex flex-col p-2 rounded cursor-help ${has1mData ? 'bg-dark-700/50' : 'bg-dark-800/30'}`}>
+          <div className={`flex flex-col p-2 rounded cursor-help border min-w-[100px] ${has1mData ? 'bg-dark-700/50 border-dark-600' : 'bg-dark-800/30 border-dark-700'}`}>
             <span className="text-xs text-gray-500">1-Minute Points</span>
             <span className={`font-mono font-medium ${has1mData ? 'text-white' : 'text-gray-600'}`}>
               {totalCandles1m.toLocaleString()}
@@ -257,7 +261,7 @@ export function DataCollectionStatus() {
           </div>
         </Tooltip>
         <Tooltip content="1-hour OHLC candles processed from minute data by TimescaleDB continuous aggregates. Used for intraday charts." position="top">
-          <div className={`flex flex-col p-2 rounded cursor-help ${has1hData ? 'bg-dark-700/50' : 'bg-dark-800/30'}`}>
+          <div className={`flex flex-col p-2 rounded cursor-help border min-w-[100px] ${has1hData ? 'bg-dark-700/50 border-dark-600' : 'bg-dark-800/30 border-dark-700'}`}>
             <span className="text-xs text-gray-500">Hourly Candles</span>
             <span className={`font-mono font-medium ${has1hData ? 'text-neon-blue' : 'text-gray-600'}`}>
               {totalCandles1h.toLocaleString()}
@@ -266,7 +270,7 @@ export function DataCollectionStatus() {
           </div>
         </Tooltip>
         <Tooltip content="Daily OHLC candles aggregated from hourly data. Used for 7D and 30D historical views and trading day calculations." position="top">
-          <div className={`flex flex-col p-2 rounded cursor-help ${has1dData ? 'bg-dark-700/50' : 'bg-dark-800/30'}`}>
+          <div className={`flex flex-col p-2 rounded cursor-help border min-w-[100px] ${has1dData ? 'bg-dark-700/50 border-dark-600' : 'bg-dark-800/30 border-dark-700'}`}>
             <span className="text-xs text-gray-500">Daily Candles</span>
             <span className={`font-mono font-medium ${has1dData ? 'text-neon-green' : 'text-gray-600'}`}>
               {totalCandles1d.toLocaleString()}

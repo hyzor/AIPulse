@@ -8,6 +8,7 @@ import { ExpandedChartModal } from './components/ExpandedChartModal';
 import { Header } from './components/Header';
 import { StatusBar } from './components/StatusBar';
 import { StockGrid } from './components/StockGrid';
+import { TopPerformers } from './components/TopPerformers';
 import { TimeRangeProvider, useTimeRange } from './contexts/TimeRangeContext';
 import { useWebSocket, useAutoRefresh } from './hooks/useWebSocket';
 import { stockService } from './services/stockService';
@@ -193,6 +194,9 @@ function AppContent({ realtimeQuotes, isConnected, wsError, subscribe }: {
 
       {/* Category Performance Overview */}
       <CategoryPerformance stocks={mergedStocks} />
+
+      {/* Top Performers Leaderboard */}
+      <TopPerformers stocks={mergedStocks} />
 
       {/* Data availability warning for 7D/30D views - shown below category performance, above charts */}
       {timeRange !== '1d' && dataAvailability.warning && (

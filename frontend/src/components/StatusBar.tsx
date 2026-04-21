@@ -289,18 +289,25 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
                         Opens Today
                       </>
                     )
-                    : nextTradingDay && nextTradingDay.daysUntil > 0
+                    : nextTradingDay?.daysUntil === 1
                       ? (
                         <>
                           <Calendar className="w-3 h-3 inline mr-1" />
-                          Opens {nextTradingDay.dayOfWeek}
-                          {nextTradingDay.reason === 'holiday' && nextTradingDay.holidayName && (
-                            <span className="text-yellow-400"> ({nextTradingDay.holidayName})</span>
-                          )}
-                          {' '}<span className="text-gray-500">({nextTradingDay.daysUntil} days)</span>
+                          Opens tomorrow
                         </>
                       )
-                      : `Opens ${marketStatus.nextOpen.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}`
+                      : nextTradingDay && nextTradingDay.daysUntil > 1
+                        ? (
+                          <>
+                            <Calendar className="w-3 h-3 inline mr-1" />
+                            Opens {nextTradingDay.dayOfWeek}
+                            {nextTradingDay.reason === 'holiday' && nextTradingDay.holidayName && (
+                              <span className="text-yellow-400"> ({nextTradingDay.holidayName})</span>
+                            )}
+                            {' '}<span className="text-gray-500">({nextTradingDay.daysUntil} days)</span>
+                          </>
+                        )
+                        : `Opens ${marketStatus.nextOpen.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}`
                 }
               </span>
             </div>

@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 import { CategoryPerformance } from './components/CategoryPerformance';
 import { DataCollectionStatus } from './components/DataCollectionStatus';
+import { EarningsCalendar } from './components/EarningsCalendar';
 import { ExpandedChartModal } from './components/ExpandedChartModal';
 import { Header } from './components/Header';
 import { StatusBar } from './components/StatusBar';
@@ -12,7 +13,7 @@ import { useWebSocket, useAutoRefresh } from './hooks/useWebSocket';
 import { stockService } from './services/stockService';
 import { STOCK_CATEGORIES, TRACKED_STOCKS } from './types';
 
-import type { StockQuote, RateLimitStatus } from './types';
+import type { StockQuote, RateLimitStatus, EarningsEvent } from './types';
 
 function AppContent({ realtimeQuotes, isConnected, wsError, subscribe }: {
   realtimeQuotes: Map<string, StockQuote>;
@@ -28,6 +29,25 @@ function AppContent({ realtimeQuotes, isConnected, wsError, subscribe }: {
   const [error, setError] = useState<string | null>(null);
   const [rateLimit, setRateLimit] = useState<RateLimitStatus | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
+  const [earningsEvents, setEarningsEvents] = useState<EarningsEvent[]>([]);
+
+  // Fetch earnings calendar
+  const fetchEarnings = useCallback(async () => {
+    try {
+      const events = await stockService.getEarningsCalendar();
+      setEarningsEvents(events);
+    } catch (err) {
+      console.error('Failed to fetch earnings calendar:', err);
+    }
+  }, []);
+
+  // Auto-refresh earnings every 6 hours (earnings dates don't change frequently)
+  useAutoRefresh(fetchEarnings, 6 * 60 * 60 * 1000, true);
+
+  // Initial earnings fetch
+  useEffect(() => {
+    fetchEarnings();
+  }, [fetchEarnings]);
 
   // Fetch rate limit status
   const fetchRateLimit = useCallback(async () => {
@@ -186,6 +206,11 @@ function AppContent({ realtimeQuotes, isConnected, wsError, subscribe }: {
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Earnings Calendar Widget */}
+        <section className="mb-8">
+          <EarningsCalendar events={earningsEvents} />
+        </section>
+
         {/* All Stocks Grid */}
         <section className="mb-12">
           <div className="flex items-center justify-between mb-6">
@@ -214,6 +239,7 @@ function AppContent({ realtimeQuotes, isConnected, wsError, subscribe }: {
                 <StockGrid
                   quotes={allStocks}
                   realtimeQuotes={realtimeQuotes}
+                  earningsEvents={earningsEvents}
                   onStockClick={handleStockClick}
                 />
               )
@@ -248,6 +274,7 @@ function AppContent({ realtimeQuotes, isConnected, wsError, subscribe }: {
               <StockGrid
                 quotes={categoryStocks}
                 realtimeQuotes={realtimeQuotes}
+                earningsEvents={earningsEvents}
                 onStockClick={handleStockClick}
               />
             </section>

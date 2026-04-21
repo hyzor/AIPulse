@@ -180,3 +180,14 @@ export type HistoricalDataCache = {
     [_range in TimeRange]?: SymbolHistoryState;
   };
 };
+
+// Earnings calendar event
+export interface EarningsEvent {
+  symbol: string;
+  date: string; // YYYY-MM-DD
+  epsEstimate: number | null;
+  epsActual: number | null;
+  revenueEstimate: number | null;
+  revenueActual: number | null;
+  hour: 'bmo' | 'amc' | null;
+}

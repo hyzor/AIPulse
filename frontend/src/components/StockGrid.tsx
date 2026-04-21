@@ -3,15 +3,16 @@ import { useEffect } from 'react';
 import { StockCard } from './StockCard';
 import { useTimeRange } from '../contexts/TimeRangeContext';
 
-import type { StockQuote } from '../types';
+import type { StockQuote, EarningsEvent } from '../types';
 
 interface StockGridProps {
   quotes: StockQuote[];
   realtimeQuotes: Map<string, StockQuote>;
   onStockClick: (_symbol: string) => void;
+  earningsEvents?: EarningsEvent[];
 }
 
-export function StockGrid({ quotes, realtimeQuotes, onStockClick }: StockGridProps) {
+export function StockGrid({ quotes, realtimeQuotes, onStockClick, earningsEvents }: StockGridProps) {
   const { fetchAllHistory, timeRange } = useTimeRange();
 
   // Get symbols from the quotes prop (respects category filtering)
@@ -26,6 +27,9 @@ export function StockGrid({ quotes, realtimeQuotes, onStockClick }: StockGridPro
 
   // Create a map for quick lookup
   const quotesMap = new Map(quotes.map((q) => [q.symbol, q]));
+
+  // Create earnings lookup map
+  const earningsMap = new Map(earningsEvents?.map((e) => [e.symbol, e]) ?? []);
 
   // Merge with real-time updates (only for symbols in this grid)
   const mergedQuotes = symbols.map((symbol) => {
@@ -51,6 +55,7 @@ export function StockGrid({ quotes, realtimeQuotes, onStockClick }: StockGridPro
           key={quote.symbol}
           quote={quote}
           isRealtime={realtimeQuotes.has(quote.symbol)}
+          earningsEvent={earningsMap.get(quote.symbol)}
           onClick={() => { onStockClick(quote.symbol); }}
         />
       ))}

@@ -527,4 +527,31 @@ router.get('/market/next-trading-day', (_req, res) => {
   });
 });
 
+// Get earnings calendar for tracked stocks
+router.get('/earnings', async (_req, res) => {
+  try {
+    // Default: fetch next 30 days of earnings
+    const today = new Date();
+    const from = today.toISOString().split('T')[0];
+    const to = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const events = await finnhubService.getEarningsCalendar(from, to);
+
+    res.json({
+      success: true,
+      data: events,
+      count: events.length,
+      range: { from, to },
+      timestamp: Date.now(),
+    });
+  } catch (error) {
+    console.error('[API] Error fetching earnings calendar:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch earnings calendar',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
 export default router;

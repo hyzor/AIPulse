@@ -1,4 +1,4 @@
-import type { ApiResponse, StockQuote, StockProfile, RateLimitStatus, HistoryResponse, TimeRange, NextTradingDayInfo } from '../types';
+import type { ApiResponse, StockQuote, StockProfile, RateLimitStatus, HistoryResponse, TimeRange, NextTradingDayInfo, EarningsEvent } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -111,6 +111,17 @@ class StockService {
 
     if (!data.success) {
       throw new Error(data.error || 'Failed to fetch next trading day');
+    }
+
+    return data.data;
+  }
+
+  async getEarningsCalendar(): Promise<EarningsEvent[]> {
+    const response = await fetch(`${API_URL}/api/earnings`);
+    const data: ApiResponse<EarningsEvent[]> = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch earnings calendar');
     }
 
     return data.data;

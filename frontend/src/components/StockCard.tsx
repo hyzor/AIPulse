@@ -1,5 +1,6 @@
 import { TrendingUp, TrendingDown, Activity, Cpu, Code2, Rocket, Zap } from 'lucide-react';
 
+import { EarningsBadge } from './EarningsBadge';
 import { FlagIcon } from './FlagIcon';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { MiniAreaChart } from './MiniAreaChart';
@@ -9,15 +10,16 @@ import { useTimeRange } from '../contexts/TimeRangeContext';
 import { STOCK_DISPLAY_NAMES, STOCK_CATEGORIES, STOCK_COUNTRIES } from '../types';
 import { formatCurrency, formatChange, getChangeColor, getChangeBgColor, getChangeLabel, checkMarketOpen, getExchangeForSymbol, formatRelativeTime } from '../utils/format';
 
-import type { StockQuote } from '../types';
+import type { StockQuote, EarningsEvent } from '../types';
 
 interface StockCardProps {
   quote: StockQuote;
   isRealtime?: boolean;
+  earningsEvent?: EarningsEvent;
   onClick?: () => void;
 }
 
-export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps) {
+export function StockCard({ quote, isRealtime = false, earningsEvent, onClick }: StockCardProps) {
   const displayName = STOCK_DISPLAY_NAMES[quote.symbol] || quote.symbol;
   const { getSymbolData } = useTimeRange();
 
@@ -118,6 +120,7 @@ export function StockCard({ quote, isRealtime = false, onClick }: StockCardProps
               title={STOCK_COUNTRIES[quote.symbol]?.country}
             />
             <h3 className="text-xl font-bold text-white tracking-tight">{quote.symbol}</h3>
+            <EarningsBadge symbol={quote.symbol} event={earningsEvent} />
             <SymbolStatusIndicator
               quote={quote}
               candles={candles}

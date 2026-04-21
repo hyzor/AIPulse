@@ -133,7 +133,7 @@ This document tracks the implementation status of features and enhancements for 
 | Extended hours indicator | ❌ | - | - | Not feasible on Finnhub free tier - lacks extended hours price data |
 | Market holiday countdown | ✅ | 2026-04-17 | Low | Shows next trading day countdown in StatusBar when market is closed (weekends/holidays) |
 | Market Status Widget (big visual) | ❌ | - | - | Already implemented via StatusBar component |
-| Earnings calendar | 📋 | Medium | High |
+| Earnings calendar | ✅ | 2026-04-21 | High | Widget shows upcoming earnings with countdown + post-reporting results section with Beat/Miss. Badges on StockCards implemented but pending real-world validation (no earnings within 14 days currently).
 | Sector heatmap | 📋 | Medium | High |
 
 ### Phase 3: Smart Alerts (Priority: Medium)
@@ -196,16 +196,16 @@ This document tracks the implementation status of features and enhancements for 
 ## Metrics
 
 - **Total Features**: 45+ tracked
-- **Complete**: 40 (89%)
+- **Complete**: 41 (91%)
 - **In Progress**: 1 (2%)
-- **Planned**: 3 (7%)
+- **Planned**: 2 (4%)
 - **Ideas**: ~20 in MONITORING_IDEAS.md
 
 ---
 
 ## Recent Completed (Last 7 Days)
 
-1. ✅ **Market holiday countdown** - Shows "Next trading: Monday (3 days)" with calendar icon in StatusBar when market is closed for weekends/holidays
+1. ✅ **Earnings calendar** - Widget shows upcoming earnings with countdown, estimates, and time-of-day. Post-reporting "Recent Results" section displays Beat/Miss with surprise %. StockCard badges show earnings alerts (upcoming) and Beat/Miss results (recent). User-tested widget; badges pending real-world validation (no near-term earnings data currently)
 2. ✅ **SymbolStatus component** - Reusable status indicator with 8 states (NO DATA, PRE-OPEN, DELAYED, CACHED, LIVE, CLOSED, INCOMPLETE)
 3. ✅ Refactored StockCard.tsx to use SymbolStatus component - cleaner code
 4. ✅ Stale data warning - Color-coded freshness indicator (green/yellow/red)
@@ -221,5 +221,5 @@ This document tracks the implementation status of features and enhancements for 
 
 ---
 
-*Last Updated: April 17, 2026 (Market holiday countdown completed)*
+*Last Updated: April 21, 2026 (Earnings calendar completed)*
 *Next Review: Weekly or after major feature completion*

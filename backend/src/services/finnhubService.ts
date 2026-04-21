@@ -1,3 +1,4 @@
+import { TRACKED_STOCKS } from '../constants';
 import { cacheService } from './cacheService';
 import { databaseService } from './databaseService';
 import { finnhubRateLimiter, profileRateLimiter } from './rateLimiter';
@@ -5,7 +6,7 @@ import { redisService } from './redisService';
 import { isMarketOpen, getMarketStatus } from '../utils/marketHours';
 
 import type { UsageStats } from './rateLimiter';
-import type { StockQuote, FinnhubQuote, FinnhubProfile } from '../types';
+import type { StockQuote, FinnhubQuote, FinnhubProfile, EarningsEvent, FinnhubEarningsCalendar } from '../types';
 
 const FINNHUB_API_URL = 'https://finnhub.io/api/v1';
 
@@ -504,6 +505,60 @@ class FinnhubService {
     } catch (error) {
       console.error(`[Finnhub] Error fetching historical candles for ${symbol}:`, error);
       return null;
+    }
+  }
+
+  /**
+   * Get earnings calendar for a date range
+   * Returns earnings events filtered to tracked stocks
+   */
+  async getEarningsCalendar(from: string, to: string): Promise<EarningsEvent[]> {
+    const cacheKey = `earnings:${from}:${to}`;
+
+    // Check cache first (24h TTL since earnings dates don't change frequently)
+    const cached = cacheService.get<EarningsEvent[]>(cacheKey);
+    if (cached) {
+      console.log(`[Finnhub] Serving earnings calendar from cache (${cached.length} events)`);
+      return cached;
+    }
+
+    // Check rate limit before making request
+    if (!finnhubRateLimiter.canMakeCall()) {
+      console.warn('[Finnhub] Rate limit reached, skipping earnings calendar fetch');
+      return cached || [];
+    }
+
+    try {
+      const data = await this.fetchFromApi<{
+        earningsCalendar: FinnhubEarningsCalendar[];
+      }>(`/calendar/earnings?from=${from}&to=${to}`);
+
+      if (!data?.earningsCalendar || data.earningsCalendar.length === 0) {
+        return [];
+      }
+
+      // Filter to tracked stocks only and transform
+      const trackedSet = new Set<string>(TRACKED_STOCKS);
+      const events: EarningsEvent[] = data.earningsCalendar
+        .filter((e) => trackedSet.has(e.symbol))
+        .map((e) => ({
+          symbol: e.symbol,
+          date: e.date,
+          epsEstimate: e.epsEstimate,
+          epsActual: e.epsActual,
+          revenueEstimate: e.revenueEstimate,
+          revenueActual: e.revenueActual,
+          hour: e.hour === 'bmo' ? 'bmo' : e.hour === 'amc' ? 'amc' : null,
+        }));
+
+      // Cache for 24 hours
+      cacheService.set(cacheKey, events, 86400);
+      console.log(`[Finnhub] Fetched ${events.length} earnings events (${data.earningsCalendar.length} total)`);
+
+      return events;
+    } catch (error) {
+      console.error('[Finnhub] Error fetching earnings calendar:', error);
+      return [];
     }
   }
 

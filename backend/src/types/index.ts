@@ -108,3 +108,25 @@ export interface FlushResult {
   timestamp: string;
   message: string;
 }
+
+// Earnings calendar event
+export interface EarningsEvent {
+  symbol: string;
+  date: string; // YYYY-MM-DD
+  epsEstimate: number | null;
+  epsActual: number | null;
+  revenueEstimate: number | null;
+  revenueActual: number | null;
+  hour: 'bmo' | 'amc' | null; // Before Market Open / After Market Close
+}
+
+// Raw Finnhub earnings calendar response
+export interface FinnhubEarningsCalendar {
+  symbol: string;
+  date: string;
+  epsEstimate: number | null;
+  epsActual: number | null;
+  revenueEstimate: number | null;
+  revenueActual: number | null;
+  hour: string;
+}

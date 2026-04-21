@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 
 interface TooltipProps {
   children: React.ReactNode;
-  content: string;
+  content: React.ReactNode;
   position?: 'top' | 'bottom' | 'left' | 'right';
   maxWidth?: string;
   delay?: number;
@@ -147,7 +147,7 @@ export function Tooltip({
       }}
     >
       <div className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 shadow-xl">
-        <p className="text-xs text-gray-300 leading-relaxed whitespace-normal">{content}</p>
+        <div className="text-xs text-gray-300 leading-relaxed whitespace-normal">{content}</div>
         <div
           className="absolute w-0 h-0 border-4"
           style={{
@@ -173,7 +173,7 @@ export function Tooltip({
 }
 
 interface InfoTooltipProps {
-  content: string;
+  content: React.ReactNode;
   size?: 'sm' | 'md';
   className?: string;
 }

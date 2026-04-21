@@ -8,6 +8,7 @@ import type { StockQuote } from '../types';
 
 interface TopPerformersProps {
   stocks: Map<string, StockQuote>;
+  variant?: 'default' | 'sidebar';
 }
 
 interface Performer {
@@ -47,7 +48,8 @@ function getPeriodLabel(timeRange: string): string {
   }
 }
 
-export function TopPerformers({ stocks }: TopPerformersProps) {
+export function TopPerformers({ stocks, variant = 'default' }: TopPerformersProps) {
+  const isSidebar = variant === 'sidebar';
   const { timeRange, historicalData, isLoading } = useTimeRange();
 
   const performers = useMemo<Performer[]>(() => {
@@ -153,13 +155,25 @@ export function TopPerformers({ stocks }: TopPerformersProps) {
   );
 
   if (isLoading && performers.length === 0) {
+    const loader = (
+      <div className="flex items-center justify-center py-4">
+        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-neon-blue"></div>
+        <span className="ml-2 text-xs text-gray-400">Loading performance data...</span>
+      </div>
+    );
+
+    if (isSidebar) {
+      return (
+        <div className="bg-dark-800 rounded-xl border border-dark-600 p-4">
+          {loader}
+        </div>
+      );
+    }
+
     return (
       <div className="bg-dark-800 border-b border-dark-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-center py-4">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-neon-blue"></div>
-            <span className="ml-2 text-xs text-gray-400">Loading performance data...</span>
-          </div>
+          {loader}
         </div>
       </div>
     );
@@ -172,45 +186,61 @@ export function TopPerformers({ stocks }: TopPerformersProps) {
     return null;
   }
 
+  const header = (
+    <div className="flex items-center gap-2 mb-3">
+      <Trophy className="w-4 h-4 text-yellow-400" />
+      <h3 className="text-sm font-medium text-gray-400">Top Performers</h3>
+      <span className="text-xs text-gray-500 ml-auto">{periodLabel}</span>
+    </div>
+  );
+
+  const gainersSection = hasGainers && (
+    <div>
+      <div className="flex items-center gap-1.5 mb-2">
+        <TrendingUp className="w-3.5 h-3.5 text-neon-green" />
+        <span className="text-xs font-medium text-neon-green">Top Gainers</span>
+      </div>
+      <div className="space-y-1.5">
+        {topGainers.map((performer, index) =>
+          renderPerformer(performer, index + 1, true),
+        )}
+      </div>
+    </div>
+  );
+
+  const losersSection = hasLosers && (
+    <div>
+      <div className="flex items-center gap-1.5 mb-2">
+        <TrendingDown className="w-3.5 h-3.5 text-neon-red" />
+        <span className="text-xs font-medium text-neon-red">Top Losers</span>
+      </div>
+      <div className="space-y-1.5">
+        {topLosers.map((performer, index) =>
+          renderPerformer(performer, index + 1, false),
+        )}
+      </div>
+    </div>
+  );
+
+  if (isSidebar) {
+    return (
+      <div className="bg-dark-800 rounded-xl border border-dark-600 p-4">
+        {header}
+        <div className="space-y-4">
+          {gainersSection}
+          {losersSection}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-dark-800 border-b border-dark-600">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Trophy className="w-4 h-4 text-yellow-400" />
-          <h3 className="text-sm font-medium text-gray-400">Top Performers</h3>
-          <span className="text-xs text-gray-500 ml-auto">{periodLabel}</span>
-        </div>
-
+        {header}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Top Gainers */}
-          {hasGainers && (
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <TrendingUp className="w-3.5 h-3.5 text-neon-green" />
-                <span className="text-xs font-medium text-neon-green">Top Gainers</span>
-              </div>
-              <div className="space-y-1.5">
-                {topGainers.map((performer, index) =>
-                  renderPerformer(performer, index + 1, true),
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Top Losers */}
-          {hasLosers && (
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <TrendingDown className="w-3.5 h-3.5 text-neon-red" />
-                <span className="text-xs font-medium text-neon-red">Top Losers</span>
-              </div>
-              <div className="space-y-1.5">
-                {topLosers.map((performer, index) =>
-                  renderPerformer(performer, index + 1, false),
-                )}
-              </div>
-            </div>
-          )}
+          {gainersSection}
+          {losersSection}
         </div>
       </div>
     </div>

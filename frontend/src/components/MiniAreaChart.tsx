@@ -13,7 +13,7 @@ import type { CandleData } from '../types';
 interface MiniAreaChartProps {
   data: CandleData[];
   symbol: string;
-  width?: number;
+  width?: number | string;
   height?: number;
 }
 
@@ -27,7 +27,7 @@ interface ChartPoint {
 export function MiniAreaChart({
   data,
   symbol,
-  width = 300,
+  width: _width,
   height = 80,
 }: MiniAreaChartProps) {
   const chartData = useMemo<ChartPoint[]>(() => {
@@ -60,8 +60,8 @@ export function MiniAreaChart({
   if (chartData.length === 0) {
     return (
       <div
-        className="flex items-center justify-center bg-dark-800/50 rounded px-2"
-        style={{ width, height }}
+        className="flex items-center justify-center bg-dark-800/50 rounded px-2 w-full"
+        style={{ height }}
         title="Historical chart data not available. Charts require time-series data which is collected over time or can be fetched from Finnhub API (requires paid tier)."
       >
         <span className="text-gray-500 text-xs text-center">Collecting data...</span>
@@ -70,7 +70,7 @@ export function MiniAreaChart({
   }
 
   return (
-    <div style={{ width, height }}>
+    <div className="w-full" style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
           data={chartData}

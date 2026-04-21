@@ -1,5 +1,5 @@
-import { Activity, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
-import { useState } from 'react';
+import { Activity, RefreshCw, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 import { TimeRangeToggle } from './TimeRangeToggle';
 import { Tooltip } from './Tooltip';
@@ -19,6 +19,15 @@ export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
     isMarketOpen: boolean;
     show: boolean;
   } | null>(null);
+
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleRefresh = async () => {
     const result = await onRefresh();
@@ -87,6 +96,14 @@ export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
 
             {/* Time Range Toggle */}
             <TimeRangeToggle />
+
+            {/* Live Clock */}
+            <div className="hidden md:flex items-center gap-1.5 text-right">
+              <Clock className="w-3.5 h-3.5 text-neon-blue" />
+              <p className="text-sm font-mono text-white">
+                {currentTime.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+              </p>
+            </div>
 
             {/* Last Update */}
             {lastUpdate && (

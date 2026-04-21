@@ -9,6 +9,7 @@ import { Header } from './components/Header';
 import { StatusBar } from './components/StatusBar';
 import { StockGrid } from './components/StockGrid';
 import { TopPerformers } from './components/TopPerformers';
+import { MarketStatusProvider } from './contexts/MarketStatusContext';
 import { TimeRangeProvider, useTimeRange } from './contexts/TimeRangeContext';
 import { useWebSocket, useAutoRefresh } from './hooks/useWebSocket';
 import { stockService } from './services/stockService';
@@ -325,14 +326,16 @@ function App() {
   const { quotes: realtimeQuotes, isConnected, error: wsError, subscribe, historicalUpdates } = useWebSocket();
 
   return (
-    <TimeRangeProvider historicalUpdates={historicalUpdates}>
-      <AppContent
-        realtimeQuotes={realtimeQuotes}
-        isConnected={isConnected}
-        wsError={wsError}
-        subscribe={subscribe}
-      />
-    </TimeRangeProvider>
+    <MarketStatusProvider>
+      <TimeRangeProvider historicalUpdates={historicalUpdates}>
+        <AppContent
+          realtimeQuotes={realtimeQuotes}
+          isConnected={isConnected}
+          wsError={wsError}
+          subscribe={subscribe}
+        />
+      </TimeRangeProvider>
+    </MarketStatusProvider>
   );
 }
 

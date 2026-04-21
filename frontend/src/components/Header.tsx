@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 
 import { TimeRangeToggle } from './TimeRangeToggle';
 import { Tooltip } from './Tooltip';
-import { checkMarketOpen, formatRelativeTime } from '../utils/format';
+import { useMarketStatus } from '../contexts/MarketStatusContext';
+import { formatRelativeTime } from '../utils/format';
 
 interface HeaderProps {
   lastUpdate: Date | null;
@@ -12,6 +13,7 @@ interface HeaderProps {
 }
 
 export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
+  const { isMarketOpen } = useMarketStatus();
   const [refreshStatus, setRefreshStatus] = useState<{
     freshCount: number;
     cachedCount: number;
@@ -31,8 +33,6 @@ export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
 
   const handleRefresh = async () => {
     const result = await onRefresh();
-    // Check if US markets are open (most stocks are US-based)
-    const isMarketOpen = checkMarketOpen('NASDAQ');
     setRefreshStatus({ ...result, isMarketOpen, show: true });
 
     // Hide after 3 seconds
@@ -117,7 +117,7 @@ export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
             </Tooltip>
 
             {/* Refresh Button */}
-            <Tooltip content={checkMarketOpen('NASDAQ')
+            <Tooltip content={isMarketOpen
               ? 'Fetch live data for all stocks from Finnhub API. Updates cached data with latest prices.'
               : 'Fetch latest available data for all stocks. Markets are closed - data may be from last session.'} position="bottom">
               <button

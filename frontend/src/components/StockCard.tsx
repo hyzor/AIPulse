@@ -6,9 +6,10 @@ import { LoadingSkeleton } from './LoadingSkeleton';
 import { MiniAreaChart } from './MiniAreaChart';
 import { SymbolStatusIndicator, getSymbolStatusType } from './SymbolStatus';
 import { Tooltip } from './Tooltip';
+import { useMarketStatus } from '../contexts/MarketStatusContext';
 import { useTimeRange } from '../contexts/TimeRangeContext';
 import { STOCK_DISPLAY_NAMES, STOCK_CATEGORIES, STOCK_COUNTRIES } from '../types';
-import { formatCurrency, formatChange, getChangeColor, getChangeBgColor, getChangeLabel, checkMarketOpen, getExchangeForSymbol, formatRelativeTime } from '../utils/format';
+import { formatCurrency, formatChange, getChangeColor, getChangeBgColor, getChangeLabel, getExchangeForSymbol, formatRelativeTime } from '../utils/format';
 
 import type { StockQuote, EarningsEvent } from '../types';
 
@@ -78,9 +79,10 @@ export function StockCard({ quote, isRealtime = false, earningsEvent, onClick }:
     }
   };
 
+  const { isMarketOpen } = useMarketStatus();
+
   // Check market status and data freshness
   const exchange = getExchangeForSymbol(quote.symbol);
-  const isMarketOpen = checkMarketOpen(exchange);
 
   // Calculate data freshness - use the most recent valid timestamp across all sources
   // Filter out invalid timestamps (0, undefined, NaN)
@@ -98,7 +100,7 @@ export function StockCard({ quote, isRealtime = false, earningsEvent, onClick }:
   const freshnessText = freshnessTimestamp ? formatRelativeTime(freshnessTimestamp) : null;
 
   // Get status type for conditional styling (ring around card when live)
-  const statusType = getSymbolStatusType(quote, candles, isRealtime);
+  const statusType = getSymbolStatusType(quote, candles, isRealtime, isMarketOpen);
   const isLiveWs = statusType === 'live-ws';
 
   return (

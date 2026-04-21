@@ -1,6 +1,7 @@
 import { TrendingUp, TrendingDown, Zap, Cpu, Code2, Rocket, Clock, ChevronDown } from 'lucide-react';
-import { useMemo, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
+import { useMarketStatus } from '../contexts/MarketStatusContext';
 import { useTimeRange } from '../contexts/TimeRangeContext';
 import { STOCK_CATEGORIES, TRACKED_STOCKS } from '../types';
 
@@ -33,40 +34,6 @@ interface HistoricalChange {
 // US Market hours: 9:30 AM - 4:00 PM ET
 const MARKET_OPEN_HOUR = 9;
 const MARKET_OPEN_MINUTE = 30;
-const MARKET_CLOSE_HOUR = 16;
-const MARKET_CLOSE_MINUTE = 0;
-
-function isMarketOpen(): boolean {
-  const now = new Date();
-
-  const etOptions: Intl.DateTimeFormatOptions = {
-    timeZone: 'America/New_York',
-    hour: 'numeric',
-    minute: 'numeric',
-    hour12: false,
-  };
-
-  const formatter = new Intl.DateTimeFormat('en-US', etOptions);
-  const parts = formatter.formatToParts(now);
-  const hour = parseInt(parts.find((p) => p.type === 'hour')?.value || '0', 10);
-  const minute = parseInt(parts.find((p) => p.type === 'minute')?.value || '0', 10);
-
-  const dayFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
-    weekday: 'short',
-  });
-  const dayName = dayFormatter.format(now);
-  const dayMap: Record<string, number> = {
-    Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7,
-  };
-  const dayOfWeek = dayMap[dayName] || 0;
-
-  const timeDecimal = hour + minute / 60;
-  const openDecimal = MARKET_OPEN_HOUR + MARKET_OPEN_MINUTE / 60;
-  const closeDecimal = MARKET_CLOSE_HOUR + MARKET_CLOSE_MINUTE / 60;
-
-  return dayOfWeek >= 1 && dayOfWeek <= 5 && timeDecimal >= openDecimal && timeDecimal < closeDecimal;
-}
 
 function getLastTradingDate(): string {
   const now = new Date();
@@ -152,8 +119,7 @@ export function CategoryPerformance({ stocks, variant = 'default' }: CategoryPer
   const { timeRange, setTimeRange, fetchAllHistory, historicalData, isLoading } = useTimeRange();
   const [historicalChanges, setHistoricalChanges] = useState<Map<string, HistoricalChange>>(new Map());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  const marketIsOpen = useMemo(() => isMarketOpen(), []);
+  const { isMarketOpen: marketIsOpen } = useMarketStatus();
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Fetch historical data when time range changes

@@ -303,6 +303,61 @@ export function isBeforeMarketOpen(exchange: string, now: Date = new Date()): bo
 }
 
 /**
+ * Check if current time is after market close today (post-market hours)
+ * Used to determine if today's trading session has ended
+ *
+ * @param exchange - The exchange symbol
+ * @param now - Current date (defaults to now)
+ * @returns true if we're after market close today
+ */
+export function isAfterMarketClose(exchange: string, now: Date = new Date()): boolean {
+  const hours = EXCHANGE_HOURS[exchange];
+  if (!hours) { return false; }
+
+  // Get current time components in the exchange's timezone
+  const timeOptions: Intl.DateTimeFormatOptions = {
+    timeZone: hours.timezone,
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: true,
+  };
+
+  const timeFormatter = new Intl.DateTimeFormat('en-US', timeOptions);
+  const timeParts = timeFormatter.formatToParts(now);
+
+  const hourStr = timeParts.find((p) => p.type === 'hour')?.value || '0';
+  const minuteStr = timeParts.find((p) => p.type === 'minute')?.value || '0';
+  const dayPeriod = timeParts.find((p) => p.type === 'dayPeriod')?.value || 'AM';
+
+  let hour = parseInt(hourStr);
+  const minute = parseInt(minuteStr);
+
+  // Convert to 24-hour format
+  if (dayPeriod === 'PM' && hour !== 12) {
+    hour += 12;
+  } else if (dayPeriod === 'AM' && hour === 12) {
+    hour = 0;
+  }
+
+  const timeDecimal = hour + minute / 60;
+
+  // Check if it's a weekday
+  const dayFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: hours.timezone,
+    weekday: 'short',
+  });
+  const dayName = dayFormatter.format(now);
+  const dayMap: Record<string, number> = {
+    Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 0,
+  };
+  const dayOfWeek = dayMap[dayName];
+  const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+
+  // After market close: at or after 4:00 PM ET on a weekday
+  return isWeekday && timeDecimal >= hours.close;
+}
+
+/**
  * Check if today is a weekend (Saturday or Sunday) in a given timezone
  */
 export function isWeekend(timezone: string = 'America/New_York'): boolean {

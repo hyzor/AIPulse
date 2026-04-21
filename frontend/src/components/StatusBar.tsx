@@ -1,7 +1,8 @@
 import { AlertCircle, CheckCircle2, Clock, Gauge, Wifi, WifiOff, Calendar } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Tooltip } from './Tooltip';
+import { useMarketStatus } from '../contexts/MarketStatusContext';
 import { stockService } from '../services/stockService';
 
 
@@ -212,7 +213,8 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
     return 'text-neon-green';
   };
 
-  const marketStatus = useMemo(() => getMarketStatus(), []);
+  const { isMarketOpen } = useMarketStatus();
+  const marketStatus = getMarketStatus();
 
   // Fetch next trading day info for holiday countdown
   const [nextTradingDay, setNextTradingDay] = useState<NextTradingDayInfo | null>(null);
@@ -257,7 +259,7 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
               <div className="h-4 w-px bg-dark-600 shrink-0" />
 
               {/* Status indicator */}
-              {marketStatus.isOpen
+              {isMarketOpen
                 ? (
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className="relative flex h-2 w-2">
@@ -278,7 +280,7 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
 
               {/* Next open / closes info */}
               <span className="text-sm text-gray-400 truncate">
-                {marketStatus.isOpen
+                {isMarketOpen
                   ? `Closes ${formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET`
                   : nextTradingDay?.daysUntil === 0
                     ? (

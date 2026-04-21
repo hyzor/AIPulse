@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 
 import { stockService } from '../services/stockService';
 import { TRACKED_STOCKS } from '../types';
-import { checkMarketOpen } from '../utils/format';
+import { useMarketStatus } from './MarketStatusContext';
 
 import type { TimeRange, HistoricalDataCache, SymbolHistoryState } from '../types';
 
@@ -35,6 +35,7 @@ interface TimeRangeProviderProps {
 }
 
 export function TimeRangeProvider({ children, historicalUpdates }: TimeRangeProviderProps) {
+  const { isMarketOpen } = useMarketStatus();
   const [timeRange, setTimeRangeState] = useState<TimeRange>('1d');
   const [historicalData, setHistoricalData] = useState<HistoricalDataCache>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -161,43 +162,26 @@ export function TimeRangeProvider({ children, historicalUpdates }: TimeRangeProv
     if (timeRange === '1d' && symbols.length > 0) {
       let interval: NodeJS.Timeout | null = null;
 
-      const setupRefresh = () => {
-        // Check if US market is open (9:30 AM - 4:00 PM ET, Mon-Fri)
-        const isMarketOpen = checkMarketOpen('NASDAQ');
-
-        if (isMarketOpen) {
-          // Market open: refresh every 60s to match background collector
-          console.log('[TimeRange] Market open - refreshing every 60s');
-          interval = setInterval(() => {
-            fetchAllHistory(symbols);
-          }, 60000);
-        } else {
-          // Market closed: refresh every 5 minutes (for stale data detection)
-          // Continuous aggregates update hourly, so this catches new data
-          console.log('[TimeRange] Market closed - refreshing every 5min');
-          interval = setInterval(() => {
-            fetchAllHistory(symbols);
-          }, 5 * 60 * 1000);
-        }
-      };
-
-      // Initial setup
-      setupRefresh();
-
-      // Re-check market status every minute (handles market open/close transitions)
-      const marketCheckInterval = setInterval(() => {
-        if (interval) {
-          clearInterval(interval);
-        }
-        setupRefresh();
-      }, 60000);
+      if (isMarketOpen) {
+        // Market open: refresh every 60s to match background collector
+        console.log('[TimeRange] Market open - refreshing every 60s');
+        interval = setInterval(() => {
+          fetchAllHistory(symbols);
+        }, 60000);
+      } else {
+        // Market closed: refresh every 5 minutes (for stale data detection)
+        // Continuous aggregates update hourly, so this catches new data
+        console.log('[TimeRange] Market closed - refreshing every 5min');
+        interval = setInterval(() => {
+          fetchAllHistory(symbols);
+        }, 5 * 60 * 1000);
+      }
 
       return () => {
         if (interval) { clearInterval(interval); }
-        clearInterval(marketCheckInterval);
       };
     }
-  }, [timeRange, symbols, fetchAllHistory]);
+  }, [timeRange, symbols, fetchAllHistory, isMarketOpen]);
 
   // Auto-refresh when window regains focus (after dev break, tab switch, etc.)
   useEffect(() => {

@@ -1,10 +1,12 @@
 import { Database } from 'lucide-react';
 
 import { Tooltip } from './Tooltip';
+import { useMarketStatus } from '../contexts/MarketStatusContext';
 import {
   checkMarketOpen,
   isSameTradingDay,
   isBeforeMarketOpen,
+  isAfterMarketClose,
   getExchangeForSymbol,
   isWeekend,
   isFromLastTradingDay,
@@ -104,9 +106,10 @@ export function calculateSymbolStatus(
   quote: StockQuote,
   candles: CandleData[] = [],
   isRealtime = false,
+  isMarketOpen?: boolean,
 ): SymbolStatus {
   const exchange = getExchangeForSymbol(quote.symbol);
-  const isMarketOpen = checkMarketOpen(exchange);
+  const marketIsOpen = isMarketOpen ?? checkMarketOpen(exchange);
   const isFromToday = isSameTradingDay(exchange, quote.timestamp);
   const beforeMarketOpen = isBeforeMarketOpen(exchange);
 
@@ -140,7 +143,7 @@ export function calculateSymbolStatus(
   }
 
   // 3. Market is open
-  if (isMarketOpen) {
+  if (marketIsOpen) {
     // Data not from today = delayed (collection starting)
     if (!isFromToday) {
       return 'delayed';
@@ -162,7 +165,11 @@ export function calculateSymbolStatus(
 
   // After-hours: check if data is complete
   if (isFromToday) {
-    return hasCompleteData ? 'closed-complete' : 'closed-incomplete';
+    // If the market has already closed for the day (current time >= 4:00 PM ET),
+    // consider today's data complete regardless of last candle hour.
+    // The last hourly candle (e.g., 15:00) covers the final trading hour.
+    const marketHasClosedForDay = isAfterMarketClose(exchange);
+    return (marketHasClosedForDay || hasCompleteData) ? 'closed-complete' : 'closed-incomplete';
   }
 
   // Market is closed (weekend or after-hours) and data is from a previous day
@@ -199,7 +206,8 @@ export function SymbolStatusIndicator({
   size = 'md',
   useCustomTooltip = false,
 }: SymbolStatusProps) {
-  const status = calculateSymbolStatus(quote, candles, isRealtime);
+  const { isMarketOpen } = useMarketStatus();
+  const status = calculateSymbolStatus(quote, candles, isRealtime, isMarketOpen);
   const config = statusConfigs[status];
 
   const dotSize = size === 'sm' ? 'h-1.5 w-1.5' : 'h-2 w-2';
@@ -275,6 +283,7 @@ export function getSymbolStatusType(
   quote: StockQuote,
   candles?: CandleData[],
   isRealtime?: boolean,
+  isMarketOpen?: boolean,
 ): SymbolStatus {
-  return calculateSymbolStatus(quote, candles, isRealtime);
+  return calculateSymbolStatus(quote, candles, isRealtime, isMarketOpen);
 }

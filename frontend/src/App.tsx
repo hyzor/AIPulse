@@ -8,6 +8,7 @@ import { ExpandedChartModal } from './components/ExpandedChartModal';
 import { Header } from './components/Header';
 import { StatusBar } from './components/StatusBar';
 import { StockGrid } from './components/StockGrid';
+import { TopPerformers } from './components/TopPerformers';
 import { TimeRangeProvider, useTimeRange } from './contexts/TimeRangeContext';
 import { useWebSocket, useAutoRefresh } from './hooks/useWebSocket';
 import { stockService } from './services/stockService';
@@ -191,10 +192,7 @@ function AppContent({ realtimeQuotes, isConnected, wsError, subscribe }: {
         rateLimit={rateLimit}
       />
 
-      {/* Category Performance Overview */}
-      <CategoryPerformance stocks={mergedStocks} />
-
-      {/* Data availability warning for 7D/30D views - shown below category performance, above charts */}
+      {/* Data availability warning for 7D/30D views */}
       {timeRange !== '1d' && dataAvailability.warning && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-2">
           <div className="flex items-center gap-2 py-2 px-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
@@ -206,96 +204,111 @@ function AppContent({ realtimeQuotes, isConnected, wsError, subscribe }: {
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Earnings Calendar Widget */}
+        {/* Earnings Calendar - visible first on both desktop and mobile */}
         <section className="mb-8">
           <EarningsCalendar events={earningsEvents} />
         </section>
 
-        {/* All Stocks Grid */}
-        <section className="mb-12">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-              <span className="w-1 h-6 bg-neon-blue rounded-full"></span>
-              AI Market Overview
-            </h2>
-            <span className="text-sm text-gray-500">
-              {isConnected
-                ? `Background collection active ${rateLimit ? `(${rateLimit.callsRemaining} API calls available)` : ''}`
-                : 'Background collection running (WebSocket disconnected)'}
-            </span>
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Sidebar - right on desktop, follows earnings on mobile */}
+          <div className="w-full lg:w-80 flex-shrink-0 space-y-6 lg:order-last">
+            {/* Category Performance */}
+            <CategoryPerformance stocks={mergedStocks} variant="sidebar" />
+
+            {/* Top Performers Leaderboard */}
+            <TopPerformers stocks={mergedStocks} variant="sidebar" />
           </div>
 
-          {isLoading && stocks.size === 0
-            ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="flex items-center gap-3">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neon-blue"></div>
-                  <span className="text-gray-400">Loading stock data...</span>
-                </div>
+          {/* Main content - left on desktop */}
+          <div className="flex-1 min-w-0 lg:order-first">
+            {/* All Stocks Grid */}
+            <section className="mb-12">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <span className="w-1 h-6 bg-neon-blue rounded-full"></span>
+                  AI Market Overview
+                </h2>
+                <span className="text-sm text-gray-500">
+                  {isConnected
+                    ? `Background collection active ${rateLimit ? `(${rateLimit.callsRemaining} API calls available)` : ''}`
+                    : 'Background collection running (WebSocket disconnected)'}
+                </span>
               </div>
-            )
-            : stocks.size > 0
-              ? (
-                <StockGrid
-                  quotes={allStocks}
-                  realtimeQuotes={realtimeQuotes}
-                  earningsEvents={earningsEvents}
-                  onStockClick={handleStockClick}
-                />
-              )
-              : (
-                <div className="text-center py-12">
-                  <p className="text-gray-400">No stock data available. Check your API configuration.</p>
-                </div>
-              )}
-        </section>
 
-        {/* Categories */}
-        {Object.entries(STOCK_CATEGORIES).map(([category, symbols]) => {
-          const categoryStocks = getStocksByCategory(symbols);
-          if (categoryStocks.length === 0) { return null; }
-
-          // Category icon and color mapping
-          const categoryConfig: Record<string, { icon: React.ReactNode; color: string; barColor: string }> = {
-            'AI Chips': { icon: <Zap className="w-5 h-5" />, color: 'text-neon-purple', barColor: 'bg-neon-purple' },
-            'Semiconductors': { icon: <Cpu className="w-5 h-5" />, color: 'text-neon-blue', barColor: 'bg-neon-blue' },
-            'AI Software': { icon: <Code2 className="w-5 h-5" />, color: 'text-neon-green', barColor: 'bg-neon-green' },
-            'Tech Giants': { icon: <Rocket className="w-5 h-5" />, color: 'text-orange-400', barColor: 'bg-orange-400' },
-          };
-          const config = categoryConfig[category] || { icon: null, color: 'text-gray-400', barColor: 'bg-gray-400' };
-
-          return (
-            <section key={category} className="mb-12">
-              <h2 className={`text-xl font-bold mb-4 flex items-center gap-2 ${config.color}`}>
-                <span className={`w-1 h-6 ${config.barColor} rounded-full`}></span>
-                {config.icon}
-                {category}
-              </h2>
-              <StockGrid
-                quotes={categoryStocks}
-                realtimeQuotes={realtimeQuotes}
-                earningsEvents={earningsEvents}
-                onStockClick={handleStockClick}
-              />
+              {isLoading && stocks.size === 0
+                ? (
+                  <div className="flex items-center justify-center h-64">
+                    <div className="flex items-center gap-3">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neon-blue"></div>
+                      <span className="text-gray-400">Loading stock data...</span>
+                    </div>
+                  </div>
+                )
+                : stocks.size > 0
+                  ? (
+                    <StockGrid
+                      quotes={allStocks}
+                      realtimeQuotes={realtimeQuotes}
+                      earningsEvents={earningsEvents}
+                      onStockClick={handleStockClick}
+                    />
+                  )
+                  : (
+                    <div className="text-center py-12">
+                      <p className="text-gray-400">No stock data available. Check your API configuration.</p>
+                    </div>
+                  )}
             </section>
-          );
-        })}
 
-        {/* Data Collection Status - Bottom of page */}
-        <section className="mt-12 mb-8">
-          <DataCollectionStatus />
-        </section>
+            {/* Categories */}
+            {Object.entries(STOCK_CATEGORIES).map(([category, symbols]) => {
+              const categoryStocks = getStocksByCategory(symbols);
+              if (categoryStocks.length === 0) { return null; }
 
-        {/* Info Footer */}
-        <footer className="mt-12 pt-8 border-t border-dark-600">
-          <div className="text-center text-sm text-gray-500">
-            <p>
-              Background data collection during market hours (9:30 AM - 4:00 PM ET).
-              Click &quot;Live&quot; button for fresh data (API capacity permitting).
-            </p>
-            <p className="mt-1">Data provided by Finnhub API.</p>
+              // Category icon and color mapping
+              const categoryConfig: Record<string, { icon: React.ReactNode; color: string; barColor: string }> = {
+                'AI Chips': { icon: <Zap className="w-5 h-5" />, color: 'text-neon-purple', barColor: 'bg-neon-purple' },
+                'Semiconductors': { icon: <Cpu className="w-5 h-5" />, color: 'text-neon-blue', barColor: 'bg-neon-blue' },
+                'AI Software': { icon: <Code2 className="w-5 h-5" />, color: 'text-neon-green', barColor: 'bg-neon-green' },
+                'Tech Giants': { icon: <Rocket className="w-5 h-5" />, color: 'text-orange-400', barColor: 'bg-orange-400' },
+              };
+              const config = categoryConfig[category] || { icon: null, color: 'text-gray-400', barColor: 'bg-gray-400' };
+
+              return (
+                <section key={category} className="mb-12">
+                  <h2 className={`text-xl font-bold mb-4 flex items-center gap-2 ${config.color}`}>
+                    <span className={`w-1 h-6 ${config.barColor} rounded-full`}></span>
+                    {config.icon}
+                    {category}
+                  </h2>
+                  <StockGrid
+                    quotes={categoryStocks}
+                    realtimeQuotes={realtimeQuotes}
+                    earningsEvents={earningsEvents}
+                    onStockClick={handleStockClick}
+                  />
+                </section>
+              );
+            })}
+
+            {/* Data Collection Status - Bottom of page */}
+            <section className="mt-12 mb-8">
+              <DataCollectionStatus />
+            </section>
+
+            {/* Info Footer */}
+            <footer className="mt-12 pt-8 border-t border-dark-600">
+              <div className="text-center text-sm text-gray-500">
+                <p>
+                  Background data collection during market hours (9:30 AM - 4:00 PM ET).
+                  Click &quot;Live&quot; button for fresh data (API capacity permitting).
+                </p>
+                <p className="mt-1">Data provided by Finnhub API.</p>
+              </div>
+            </footer>
           </div>
-        </footer>
+
+        </div>
       </main>
 
       {/* Expanded Chart Modal */}

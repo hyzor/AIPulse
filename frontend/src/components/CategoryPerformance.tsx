@@ -8,6 +8,7 @@ import type { StockQuote, TimeRange } from '../types';
 
 interface CategoryPerformanceProps {
   stocks: Map<string, StockQuote>;
+  variant?: 'default' | 'sidebar';
 }
 
 interface CategoryStats {
@@ -146,7 +147,8 @@ function getPeriodLabel(timeRange: TimeRange, marketIsOpen: boolean): string {
   }
 }
 
-export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
+export function CategoryPerformance({ stocks, variant = 'default' }: CategoryPerformanceProps) {
+  const isSidebar = variant === 'sidebar';
   const { timeRange, setTimeRange, fetchAllHistory, historicalData, isLoading } = useTimeRange();
   const [historicalChanges, setHistoricalChanges] = useState<Map<string, HistoricalChange>>(new Map());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -306,113 +308,167 @@ export function CategoryPerformance({ stocks }: CategoryPerformanceProps) {
     { value: '30d', label: 'Last 30 Days' },
   ];
 
+  const headerSection = (
+    <div className="flex items-center justify-between mb-3">
+      <h3 className="text-sm font-medium text-gray-400">Category Performance</h3>
+
+      {/* Time Range Toggle */}
+      <div className="relative">
+        <button
+          onClick={() => { setIsDropdownOpen(!isDropdownOpen); }}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-dark-700 hover:bg-dark-600 rounded-lg border border-dark-600 text-xs text-gray-300 transition-colors"
+        >
+          {timeRange === '1d' && marketIsOpen && (
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-green opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-neon-green"></span>
+            </span>
+          )}
+          {timeRange === '1d' && !marketIsOpen && <Clock className="w-3 h-3 text-gray-400" />}
+          <span>{periodLabel}</span>
+          <ChevronDown className={`w-3 h-3 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {/* Dropdown Menu */}
+        {isDropdownOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => { setIsDropdownOpen(false); }}
+            />
+            <div className="absolute right-0 mt-1 w-40 bg-dark-700 border border-dark-600 rounded-lg shadow-lg z-50 py-1">
+              {timeRangeOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => {
+                    setTimeRange(option.value);
+                    setIsDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 text-xs hover:bg-dark-600 transition-colors ${
+                    timeRange === option.value ? 'text-neon-blue bg-neon-blue/10' : 'text-gray-300'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  const loadingSection = isLoading && (
+    <div className="flex items-center justify-center py-4">
+      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-neon-blue"></div>
+      <span className="ml-2 text-xs text-gray-400">Loading historical data...</span>
+    </div>
+  );
+
+  const errorSection = fetchError && (
+    <div className="flex items-center justify-center py-3 px-4 bg-neon-red/10 border border-neon-red/30 rounded-lg mb-3">
+      <span className="text-xs text-neon-red">{fetchError} - Using daily data</span>
+    </div>
+  );
+
+  const categoryContent = (
+    <>
+      {categoryStats.map((category) => (
+        <div
+          key={category.name}
+          className={`rounded-lg border p-3 transition-colors ${category.hasData ? 'bg-dark-700 border-dark-600 hover:border-dark-500' : 'bg-dark-800 border-dark-700'}`}
+          title={category.hasData
+            ? `${category.name}: Average performance across ${category.stockCount} stocks. ${category.upStocks} up, ${category.downStocks} down ${timeRange === '1d' ? (marketIsOpen ? 'today' : `on ${periodLabel}`) : `over ${periodLabel.toLowerCase()}`}.`
+            : `${category.name}: No historical data available. Try switching to &quot;Last Trading Day&quot; view.`}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span className={category.hasData ? category.color : 'text-gray-600'}>{category.icon}</span>
+            <span className={`text-sm font-medium ${category.hasData ? 'text-white' : 'text-gray-500'}`}>{category.name}</span>
+          </div>
+
+          {category.hasData ? (
+            <>
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className={`text-lg font-bold ${category.avgChangePercent >= 0 ? 'text-neon-green' : 'text-neon-red'}`}>
+                  {formatPercent(category.avgChangePercent)}
+                </span>
+                <span className={`text-xs ${category.avgChange >= 0 ? 'text-neon-green/70' : 'text-neon-red/70'}`}>
+                  {formatCurrency(category.avgChange)}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <span className="flex items-center gap-1">
+                  {category.avgChangePercent >= 0
+                    ? <TrendingUp className="w-3 h-3 text-neon-green" />
+                    : <TrendingDown className="w-3 h-3 text-neon-red" />
+                  }
+                  {category.upStocks}/{category.stockCount} up
+                </span>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <span className="text-lg font-bold text-gray-600">--</span>
+              <span className="text-xs text-gray-500">No data</span>
+            </div>
+          )}
+        </div>
+      ))}
+    </>
+  );
+
+  const sidebarCategoryContent = (
+    <div className="space-y-2">
+      {categoryStats.map((category) => (
+        <div
+          key={category.name}
+          className="flex items-center justify-between py-2 px-2 rounded-md hover:bg-dark-700/50 transition-colors"
+          title={category.hasData
+            ? `${category.name}: Average performance across ${category.stockCount} stocks. ${category.upStocks} up, ${category.downStocks} down ${timeRange === '1d' ? (marketIsOpen ? 'today' : `on ${periodLabel}`) : `over ${periodLabel.toLowerCase()}`}.`
+            : `${category.name}: No historical data available.`}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <span className={category.hasData ? category.color : 'text-gray-600'}>{category.icon}</span>
+            <span className={`text-xs font-medium truncate ${category.hasData ? 'text-white' : 'text-gray-500'}`}>{category.name}</span>
+          </div>
+
+          {category.hasData ? (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className={`text-sm font-bold ${category.avgChangePercent >= 0 ? 'text-neon-green' : 'text-neon-red'}`}>
+                {formatPercent(category.avgChangePercent)}
+              </span>
+              <span className="text-[10px] text-gray-500">
+                {category.upStocks}/{category.stockCount}
+              </span>
+            </div>
+          ) : (
+            <span className="text-sm font-bold text-gray-600">--</span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+
+  if (isSidebar) {
+    return (
+      <div className="bg-dark-800 rounded-xl border border-dark-600 p-4">
+        {headerSection}
+        {loadingSection}
+        {errorSection}
+        {sidebarCategoryContent}
+      </div>
+    );
+  }
+
   return (
     <div className="bg-dark-800 border-b border-dark-600">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-gray-400">Category Performance</h3>
-
-          {/* Time Range Toggle */}
-          <div className="relative">
-            <button
-              onClick={() => { setIsDropdownOpen(!isDropdownOpen); }}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-dark-700 hover:bg-dark-600 rounded-lg border border-dark-600 text-xs text-gray-300 transition-colors"
-            >
-              {timeRange === '1d' && marketIsOpen && (
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-green opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-neon-green"></span>
-                </span>
-              )}
-              {timeRange === '1d' && !marketIsOpen && <Clock className="w-3 h-3 text-gray-400" />}
-              <span>{periodLabel}</span>
-              <ChevronDown className={`w-3 h-3 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {/* Dropdown Menu */}
-            {isDropdownOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => { setIsDropdownOpen(false); }}
-                />
-                <div className="absolute right-0 mt-1 w-40 bg-dark-700 border border-dark-600 rounded-lg shadow-lg z-50 py-1">
-                  {timeRangeOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => {
-                        setTimeRange(option.value);
-                        setIsDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-xs hover:bg-dark-600 transition-colors ${
-                        timeRange === option.value ? 'text-neon-blue bg-neon-blue/10' : 'text-gray-300'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {isLoading && (
-          <div className="flex items-center justify-center py-4">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-neon-blue"></div>
-            <span className="ml-2 text-xs text-gray-400">Loading historical data...</span>
-          </div>
-        )}
-
-        {fetchError && (
-          <div className="flex items-center justify-center py-3 px-4 bg-neon-red/10 border border-neon-red/30 rounded-lg mb-3">
-            <span className="text-xs text-neon-red">{fetchError} - Using daily data</span>
-          </div>
-        )}
-
+        {headerSection}
+        {loadingSection}
+        {errorSection}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {categoryStats.map((category) => (
-            <div
-              key={category.name}
-              className={`rounded-lg border p-3 transition-colors ${category.hasData ? 'bg-dark-700 border-dark-600 hover:border-dark-500' : 'bg-dark-800 border-dark-700'}`}
-              title={category.hasData
-                ? `${category.name}: Average performance across ${category.stockCount} stocks. ${category.upStocks} up, ${category.downStocks} down ${timeRange === '1d' ? (marketIsOpen ? 'today' : `on ${periodLabel}`) : `over ${periodLabel.toLowerCase()}`}.`
-                : `${category.name}: No historical data available. Try switching to &quot;Last Trading Day&quot; view.`}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <span className={category.hasData ? category.color : 'text-gray-600'}>{category.icon}</span>
-                <span className={`text-sm font-medium ${category.hasData ? 'text-white' : 'text-gray-500'}`}>{category.name}</span>
-              </div>
-
-              {category.hasData ? (
-                <>
-                  <div className="flex items-baseline gap-1 mb-1">
-                    <span className={`text-lg font-bold ${category.avgChangePercent >= 0 ? 'text-neon-green' : 'text-neon-red'}`}>
-                      {formatPercent(category.avgChangePercent)}
-                    </span>
-                    <span className={`text-xs ${category.avgChange >= 0 ? 'text-neon-green/70' : 'text-neon-red/70'}`}>
-                      {formatCurrency(category.avgChange)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span className="flex items-center gap-1">
-                      {category.avgChangePercent >= 0
-                        ? <TrendingUp className="w-3 h-3 text-neon-green" />
-                        : <TrendingDown className="w-3 h-3 text-neon-red" />
-                      }
-                      {category.upStocks}/{category.stockCount} up
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <div className="flex flex-col gap-1">
-                  <span className="text-lg font-bold text-gray-600">--</span>
-                  <span className="text-xs text-gray-500">No data</span>
-                </div>
-              )}
-            </div>
-          ))}
+          {categoryContent}
         </div>
       </div>
     </div>

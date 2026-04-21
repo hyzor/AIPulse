@@ -188,7 +188,6 @@ export function StockCard({ quote, isRealtime = false, earningsEvent, onClick }:
               <MiniAreaChart
                 data={historicalData?.candles || []}
                 symbol={quote.symbol}
-                width={280}
                 height={80}
               />
             )}

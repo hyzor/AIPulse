@@ -249,7 +249,7 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
               {/* Market hours - ET and local */}
               <span className="text-sm text-gray-500 whitespace-nowrap">
                 {formatTime(MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE)}–{formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET
-                <span className="text-gray-600 hidden md:inline">
+                <span className="text-gray-500 hidden md:inline">
                   {' '}({formatTime(marketStatus.localOpen.hour, marketStatus.localOpen.minute)}–{formatTime(marketStatus.localClose.hour, marketStatus.localClose.minute)})
                 </span>
               </span>
@@ -280,18 +280,25 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
               <span className="text-sm text-gray-400 truncate">
                 {marketStatus.isOpen
                   ? `Closes ${formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET`
-                  : nextTradingDay && nextTradingDay.daysUntil > 0
+                  : nextTradingDay?.daysUntil === 0
                     ? (
                       <>
                         <Calendar className="w-3 h-3 inline mr-1" />
-                        Opens {nextTradingDay.dayOfWeek}
-                        {nextTradingDay.reason === 'holiday' && nextTradingDay.holidayName && (
-                          <span className="text-yellow-400"> ({nextTradingDay.holidayName})</span>
-                        )}
-                        {' '}<span className="text-gray-500">({nextTradingDay.daysUntil} days)</span>
+                        Opens Today
                       </>
                     )
-                    : `Opens ${marketStatus.nextOpen.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}`
+                    : nextTradingDay && nextTradingDay.daysUntil > 0
+                      ? (
+                        <>
+                          <Calendar className="w-3 h-3 inline mr-1" />
+                          Opens {nextTradingDay.dayOfWeek}
+                          {nextTradingDay.reason === 'holiday' && nextTradingDay.holidayName && (
+                            <span className="text-yellow-400"> ({nextTradingDay.holidayName})</span>
+                          )}
+                          {' '}<span className="text-gray-500">({nextTradingDay.daysUntil} days)</span>
+                        </>
+                      )
+                      : `Opens ${marketStatus.nextOpen.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}`
                 }
               </span>
             </div>

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 
 import { TimeRangeToggle } from './TimeRangeToggle';
 import { Tooltip } from './Tooltip';
-import { checkMarketOpen } from '../utils/format';
+import { checkMarketOpen, formatRelativeTime } from '../utils/format';
 
 interface HeaderProps {
   lastUpdate: Date | null;
@@ -97,25 +97,24 @@ export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
             {/* Time Range Toggle */}
             <TimeRangeToggle />
 
-            {/* Live Clock */}
-            <div className="hidden md:flex items-center gap-1.5 text-right">
-              <Clock className="w-3.5 h-3.5 text-neon-blue" />
-              <p className="text-sm font-mono text-white">
-                {currentTime.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
-              </p>
-            </div>
-
-            {/* Last Update */}
-            {lastUpdate && (
-              <Tooltip content="Last successful data fetch from Finnhub API. Updates automatically every 60 seconds during market hours." position="bottom">
-                <div className="hidden md:block text-right cursor-help">
-                  <p className="text-xs text-gray-500">Last Update</p>
-                  <p className="text-sm font-mono text-gray-300">
-                    {lastUpdate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+            {/* Live Clock + Data Freshness */}
+            <Tooltip content="Local time. Data freshness shows how long since the last successful API fetch from Finnhub. Updates every 60 seconds during market hours." position="bottom">
+              <div className="hidden md:flex flex-col items-end cursor-help">
+                {/* Clock */}
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-neon-blue" />
+                  <p className="text-sm font-mono text-white">
+                    {currentTime.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
                   </p>
                 </div>
-              </Tooltip>
-            )}
+                {/* Data freshness */}
+                {lastUpdate && (
+                  <p className="text-[11px] text-gray-500 leading-tight">
+                    Data: {formatRelativeTime(lastUpdate.getTime())}
+                  </p>
+                )}
+              </div>
+            </Tooltip>
 
             {/* Refresh Button */}
             <Tooltip content={checkMarketOpen('NASDAQ')

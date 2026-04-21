@@ -224,16 +224,11 @@ function AppContent({ realtimeQuotes, isConnected, wsError, subscribe }: {
           <div className="flex-1 min-w-0 lg:order-first">
             {/* All Stocks Grid */}
             <section className="mb-12">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                   <span className="w-1 h-6 bg-neon-blue rounded-full"></span>
                   AI Market Overview
                 </h2>
-                <span className="text-sm text-gray-500">
-                  {isConnected
-                    ? `Background collection active ${rateLimit ? `(${rateLimit.callsRemaining} API calls available)` : ''}`
-                    : 'Background collection running (WebSocket disconnected)'}
-                </span>
               </div>
 
               {isLoading && stocks.size === 0

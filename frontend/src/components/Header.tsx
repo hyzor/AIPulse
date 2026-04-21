@@ -109,7 +109,7 @@ export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
                 </div>
                 {/* Data freshness */}
                 {lastUpdate && (
-                  <p className="text-[11px] text-gray-500 leading-tight">
+                  <p className="text-[11px] text-gray-400 leading-tight">
                     Data: {formatRelativeTime(lastUpdate.getTime())}
                   </p>
                 )}

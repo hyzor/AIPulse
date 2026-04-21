@@ -111,31 +111,29 @@ export function StockCard({ quote, isRealtime = false, earningsEvent, onClick }:
         ${isLiveWs ? 'ring-2 ring-neon-blue/30' : ''}
       `}
     >
-      <div className="flex items-start justify-between gap-3 mb-3">
+      <div className="flex items-start justify-between mb-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-2">
             <FlagIcon
               countryCode={STOCK_COUNTRIES[quote.symbol]?.countryCode || 'us'}
               size="md"
               title={STOCK_COUNTRIES[quote.symbol]?.country}
             />
             <h3 className="text-xl font-bold text-white tracking-tight">{quote.symbol}</h3>
-            <div className="flex items-center gap-1.5">
-              <EarningsBadge symbol={quote.symbol} event={earningsEvent} />
-              <SymbolStatusIndicator
-                quote={quote}
-                candles={candles}
-                isRealtime={isRealtime}
-                showLabel={true}
-                size="sm"
-                useCustomTooltip={true}
-              />
-            </div>
+            <EarningsBadge symbol={quote.symbol} event={earningsEvent} />
+            <SymbolStatusIndicator
+              quote={quote}
+              candles={candles}
+              isRealtime={isRealtime}
+              showLabel={false}
+              size="sm"
+              useCustomTooltip={true}
+            />
           </div>
           <p className="text-sm text-gray-400 ml-7">{displayName}</p>
         </div>
         <Tooltip content={`Change from previous close: ${displayChange >= 0 ? '+' : ''}${formatCurrency(displayChange)} (${formatChange(displayChangePercent)})`} position="left">
-          <div className={`flex items-center gap-1 px-2 py-1 rounded-lg cursor-help flex-shrink-0 ${getChangeBgColor(displayChange)}`}>
+          <div className={`flex items-center gap-1 px-3 py-1.5 rounded-lg cursor-help flex-shrink-0 ${getChangeBgColor(displayChange)}`}>
             {displayIsPositive
               ? (
                 <TrendingUp className="w-4 h-4 text-neon-green" />

@@ -177,7 +177,7 @@ This document tracks the implementation status of features and enhancements for 
 | Chart: Zoom/pan capabilities | 📋 | Low | Requires chart library upgrade |
 | WebSocket: Auto-reconnect improvements | ✅ | 2026-04 | Already implemented |
 | API: GraphQL for flexible queries | 💡 | Low | Future architecture |
-| Mobile responsive layout | 🚧 | Medium | Partially done |
+| Mobile responsive layout | ✅ | 2026-04-23 | Responsive stat grids, single-line status bar, mobile abbreviations |
 
 ---
 
@@ -196,8 +196,8 @@ This document tracks the implementation status of features and enhancements for 
 ## Metrics
 
 - **Total Features**: 45+ tracked
-- **Complete**: 41 (91%)
-- **In Progress**: 1 (2%)
+- **Complete**: 42 (93%)
+- **In Progress**: 0 (0%)
 - **Planned**: 2 (4%)
 - **Ideas**: ~20 in MONITORING_IDEAS.md
 
@@ -205,7 +205,8 @@ This document tracks the implementation status of features and enhancements for 
 
 ## Recent Completed (Last 7 Days)
 
-1. ✅ **Earnings calendar** - Widget shows upcoming earnings with countdown, estimates, and time-of-day. Post-reporting "Recent Results" section displays Beat/Miss with surprise %. StockCard badges show earnings alerts (upcoming) and Beat/Miss results (recent). User-tested widget; badges pending real-world validation (no near-term earnings data currently)
+1. ✅ **Mobile responsive layout** - Responsive stat grids (grid-cols-3), single-line StatusBar on mobile with hidden non-essential elements, BMO/AMC abbreviations, flex-wrap card headers, hidden header subtitle. User-tested and confirmed.
+2. ✅ **Earnings calendar** - Widget shows upcoming earnings with countdown, estimates, and time-of-day. Post-reporting "Recent Results" section displays Beat/Miss with surprise %. StockCard badges show earnings alerts (upcoming) and Beat/Miss results (recent). User-tested widget; badges pending real-world validation (no near-term earnings data currently)
 2. ✅ **SymbolStatus component** - Reusable status indicator with 8 states (NO DATA, PRE-OPEN, DELAYED, CACHED, LIVE, CLOSED, INCOMPLETE)
 3. ✅ Refactored StockCard.tsx to use SymbolStatus component - cleaner code
 4. ✅ Stale data warning - Color-coded freshness indicator (green/yellow/red)
@@ -221,5 +222,5 @@ This document tracks the implementation status of features and enhancements for 
 
 ---
 
-*Last Updated: April 21, 2026 (Earnings calendar completed)*
+*Last Updated: April 23, 2026 (Mobile responsive layout completed)*
 *Next Review: Weekly or after major feature completion*

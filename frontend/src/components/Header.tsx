@@ -59,7 +59,7 @@ export function Header({ lastUpdate, onRefresh, isLoading }: HeaderProps) {
                   AI
                   <span className="text-neon-blue">Pulse</span>
                 </h1>
-                <p className="text-xs text-gray-400">Real-time AI Stock Monitor</p>
+                <p className="text-xs text-gray-400 hidden sm:block">Real-time AI Stock Monitor</p>
               </div>
             </div>
           </Tooltip>

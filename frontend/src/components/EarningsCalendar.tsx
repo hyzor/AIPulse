@@ -184,7 +184,8 @@ export function EarningsCalendar({ events }: EarningsCalendarProps) {
                         {formatEarningsDate(event.date)}
                       </span>
                       <span className="text-xs text-gray-500">
-                        {event.hour === 'bmo' ? 'Before Open' : event.hour === 'amc' ? 'After Close' : ''}
+                        <span className="sm:hidden">{event.hour === 'bmo' ? 'BMO' : event.hour === 'amc' ? 'AMC' : ''}</span>
+                        <span className="hidden sm:inline">{event.hour === 'bmo' ? 'Before Open' : event.hour === 'amc' ? 'After Close' : ''}</span>
                       </span>
                     </div>
                   </div>

@@ -250,7 +250,7 @@ export function DataCollectionStatus() {
       </div>
 
       {/* Stats by resolution - centered */}
-      <div className="flex justify-center gap-2 text-sm mb-3">
+      <div className="grid grid-cols-3 gap-2 text-sm mb-3">
         <Tooltip content="Raw 1-minute price ticks collected from Finnhub API. Used for real-time quotes and processed into hourly candles for charts." position="top">
           <div className={`flex flex-col p-2 rounded cursor-help border min-w-[100px] ${has1mData ? 'bg-dark-700/50 border-dark-600' : 'bg-dark-800/30 border-dark-700'}`}>
             <span className="text-xs text-gray-500">1-Minute Points</span>

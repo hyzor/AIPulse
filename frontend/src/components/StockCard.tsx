@@ -114,8 +114,8 @@ export function StockCard({ quote, isRealtime = false, earningsEvent, onClick }:
       `}
     >
       <div className="flex items-start justify-between mb-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
             <FlagIcon
               countryCode={STOCK_COUNTRIES[quote.symbol]?.countryCode || 'us'}
               size="md"

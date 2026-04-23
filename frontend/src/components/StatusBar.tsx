@@ -243,20 +243,20 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Market Status - Single row with full info */}
           <Tooltip content={`NYSE/NASDAQ market hours: ${formatTime(MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE)} - ${formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET (${formatTime(marketStatus.localOpen.hour, marketStatus.localOpen.minute)} - ${formatTime(marketStatus.localClose.hour, marketStatus.localClose.minute)} local). Markets open Monday-Friday except holidays.`} position="bottom">
-            <div className="flex-1 flex items-center gap-3 px-3 py-2 bg-dark-800/50 border border-dark-600 rounded-lg min-w-0 cursor-help">
+            <div className="flex-1 flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 bg-dark-800/50 border border-dark-600 rounded-lg min-w-0 cursor-help">
               <Clock className="w-4 h-4 text-gray-400 shrink-0" />
               <span className="text-sm text-gray-400 whitespace-nowrap hidden sm:inline">NYSE/NASDAQ</span>
               <div className="h-4 w-px bg-dark-600 shrink-0 hidden sm:block" />
 
               {/* Market hours - ET and local */}
-              <span className="text-sm text-gray-500 whitespace-nowrap">
+              <span className="text-sm text-gray-500 whitespace-nowrap hidden sm:inline">
                 {formatTime(MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE)}–{formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET
                 <span className="text-gray-500 hidden md:inline">
                   {' '}({formatTime(marketStatus.localOpen.hour, marketStatus.localOpen.minute)}–{formatTime(marketStatus.localClose.hour, marketStatus.localClose.minute)})
                 </span>
               </span>
 
-              <div className="h-4 w-px bg-dark-600 shrink-0" />
+              <div className="h-4 w-px bg-dark-600 shrink-0 hidden sm:block" />
 
               {/* Status indicator */}
               {isMarketOpen
@@ -279,32 +279,32 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
               <div className="h-4 w-px bg-dark-600 shrink-0" />
 
               {/* Next open / closes info */}
-              <span className="text-sm text-gray-400 truncate">
+              <span className="text-sm text-gray-400 truncate min-w-0">
                 {isMarketOpen
                   ? `Closes ${formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET`
                   : nextTradingDay?.daysUntil === 0
                     ? (
                       <>
-                        <Calendar className="w-3 h-3 inline mr-1" />
+                        <Calendar className="w-3 h-3 inline mr-1 hidden sm:inline" />
                         Opens Today
                       </>
                     )
                     : nextTradingDay?.daysUntil === 1
                       ? (
                         <>
-                          <Calendar className="w-3 h-3 inline mr-1" />
+                          <Calendar className="w-3 h-3 inline mr-1 hidden sm:inline" />
                           Opens tomorrow
                         </>
                       )
                       : nextTradingDay && nextTradingDay.daysUntil > 1
                         ? (
                           <>
-                            <Calendar className="w-3 h-3 inline mr-1" />
+                            <Calendar className="w-3 h-3 inline mr-1 hidden sm:inline" />
                             Opens {nextTradingDay.dayOfWeek}
                             {nextTradingDay.reason === 'holiday' && nextTradingDay.holidayName && (
-                              <span className="text-yellow-400"> ({nextTradingDay.holidayName})</span>
+                              <span className="text-yellow-400 hidden sm:inline"> ({nextTradingDay.holidayName})</span>
                             )}
-                            {' '}<span className="text-gray-500">({nextTradingDay.daysUntil} days)</span>
+                            {' '}<span className="text-gray-500">({nextTradingDay.daysUntil}d)</span>
                           </>
                         )
                         : `Opens ${marketStatus.nextOpen.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}`

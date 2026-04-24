@@ -35,8 +35,10 @@ export function StatsPanel({ candles, currentPrice: _currentPrice, change, chang
     );
   }
 
-  const high = Math.max(...candles.map((c) => c.h));
-  const low = Math.min(...candles.map((c) => c.l));
+  // Calculate high/low from close prices since the AreaChart only plots close values.
+  // This ensures the stats match what the user actually sees on the chart line.
+  const high = Math.max(...candles.map((c) => c.c));
+  const low = Math.min(...candles.map((c) => c.c));
   const totalVolume = candles.reduce((sum, c) => sum + c.v, 0);
   const isPositive = change >= 0;
 

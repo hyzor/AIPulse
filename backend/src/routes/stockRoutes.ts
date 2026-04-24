@@ -7,7 +7,7 @@ import { candleBufferService } from '../services/candleBufferService';
 import { databaseService } from '../services/databaseService';
 import { finnhubService } from '../services/finnhubService';
 import { redisService, type RedisCandle } from '../services/redisService';
-import { isMarketOpen, getMarketStatus, getTradingDayBounds, getPreviousTradingDayBounds, getNextTradingDay } from '../utils/marketHours';
+import { isMarketOpen, isTradingDay, getMarketStatus, getTradingDayBounds, getPreviousTradingDayBounds, getNextTradingDay } from '../utils/marketHours';
 
 import type { HistoryResponse, CandleData, FlushResult } from '../types';
 
@@ -275,11 +275,15 @@ router.get('/stocks/:symbol/history', async (req, res) => {
         ({ from } = bounds);
       } else {
         // Market is closed - show the most recent completed trading day
-        const bounds = getPreviousTradingDayBounds(now);
-        ({ from } = bounds);
-        // When market is closed, also adjust 'to' to market close time
-        const prevBounds = getPreviousTradingDayBounds(now);
-        ({ to } = prevBounds);
+        if (isTradingDay(now)) {
+          // Today is a trading day and market has closed - show today's data
+          const bounds = getTradingDayBounds(now);
+          ({ from, to } = bounds);
+        } else {
+          // Today is not a trading day (weekend/holiday) - show previous trading day
+          const bounds = getPreviousTradingDayBounds(now);
+          ({ from, to } = bounds);
+        }
       }
       break;
     }

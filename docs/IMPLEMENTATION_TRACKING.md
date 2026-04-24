@@ -151,7 +151,7 @@ This document tracks the implementation status of features and enhancements for 
 | Feature | Status | Priority | Effort |
 |---------|--------|----------|--------|
 | Data growth chart | 📋 | Low | Medium |
-| Best/worst performers | 📋 | Low | Medium |
+| Best/worst performers | ✅ | 2026-04 | Top 3 gainers/losers with period selection (1d/7d/30d) |
 | Collection milestones tracker | ✅ | 2026-04 | Done |
 | Historical volatility | 📋 | Low | High |
 | Sector rotation tracking | 💡 | Low | High |

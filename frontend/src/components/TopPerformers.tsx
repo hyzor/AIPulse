@@ -1,6 +1,7 @@
-import { Trophy, TrendingUp, TrendingDown } from 'lucide-react';
-import { useMemo } from 'react';
+import { Trophy, TrendingUp, TrendingDown, ChevronDown, Clock } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
+import { useMarketStatus } from '../contexts/MarketStatusContext';
 import { useTimeRange } from '../contexts/TimeRangeContext';
 import { STOCK_DISPLAY_NAMES, STOCK_CATEGORIES } from '../types';
 
@@ -39,18 +40,17 @@ function getCategoryColor(category: string): string {
   }
 }
 
-function getPeriodLabel(timeRange: string): string {
-  switch (timeRange) {
-    case '1d': return 'Today';
-    case '7d': return '7 Days';
-    case '30d': return '30 Days';
-    default: return 'Today';
-  }
-}
-
 export function TopPerformers({ stocks, variant = 'default' }: TopPerformersProps) {
   const isSidebar = variant === 'sidebar';
-  const { timeRange, historicalData, isLoading } = useTimeRange();
+  const { isMarketOpen: marketIsOpen } = useMarketStatus();
+  const {
+    timeRange,
+    setTimeRange,
+    historicalData,
+    isLoading,
+  } = useTimeRange();
+
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const performers = useMemo<Performer[]>(() => {
     const results: Performer[] = [];
@@ -70,7 +70,7 @@ export function TopPerformers({ stocks, variant = 'default' }: TopPerformersProp
         // Use historical data for 7d/30d performance
         const data = historicalData[symbol]?.[timeRange]?.candles;
         if (data && data.length >= 2) {
-          const [firstCandle] = data;
+          const firstCandle = data[0];
           const lastCandle = data[data.length - 1];
           change = lastCandle.c - firstCandle.o;
           changePercent = (change / firstCandle.o) * 100;
@@ -113,7 +113,22 @@ export function TopPerformers({ stocks, variant = 'default' }: TopPerformersProp
     return `${sign}$${value.toFixed(2)}`;
   };
 
+  const getPeriodLabel = (range: typeof timeRange): string => {
+    switch (range) {
+      case '1d': return marketIsOpen ? 'Today' : 'Previous Close';
+      case '7d': return '7 Days';
+      case '30d': return '30 Days';
+      default: return 'Today';
+    }
+  };
+
   const periodLabel = getPeriodLabel(timeRange);
+
+  const timeRangeOptions: { value: typeof timeRange; label: string }[] = [
+    { value: '1d', label: marketIsOpen ? 'Today (Live)' : 'Previous Close' },
+    { value: '7d', label: 'Last 7 Days' },
+    { value: '30d', label: 'Last 30 Days' },
+  ];
 
   const renderPerformer = (performer: Performer, rank: number, isGainer: boolean) => (
     <div
@@ -187,10 +202,55 @@ export function TopPerformers({ stocks, variant = 'default' }: TopPerformersProp
   }
 
   const header = (
-    <div className="flex items-center gap-2 mb-3">
-      <Trophy className="w-4 h-4 text-yellow-400" />
-      <h3 className="text-sm font-medium text-gray-400">Top Performers</h3>
-      <span className="text-xs text-gray-500 ml-auto">{periodLabel}</span>
+    <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center gap-2">
+        <Trophy className="w-4 h-4 text-yellow-400" />
+        <h3 className="text-sm font-medium text-gray-400">Top Performers</h3>
+      </div>
+
+      {/* Time Range Toggle */}
+      <div className="relative">
+        <button
+          onClick={() => { setIsDropdownOpen(!isDropdownOpen); }}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-dark-700 hover:bg-dark-600 rounded-lg border border-dark-600 text-xs text-gray-300 transition-colors"
+        >
+          {timeRange === '1d' && marketIsOpen && (
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-green opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-neon-green"></span>
+            </span>
+          )}
+          {timeRange === '1d' && !marketIsOpen && <Clock className="w-3 h-3 text-gray-400" />}
+          <span>{periodLabel}</span>
+          <ChevronDown className={`w-3 h-3 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {/* Dropdown Menu */}
+        {isDropdownOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => { setIsDropdownOpen(false); }}
+            />
+            <div className="absolute right-0 mt-1 w-40 bg-dark-700 border border-dark-600 rounded-lg shadow-lg z-50 py-1">
+              {timeRangeOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => {
+                    setTimeRange(option.value);
+                    setIsDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 text-xs hover:bg-dark-600 transition-colors ${
+                    timeRange === option.value ? 'text-neon-blue bg-neon-blue/10' : 'text-gray-300'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 

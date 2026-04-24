@@ -122,7 +122,6 @@ export function StockCard({ quote, isRealtime = false, earningsEvent, onClick }:
               title={STOCK_COUNTRIES[quote.symbol]?.country}
             />
             <h3 className="text-xl font-bold text-white tracking-tight">{quote.symbol}</h3>
-            <EarningsBadge symbol={quote.symbol} event={earningsEvent} />
             <SymbolStatusIndicator
               quote={quote}
               candles={candles}
@@ -134,20 +133,23 @@ export function StockCard({ quote, isRealtime = false, earningsEvent, onClick }:
           </div>
           <p className="text-sm text-gray-400 ml-7">{displayName}</p>
         </div>
-        <Tooltip content={`Change from previous close: ${displayChange >= 0 ? '+' : ''}${formatCurrency(displayChange)} (${formatChange(displayChangePercent)})`} position="left">
-          <div className={`flex items-center gap-1 px-3 py-1.5 rounded-lg cursor-help flex-shrink-0 ${getChangeBgColor(displayChange)}`}>
-            {displayIsPositive
-              ? (
-                <TrendingUp className="w-4 h-4 text-neon-green" />
-              )
-              : (
-                <TrendingDown className="w-4 h-4 text-neon-red" />
-              )}
-            <span className={`text-sm font-bold ${getChangeColor(displayChange)}`}>
-              {formatChange(displayChangePercent)}
-            </span>
-          </div>
-        </Tooltip>
+        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+          <Tooltip content={`Change from previous close: ${displayChange >= 0 ? '+' : ''}${formatCurrency(displayChange)} (${formatChange(displayChangePercent)})`} position="left">
+            <div className={`flex items-center gap-1 px-3 py-1.5 rounded-lg cursor-help ${getChangeBgColor(displayChange)}`}>
+              {displayIsPositive
+                ? (
+                  <TrendingUp className="w-4 h-4 text-neon-green" />
+                )
+                : (
+                  <TrendingDown className="w-4 h-4 text-neon-red" />
+                )}
+              <span className={`text-sm font-bold ${getChangeColor(displayChange)}`}>
+                {formatChange(displayChangePercent)}
+              </span>
+            </div>
+          </Tooltip>
+          <EarningsBadge symbol={quote.symbol} event={earningsEvent} />
+        </div>
       </div>
 
       <div className="mb-3">

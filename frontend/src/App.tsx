@@ -284,7 +284,7 @@ function AppContent({ realtimeQuotes, isConnected, wsError, subscribe }: {
           </div>
 
           {/* Sidebar - above cards on mobile, sticky on desktop right */}
-          <div className="w-full lg:w-72 flex-shrink-0 space-y-6 order-first lg:order-last lg:sticky lg:top-8 lg:self-start">
+          <div className="w-full lg:w-72 flex-shrink-0 space-y-6 order-first lg:order-last lg:sticky lg:top-20 lg:self-start lg:z-30">
             {/* Earnings Calendar — at the top so it's immediately visible */}
             <EarningsCalendar events={earningsEvents} />
 

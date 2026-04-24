@@ -281,7 +281,7 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
               {/* Next open / closes info */}
               <span className="text-sm text-gray-400 truncate min-w-0">
                 {isMarketOpen
-                  ? `Closes ${formatTime(MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE)} ET`
+                  ? `Closes ${formatTime(marketStatus.localClose.hour, marketStatus.localClose.minute)}`
                   : nextTradingDay?.daysUntil === 0
                     ? (
                       <>

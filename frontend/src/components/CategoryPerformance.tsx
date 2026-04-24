@@ -282,7 +282,7 @@ export function CategoryPerformance({ stocks, variant = 'default' }: CategoryPer
       <div className="relative">
         <button
           onClick={() => { setIsDropdownOpen(!isDropdownOpen); }}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-dark-700 hover:bg-dark-600 rounded-lg border border-dark-600 text-xs text-gray-300 transition-colors"
+          className="flex items-center gap-1.5 px-2 py-1 bg-dark-700 hover:bg-dark-600 rounded-md border border-dark-600 text-xs text-gray-300 transition-colors whitespace-nowrap"
         >
           {timeRange === '1d' && marketIsOpen && (
             <span className="relative flex h-1.5 w-1.5">

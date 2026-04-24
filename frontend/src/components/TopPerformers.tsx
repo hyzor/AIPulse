@@ -1,4 +1,4 @@
-import { Trophy, TrendingUp, TrendingDown, ChevronDown, Clock, Zap, Cpu, Code2, Rocket } from 'lucide-react';
+import { TrendingUp, TrendingDown, ChevronDown, Clock, Zap, Cpu, Code2, Rocket } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { useMarketStatus } from '../contexts/MarketStatusContext';
@@ -6,6 +6,67 @@ import { useTimeRange } from '../contexts/TimeRangeContext';
 import { STOCK_DISPLAY_NAMES, STOCK_CATEGORIES } from '../types';
 
 import type { StockQuote } from '../types';
+
+// US Market hours: 9:30 AM - 4:00 PM ET
+const MARKET_OPEN_HOUR = 9;
+const MARKET_OPEN_MINUTE = 30;
+
+function getLastTradingDate(): string {
+  const now = new Date();
+
+  const etDateFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+
+  const dayFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    weekday: 'short',
+  });
+
+  const timeFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  });
+
+  const dayName = dayFormatter.format(now);
+  const dayMap: Record<string, number> = {
+    Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7,
+  };
+  const dayOfWeek = dayMap[dayName] || 0;
+
+  const timeParts = timeFormatter.formatToParts(now);
+  const hour = parseInt(timeParts.find((p) => p.type === 'hour')?.value || '0', 10);
+  const minute = parseInt(timeParts.find((p) => p.type === 'minute')?.value || '0', 10);
+  const timeDecimal = hour + minute / 60;
+  const marketOpenDecimal = MARKET_OPEN_HOUR + MARKET_OPEN_MINUTE / 60;
+
+  let daysToSubtract = 0;
+  if (dayOfWeek === 7) {
+    daysToSubtract = 2;
+  } else if (dayOfWeek === 6) {
+    daysToSubtract = 1;
+  } else if (dayOfWeek === 1) {
+    daysToSubtract = 3;
+  } else if (dayOfWeek === 2 && timeDecimal < marketOpenDecimal) {
+    daysToSubtract = 1;
+  } else if (dayOfWeek === 3 && timeDecimal < marketOpenDecimal) {
+    daysToSubtract = 1;
+  } else if (dayOfWeek === 4 && timeDecimal < marketOpenDecimal) {
+    daysToSubtract = 1;
+  } else if (dayOfWeek === 5 && timeDecimal < marketOpenDecimal) {
+    daysToSubtract = 1;
+  }
+
+  const lastTradingDate = new Date(now);
+  lastTradingDate.setDate(lastTradingDate.getDate() - daysToSubtract);
+
+  return etDateFormatter.format(lastTradingDate);
+}
 
 interface TopPerformersProps {
   stocks: Map<string, StockQuote>;
@@ -116,7 +177,7 @@ export function TopPerformers({ stocks, variant = 'default' }: TopPerformersProp
 
   const getPeriodLabel = (range: typeof timeRange): string => {
     switch (range) {
-      case '1d': return marketIsOpen ? 'Today' : 'Previous Close';
+      case '1d': return marketIsOpen ? 'Today' : getLastTradingDate();
       case '7d': return '7 Days';
       case '30d': return '30 Days';
       default: return 'Today';
@@ -207,16 +268,13 @@ export function TopPerformers({ stocks, variant = 'default' }: TopPerformersProp
 
   const header = (
     <div className="flex items-center justify-between mb-3">
-      <div className="flex items-center gap-2">
-        <Trophy className="w-4 h-4 text-yellow-400" />
-        <h3 className="text-sm font-medium text-gray-400">Top Performers</h3>
-      </div>
+      <h3 className="text-sm font-medium text-gray-400">Top Performers</h3>
 
       {/* Time Range Toggle */}
       <div className="relative">
         <button
           onClick={() => { setIsDropdownOpen(!isDropdownOpen); }}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-dark-700 hover:bg-dark-600 rounded-lg border border-dark-600 text-xs text-gray-300 transition-colors"
+          className="flex items-center gap-1.5 px-2 py-1 bg-dark-700 hover:bg-dark-600 rounded-md border border-dark-600 text-xs text-gray-300 transition-colors whitespace-nowrap"
         >
           {timeRange === '1d' && marketIsOpen && (
             <span className="relative flex h-1.5 w-1.5">

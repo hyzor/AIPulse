@@ -38,10 +38,10 @@ function formatEarningsDate(dateStr: string): string {
   });
 }
 
-function getUrgencyClass(daysUntil: number): string {
-  if (daysUntil === 0) {return 'text-neon-red';}
-  if (daysUntil <= 3) {return 'text-yellow-400';}
-  return 'text-gray-500';
+function getUrgencyBadge(daysUntil: number): string {
+  if (daysUntil === 0) {return 'bg-neon-red/20 text-neon-red border-neon-red/40';}
+  if (daysUntil <= 3) {return 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30';}
+  return 'bg-orange-500/10 text-orange-400 border-orange-500/25';
 }
 
 function calculateSurprise(event: EarningsEvent): { surprisePercent: number | null; isBeat: boolean } {
@@ -71,7 +71,7 @@ export function EarningsCalendar({ events }: EarningsCalendarProps) {
       <div className="bg-dark-800 border border-dark-600 rounded-xl overflow-hidden">
         <div className="flex items-center gap-2 px-3 py-2.5 border-b border-dark-600 bg-dark-800/80">
           <Calendar className="w-3.5 h-3.5 text-neon-blue" />
-          <h3 className="text-xs font-semibold text-white uppercase tracking-wide">Upcoming</h3>
+          <h3 className="text-xs font-semibold text-white uppercase tracking-wide">Upcoming Earnings</h3>
           <span className="text-xs text-gray-500">Loading...</span>
         </div>
         <div className="grid grid-cols-2 gap-1 p-2">
@@ -100,7 +100,7 @@ export function EarningsCalendar({ events }: EarningsCalendarProps) {
           {/* Header */}
           <div className="flex items-center gap-2 px-3 py-2.5 border-b border-dark-600 bg-dark-800/80">
             <Calendar className="w-3.5 h-3.5 text-neon-blue" />
-            <h3 className="text-xs font-semibold text-white uppercase tracking-wide">Upcoming</h3>
+            <h3 className="text-xs font-semibold text-white uppercase tracking-wide">Upcoming Earnings</h3>
             <span className="text-xs text-gray-500">({upcoming.length})</span>
           </div>
 
@@ -135,7 +135,7 @@ export function EarningsCalendar({ events }: EarningsCalendarProps) {
                   <div className="flex items-center justify-between px-2 py-1.5 rounded-md cursor-help transition-colors hover:bg-dark-700/50 bg-dark-700/30 border border-dark-700/50">
                     <span className="text-[11px] font-medium text-gray-300 shrink-0 mr-2">{event.symbol}</span>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span className={`text-[10px] font-medium ${getUrgencyClass(daysUntil)}`}>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border ${getUrgencyBadge(daysUntil)}`}>
                         {daysUntil === 0 ? 'TODAY' : daysUntil === 1 ? '1d' : `${daysUntil}d`}
                       </span>
                       <span className="text-[10px] text-gray-500">

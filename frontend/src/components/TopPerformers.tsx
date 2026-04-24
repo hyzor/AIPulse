@@ -1,4 +1,4 @@
-import { Trophy, TrendingUp, TrendingDown, ChevronDown, Clock } from 'lucide-react';
+import { Trophy, TrendingUp, TrendingDown, ChevronDown, Clock, Zap, Cpu, Code2, Rocket } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { useMarketStatus } from '../contexts/MarketStatusContext';
@@ -30,13 +30,14 @@ function getCategoryForSymbol(symbol: string): string {
   return 'Other';
 }
 
-function getCategoryColor(category: string): string {
+function getCategoryIcon(category: string): { icon: React.ReactNode; color: string } {
+  const iconClass = 'w-3 h-3';
   switch (category) {
-    case 'AI Chips': return 'bg-neon-purple/20 text-neon-purple border-neon-purple/30';
-    case 'Semiconductors': return 'bg-neon-blue/20 text-neon-blue border-neon-blue/30';
-    case 'AI Software': return 'bg-neon-green/20 text-neon-green border-neon-green/30';
-    case 'Tech Giants': return 'bg-orange-400/20 text-orange-400 border-orange-400/30';
-    default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    case 'AI Chips': return { icon: <Zap className={iconClass} />, color: 'text-neon-purple' };
+    case 'Semiconductors': return { icon: <Cpu className={iconClass} />, color: 'text-neon-blue' };
+    case 'AI Software': return { icon: <Code2 className={iconClass} />, color: 'text-neon-green' };
+    case 'Tech Giants': return { icon: <Rocket className={iconClass} />, color: 'text-orange-400' };
+    default: return { icon: null, color: 'text-gray-500' };
   }
 }
 
@@ -148,11 +149,14 @@ export function TopPerformers({ stocks, variant = 'default' }: TopPerformersProp
 
       {/* Symbol & Name */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <span className="font-bold text-sm text-white">{performer.symbol}</span>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${getCategoryColor(performer.category)}`}>
-            {performer.category}
-          </span>
+          {(() => {
+            const categoryInfo = getCategoryIcon(performer.category);
+            return categoryInfo.icon ? (
+              <span className={categoryInfo.color}>{categoryInfo.icon}</span>
+            ) : null;
+          })()}
         </div>
         <span className="text-xs text-gray-400 truncate block">{performer.name}</span>
       </div>

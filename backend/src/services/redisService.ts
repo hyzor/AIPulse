@@ -354,6 +354,49 @@ class RedisService {
 
     return results[0].score;
   }
+
+  // Generic JSON get/set for persistent caching across restarts
+  async getJson<T>(key: string): Promise<T | null> {
+    if (!this.client) { return null; }
+    try {
+      const data = await this.client.get(key);
+      if (!data) { return null; }
+      return JSON.parse(data) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  async setJson<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
+    if (!this.client) { return; }
+    try {
+      await this.client.setEx(key, ttlSeconds, JSON.stringify(value));
+    } catch (err) {
+      console.error(`[Redis] Failed to set ${key}:`, err);
+    }
+  }
+
+  async delJson(key: string): Promise<void> {
+    if (!this.client) { return; }
+    try {
+      await this.client.del(key);
+    } catch {
+      // ignore
+    }
+  }
+
+  // Clear all keys matching a pattern (use carefully)
+  async clearPattern(pattern: string): Promise<void> {
+    if (!this.client) { return; }
+    try {
+      const keys = await this.client.keys(pattern);
+      if (keys.length > 0) {
+        await this.client.del(keys);
+      }
+    } catch {
+      // ignore
+    }
+  }
 }
 
 export const redisService = new RedisService();

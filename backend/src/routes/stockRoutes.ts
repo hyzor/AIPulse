@@ -183,12 +183,15 @@ router.get('/profile/:symbol', async (req, res) => {
 });
 
 // Clear cache (admin endpoint)
-router.post('/cache/clear', (_req, res) => {
+router.post('/cache/clear', async (_req, res) => {
   cacheService.flush();
+
+  // Also clear persistent Redis earnings cache so fresh data is fetched
+  await redisService.clearPattern('aipulse:earnings:*');
 
   res.json({
     success: true,
-    message: 'Cache cleared successfully',
+    message: 'Cache cleared successfully (L1 memory + L2 Redis earnings)',
     timestamp: Date.now(),
   });
 });

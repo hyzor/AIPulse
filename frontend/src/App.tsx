@@ -205,32 +205,11 @@ function AppContent({ realtimeQuotes, isConnected, wsError, subscribe }: {
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Earnings Calendar - visible first on both desktop and mobile */}
-        <section className="mb-8">
-          <EarningsCalendar events={earningsEvents} />
-        </section>
-
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Sidebar - right on desktop, follows earnings on mobile */}
-          <div className="w-full lg:w-80 flex-shrink-0 space-y-6 lg:order-last">
-            {/* Category Performance */}
-            <CategoryPerformance stocks={mergedStocks} variant="sidebar" />
-
-            {/* Top Performers Leaderboard */}
-            <TopPerformers stocks={mergedStocks} variant="sidebar" />
-          </div>
-
-          {/* Main content - left on desktop */}
-          <div className="flex-1 min-w-0 lg:order-first">
-            {/* All Stocks Grid */}
-            <section className="mb-12">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                  <span className="w-1 h-6 bg-neon-blue rounded-full"></span>
-                  AI Market Overview
-                </h2>
-              </div>
-
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
+          {/* Main content - left on desktop, below sidebar on mobile */}
+          <div className="flex-1 min-w-0 order-last lg:order-first">
+            {/* AI Market Overview - no title, cards align with sidebar */}
+            <section className="mb-8">
               {isLoading && stocks.size === 0
                 ? (
                   <div className="flex items-center justify-center h-64">
@@ -302,6 +281,18 @@ function AppContent({ realtimeQuotes, isConnected, wsError, subscribe }: {
                 <p className="mt-1">Data provided by Finnhub API.</p>
               </div>
             </footer>
+          </div>
+
+          {/* Sidebar - above cards on mobile, sticky on desktop right */}
+          <div className="w-full lg:w-72 flex-shrink-0 space-y-6 order-first lg:order-last lg:sticky lg:top-8 lg:self-start">
+            {/* Earnings Calendar — at the top so it's immediately visible */}
+            <EarningsCalendar events={earningsEvents} />
+
+            {/* Category Performance */}
+            <CategoryPerformance stocks={mergedStocks} variant="sidebar" />
+
+            {/* Top Performers Leaderboard */}
+            <TopPerformers stocks={mergedStocks} variant="sidebar" />
           </div>
 
         </div>

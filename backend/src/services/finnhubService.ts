@@ -511,55 +511,142 @@ class FinnhubService {
   /**
    * Get earnings calendar for a date range
    * Returns earnings events filtered to tracked stocks
+   *
+   * NOTE: We query per-symbol because Finnhub's bulk calendar endpoint
+   * caps results at ~1500 events. During busy earnings seasons, this
+   * causes tracked stocks to be silently truncated from the response.
+   *
+   * Each symbol is cached individually so progress is never lost mid-loop.
+   * If rate limited, we wait for the window to reset and retry the same
+   * symbol rather than skipping it.
    */
   async getEarningsCalendar(from: string, to: string): Promise<EarningsEvent[]> {
-    const cacheKey = `earnings:${from}:${to}`;
+    const aggregateCacheKey = `earnings:${from}:${to}`;
+    const redisAggregateKey = `aipulse:earnings:aggregate:${from}:${to}`;
 
-    // Check cache first (24h TTL since earnings dates don't change frequently)
-    const cached = cacheService.get<EarningsEvent[]>(cacheKey);
+    // Fast path 1: L1 memory cache
+    const cached = cacheService.get<EarningsEvent[]>(aggregateCacheKey);
     if (cached) {
-      console.log(`[Finnhub] Serving earnings calendar from cache (${cached.length} events)`);
+      console.log(`[Finnhub] Serving earnings calendar from L1 memory cache (${cached.length} events)`);
       return cached;
     }
 
-    // Check rate limit before making request
-    if (!finnhubRateLimiter.canMakeCall()) {
-      console.warn('[Finnhub] Rate limit reached, skipping earnings calendar fetch');
-      return cached || [];
+    // Fast path 2: L2 Redis cache (survives container restarts)
+    const redisCached = await redisService.getJson<EarningsEvent[]>(redisAggregateKey);
+    if (redisCached) {
+      // Promote to L1 for faster access
+      cacheService.set(aggregateCacheKey, redisCached, 86400);
+      console.log(`[Finnhub] Serving earnings calendar from L2 Redis cache (${redisCached.length} events)`);
+      return redisCached;
     }
 
-    try {
-      const data = await this.fetchFromApi<{
-        earningsCalendar: FinnhubEarningsCalendar[];
-      }>(`/calendar/earnings?from=${from}&to=${to}`);
+    const allEvents: EarningsEvent[] = [];
+    const missingSymbols: string[] = [];
 
-      if (!data?.earningsCalendar || data.earningsCalendar.length === 0) {
-        return [];
+    // Phase 1: Pull already-cached per-symbol results (L1 then L2)
+    for (const symbol of TRACKED_STOCKS) {
+      const symbolCacheKey = `earnings:symbol:${symbol}:${from}:${to}`;
+      const redisSymbolKey = `aipulse:earnings:symbol:${symbol}:${from}:${to}`;
+
+      const symbolCached = cacheService.get<EarningsEvent[]>(symbolCacheKey);
+      if (symbolCached) {
+        allEvents.push(...symbolCached);
+        continue;
       }
 
-      // Filter to tracked stocks only and transform
-      const trackedSet = new Set<string>(TRACKED_STOCKS);
-      const events: EarningsEvent[] = data.earningsCalendar
-        .filter((e) => trackedSet.has(e.symbol))
-        .map((e) => ({
-          symbol: e.symbol,
-          date: e.date,
-          epsEstimate: e.epsEstimate,
-          epsActual: e.epsActual,
-          revenueEstimate: e.revenueEstimate,
-          revenueActual: e.revenueActual,
-          hour: e.hour === 'bmo' ? 'bmo' : e.hour === 'amc' ? 'amc' : null,
-        }));
-
-      // Cache for 24 hours
-      cacheService.set(cacheKey, events, 86400);
-      console.log(`[Finnhub] Fetched ${events.length} earnings events (${data.earningsCalendar.length} total)`);
-
-      return events;
-    } catch (error) {
-      console.error('[Finnhub] Error fetching earnings calendar:', error);
-      return [];
+      const redisSymbolCached = await redisService.getJson<EarningsEvent[]>(redisSymbolKey);
+      if (redisSymbolCached) {
+        cacheService.set(symbolCacheKey, redisSymbolCached, 86400);
+        allEvents.push(...redisSymbolCached);
+      } else {
+        missingSymbols.push(symbol);
+      }
     }
+
+    if (missingSymbols.length === 0) {
+      // Everything was cached individually — cache aggregate and return
+      cacheService.set(aggregateCacheKey, allEvents, 86400);
+      await redisService.setJson(redisAggregateKey, allEvents, 86400);
+      console.log(`[Finnhub] Earnings calendar fully cached (${allEvents.length} events)`);
+      return allEvents;
+    }
+
+    // Phase 2: Fetch missing symbols with rate-limit resilience
+    for (let i = 0; i < missingSymbols.length; i++) {
+      const symbol = missingSymbols[i];
+      let attempts = 0;
+      const maxAttempts = 3;
+      let fetched = false;
+
+      while (attempts < maxAttempts && !fetched) {
+        // If we're at the limit, wait for the window to reset before trying
+        const stats = finnhubRateLimiter.getStats();
+        if (stats.callsRemaining === 0) {
+          const delay = finnhubRateLimiter.getRecommendedDelayMs();
+          console.log(
+            `[Finnhub] Rate limit window full (${stats.callsInCurrentWindow}/${stats.callsInCurrentWindow + stats.callsRemaining}), waiting ${delay}ms before fetching ${symbol}...`,
+          );
+          await this.sleep(delay + 100);
+        }
+
+        try {
+          const data = await this.fetchFromApi<{
+            earningsCalendar: FinnhubEarningsCalendar[];
+          }>(`/calendar/earnings?from=${from}&to=${to}&symbol=${symbol}`);
+
+          const events: EarningsEvent[] = (data?.earningsCalendar || []).map((e) => ({
+            symbol: e.symbol,
+            date: e.date,
+            epsEstimate: e.epsEstimate,
+            epsActual: e.epsActual,
+            revenueEstimate: e.revenueEstimate,
+            revenueActual: e.revenueActual,
+            hour: e.hour === 'bmo' ? 'bmo' : e.hour === 'amc' ? 'amc' : null,
+          }));
+
+          // Cache to L1 (memory) + L2 (Redis) immediately so progress survives crashes / restarts
+          const symbolCacheKey = `earnings:symbol:${symbol}:${from}:${to}`;
+          const redisSymbolKey = `aipulse:earnings:symbol:${symbol}:${from}:${to}`;
+          cacheService.set(symbolCacheKey, events, 86400);
+          await redisService.setJson(redisSymbolKey, events, 86400);
+
+          allEvents.push(...events);
+          fetched = true;
+        } catch (error) {
+          attempts++;
+          if (error instanceof Error && error.message.includes('Rate limit exceeded')) {
+            if (attempts >= maxAttempts) {
+              console.warn(`[Finnhub] Rate limit persists for ${symbol} after ${maxAttempts} attempts, skipping`);
+              break;
+            }
+            const delay = finnhubRateLimiter.getRecommendedDelayMs();
+            if (delay > 0) {
+              console.log(
+                `[Finnhub] Rate limited on ${symbol}, waiting ${delay}ms (attempt ${attempts}/${maxAttempts})...`,
+              );
+              await this.sleep(delay + 100);
+            }
+          } else {
+            console.error(`[Finnhub] Error fetching earnings for ${symbol}:`, error);
+            break;
+          }
+        }
+      }
+
+      // Small delay between requests to smooth out load
+      if (i < missingSymbols.length - 1) {
+        await this.sleep(200);
+      }
+    }
+
+    // Cache the fully assembled calendar to L1 + L2
+    cacheService.set(aggregateCacheKey, allEvents, 86400);
+    await redisService.setJson(redisAggregateKey, allEvents, 86400);
+    console.log(
+      `[Finnhub] Fetched ${allEvents.length} earnings events (${TRACKED_STOCKS.length - missingSymbols.length} from cache, ${missingSymbols.length} fetched live)`,
+    );
+
+    return allEvents;
   }
 
   /**

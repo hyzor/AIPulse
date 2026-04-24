@@ -7,6 +7,7 @@ export interface StockQuote {
   lowPrice: number;
   openPrice: number;
   previousClose: number;
+  volume: number;
   timestamp: number;
   isCached?: boolean; // True if data came from cache due to rate limiting
   isMarketClosed?: boolean; // True if market is closed and we're serving last known data
@@ -31,6 +32,7 @@ export interface FinnhubQuote {
   o: number; // Open price
   pc: number; // Previous close
   t: number; // Timestamp
+  v: number; // Volume
 }
 
 export interface FinnhubProfile {

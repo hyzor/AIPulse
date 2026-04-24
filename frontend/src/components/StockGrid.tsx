@@ -44,6 +44,7 @@ export function StockGrid({ quotes, realtimeQuotes, onStockClick, earningsEvents
       lowPrice: 0,
       openPrice: 0,
       previousClose: 0,
+      volume: 0,
       timestamp: Math.floor(Date.now() / 1000), // Unix timestamp in seconds
     };
   });

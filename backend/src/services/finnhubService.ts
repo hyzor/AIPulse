@@ -106,6 +106,7 @@ class FinnhubService {
             lowPrice: redisQuote.low,
             openPrice: redisQuote.open,
             previousClose: redisQuote.previousClose,
+            volume: redisQuote.volume,
             timestamp: Math.floor(redisQuote.timestamp / 1000), // Convert ms to seconds
           };
           // Also cache in memory for faster access
@@ -130,6 +131,7 @@ class FinnhubService {
             lowPrice: dbQuote.lowPrice || 0,
             openPrice: dbQuote.openPrice || 0,
             previousClose: dbQuote.previousClose || 0,
+            volume: dbQuote.volume || 0,
             timestamp: new Date(dbQuote.timestamp).getTime() / 1000,
           };
           // Also cache in memory
@@ -166,6 +168,7 @@ class FinnhubService {
             lowPrice: redisQuote.low,
             openPrice: redisQuote.open,
             previousClose: redisQuote.previousClose,
+            volume: redisQuote.volume,
             timestamp: redisQuote.timestamp,
           };
           cacheService.set(cacheKey, quote, 60);
@@ -190,6 +193,7 @@ class FinnhubService {
             lowPrice: dbQuote.lowPrice || 0,
             openPrice: dbQuote.openPrice || 0,
             previousClose: dbQuote.previousClose || 0,
+            volume: dbQuote.volume || 0,
             timestamp: new Date(dbQuote.timestamp).getTime() / 1000,
           };
           cacheService.set(cacheKey, quote, 60);
@@ -233,6 +237,7 @@ class FinnhubService {
         lowPrice: data.l,
         openPrice: data.o,
         previousClose: data.pc,
+        volume: data.v || 0,
         timestamp: data.t,
         isCached: false, // Fresh data from API
       };
@@ -322,6 +327,7 @@ class FinnhubService {
               lowPrice: redisQuote.low,
               openPrice: redisQuote.open,
               previousClose: redisQuote.previousClose,
+              volume: redisQuote.volume,
               timestamp: Math.floor(redisQuote.timestamp / 1000), // Convert ms to seconds
             };
             cacheService.set(cacheKey, quote, 60);
@@ -346,6 +352,7 @@ class FinnhubService {
               lowPrice: dbQuote.lowPrice || 0,
               openPrice: dbQuote.openPrice || 0,
               previousClose: dbQuote.previousClose || 0,
+              volume: dbQuote.volume || 0,
               timestamp: new Date(dbQuote.timestamp).getTime() / 1000,
             };
             cacheService.set(cacheKey, quote, 60);

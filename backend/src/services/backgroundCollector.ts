@@ -214,7 +214,7 @@ class BackgroundCollector {
             candleBufferService.updatePrice(
               quote.symbol,
               quote.currentPrice,
-              0, // Volume not available from Finnhub quote
+              quote.volume,
               Date.now(),
             );
 
@@ -227,7 +227,7 @@ class BackgroundCollector {
               low: quote.lowPrice,
               open: quote.openPrice,
               previousClose: quote.previousClose,
-              volume: 0,
+              volume: quote.volume,
             }, 'api', Date.now());
 
             // Notify that historical data was updated (for real-time chart refresh)

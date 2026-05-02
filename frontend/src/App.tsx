@@ -1,4 +1,4 @@
-import { Cpu, Code2, Rocket, Zap } from 'lucide-react';
+import { Cpu, Code2, LayoutGrid, Rocket, Zap } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
 import { CategoryPerformance } from './components/CategoryPerformance';
@@ -6,6 +6,7 @@ import { DataCollectionStatus } from './components/DataCollectionStatus';
 import { EarningsCalendar } from './components/EarningsCalendar';
 import { ExpandedChartModal } from './components/ExpandedChartModal';
 import { Header } from './components/Header';
+import { SectorHeatmap } from './components/SectorHeatmap';
 import { StatusBar } from './components/StatusBar';
 import { StockGrid } from './components/StockGrid';
 import { TopPerformers } from './components/TopPerformers';
@@ -208,31 +209,37 @@ function AppContent({ realtimeQuotes, isConnected, wsError, subscribe }: {
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           {/* Main content - left on desktop, below sidebar on mobile */}
           <div className="flex-1 min-w-0 order-last lg:order-first">
-            {/* AI Market Overview - no title, cards align with sidebar */}
+            {/* Sector Heatmap — Overview at top */}
             <section className="mb-8">
-              {isLoading && stocks.size === 0
-                ? (
-                  <div className="flex items-center justify-center h-64">
-                    <div className="flex items-center gap-3">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neon-blue"></div>
-                      <span className="text-gray-400">Loading stock data...</span>
-                    </div>
+              {isLoading && stocks.size === 0 ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="flex items-center gap-3">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neon-blue"></div>
+                    <span className="text-gray-400">Loading stock data...</span>
                   </div>
-                )
-                : stocks.size > 0
-                  ? (
-                    <StockGrid
-                      quotes={allStocks}
-                      realtimeQuotes={realtimeQuotes}
-                      earningsEvents={earningsEvents}
-                      onStockClick={handleStockClick}
-                    />
-                  )
-                  : (
-                    <div className="text-center py-12">
-                      <p className="text-gray-400">No stock data available. Check your API configuration.</p>
-                    </div>
-                  )}
+                </div>
+              ) : stocks.size > 0 ? (
+                <SectorHeatmap stocks={mergedStocks} onStockClick={handleStockClick} />
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-400">No stock data available. Check your API configuration.</p>
+                </div>
+              )}
+            </section>
+
+            {/* AI Market Overview — Detail cards */}
+            <section className="mb-8">
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-gray-300">
+                <span className="w-1 h-6 bg-gray-400 rounded-full"></span>
+                <LayoutGrid className="w-5 h-5" />
+                All Stocks
+              </h2>
+              <StockGrid
+                quotes={allStocks}
+                realtimeQuotes={realtimeQuotes}
+                earningsEvents={earningsEvents}
+                onStockClick={handleStockClick}
+              />
             </section>
 
             {/* Categories */}

@@ -167,8 +167,8 @@ export function StockCard({ quote, isRealtime = false, earningsEvent, onClick }:
           <p
             className="text-xs font-normal mt-1 text-gray-500"
             title={isMarketOpen
-              ? `Last update: ${new Date(freshnessTimestamp).toLocaleTimeString()}`
-              : `Market closed - Last update from previous session: ${new Date(freshnessTimestamp).toLocaleTimeString()}`}
+              ? `Last update: ${new Date(freshnessTimestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}`
+              : `Market closed - Last update from previous session: ${new Date(freshnessTimestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}`}
           >
             {isMarketOpen ? 'Updated ' : 'Last session '}
             {freshnessText}

@@ -117,17 +117,28 @@ export function calculateSymbolStatus(
   const lastCandle = candles.length > 0 ? candles[candles.length - 1] : null;
 
   // Check data completeness (market closes at 4:00 PM ET)
+  // For hourly candles, the 15:00 bucket covers the final trading hour (15:00-16:00),
+  // so we consider data complete if the last candle is at or after 15:00 ET.
   let hasCompleteData = false;
   if (lastCandle) {
     const lastCandleDate = new Date(lastCandle.t);
-    const lastCandleHourET = parseInt(
-      lastCandleDate.toLocaleString('en-US', {
-        timeZone: 'America/New_York',
-        hour: 'numeric',
-        hour12: false,
-      }),
-    );
-    hasCompleteData = lastCandleHourET >= 16;
+    const timeFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true,
+    });
+    const timeParts = timeFormatter.formatToParts(lastCandleDate);
+    const hourStr = timeParts.find((p) => p.type === 'hour')?.value || '0';
+    const dayPeriod = timeParts.find((p) => p.type === 'dayPeriod')?.value || 'AM';
+    let lastCandleHourET = parseInt(hourStr);
+    const dp = dayPeriod.toUpperCase();
+    if ((dp === 'PM' || dp === 'P.M.') && lastCandleHourET !== 12) {
+      lastCandleHourET += 12;
+    } else if ((dp === 'AM' || dp === 'A.M.') && lastCandleHourET === 12) {
+      lastCandleHourET = 0;
+    }
+    hasCompleteData = lastCandleHourET >= 15;
   }
 
   // Priority order matters - check from most specific to least specific

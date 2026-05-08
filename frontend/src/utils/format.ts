@@ -201,25 +201,32 @@ export function checkMarketOpen(exchange: string, now: Date = new Date()): boole
   let hour = parseInt(hourStr);
   const minute = parseInt(minuteStr);
 
-  // Convert to 24-hour format
-  if (dayPeriod === 'PM' && hour !== 12) {
+  // Convert to 24-hour format (handle case variations: PM, pm, P.M., etc.)
+  const dp = dayPeriod.toUpperCase();
+  if ((dp === 'PM' || dp === 'P.M.') && hour !== 12) {
     hour += 12;
-  } else if (dayPeriod === 'AM' && hour === 12) {
+  } else if ((dp === 'AM' || dp === 'A.M.') && hour === 12) {
     hour = 0;
   }
 
   const timeDecimal = hour + minute / 60;
 
-  // Get day of week
+  // Get day of week (handle both short and long forms)
   const dayFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: hours.timezone,
     weekday: 'short',
   });
-  const dayName = dayFormatter.format(now);
+  const dayName = dayFormatter.format(now).toLowerCase();
   const dayMap: Record<string, number> = {
-    Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 0,
+    mon: 1, monday: 1,
+    tue: 2, tues: 2, tuesday: 2,
+    wed: 3, wednesday: 3,
+    thu: 4, thurs: 4, thursday: 4,
+    fri: 5, friday: 5,
+    sat: 6, saturday: 6,
+    sun: 0, sunday: 0,
   };
-  const dayOfWeek = dayMap[dayName];
+  const dayOfWeek = dayMap[dayName] ?? dayMap[dayName.substring(0, 3)] ?? 0;
 
   // Check if it's a weekday (Mon-Fri) and within market hours
   const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
@@ -229,22 +236,41 @@ export function checkMarketOpen(exchange: string, now: Date = new Date()): boole
 }
 
 /**
- * Check if a timestamp represents "today" from the user's perspective
- * Used to determine if data is from the user's current calendar day
+ * Check if a timestamp represents "today" relative to the exchange timezone.
+ * A stock's "today" is defined by the exchange's calendar day (ET for US markets),
+ * not the user's local timezone. This ensures a user in UTC+3 at 00:25 Tuesday
+ * still sees Monday's data as "today" while the US is still on Monday evening.
  *
  * @param exchange - The exchange symbol
  * @param timestamp - Unix timestamp (in milliseconds or seconds)
- * @returns true if the timestamp is from today in user's local timezone
+ * @returns true if the timestamp is from today in the exchange's timezone
  */
-export function isSameTradingDay(_exchange: string, timestamp: number): boolean {
+export function isSameTradingDay(exchange: string, timestamp: number): boolean {
   const now = new Date();
   const time = new Date(timestamp > 1e10 ? timestamp : timestamp * 1000);
 
-  // Compare in USER's local timezone (not exchange timezone)
-  const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const timeDay = new Date(time.getFullYear(), time.getMonth(), time.getDate());
+  const hours = EXCHANGE_HOURS[exchange];
+  const timezone = hours?.timezone || 'America/New_York';
 
-  return nowDay.getTime() === timeDay.getTime();
+  // Compare dates in the exchange's timezone
+  const nowParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+
+  const timeParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(time);
+
+  const getDateStr = (parts: Intl.DateTimeFormatPart[]) =>
+    `${parts.find((p) => p.type === 'year')?.value}-${parts.find((p) => p.type === 'month')?.value}-${parts.find((p) => p.type === 'day')?.value}`;
+
+  return getDateStr(nowParts) === getDateStr(timeParts);
 }
 
 /**
@@ -277,25 +303,32 @@ export function isBeforeMarketOpen(exchange: string, now: Date = new Date()): bo
   let hour = parseInt(hourStr);
   const minute = parseInt(minuteStr);
 
-  // Convert to 24-hour format
-  if (dayPeriod === 'PM' && hour !== 12) {
+  // Convert to 24-hour format (handle case variations)
+  const dp = dayPeriod.toUpperCase();
+  if ((dp === 'PM' || dp === 'P.M.') && hour !== 12) {
     hour += 12;
-  } else if (dayPeriod === 'AM' && hour === 12) {
+  } else if ((dp === 'AM' || dp === 'A.M.') && hour === 12) {
     hour = 0;
   }
 
   const timeDecimal = hour + minute / 60;
 
-  // Check if it's a weekday
+  // Check if it's a weekday (handle both short and long forms)
   const dayFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: hours.timezone,
     weekday: 'short',
   });
-  const dayName = dayFormatter.format(now);
+  const dayName = dayFormatter.format(now).toLowerCase();
   const dayMap: Record<string, number> = {
-    Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 0,
+    mon: 1, monday: 1,
+    tue: 2, tues: 2, tuesday: 2,
+    wed: 3, wednesday: 3,
+    thu: 4, thurs: 4, thursday: 4,
+    fri: 5, friday: 5,
+    sat: 6, saturday: 6,
+    sun: 0, sunday: 0,
   };
-  const dayOfWeek = dayMap[dayName];
+  const dayOfWeek = dayMap[dayName] ?? dayMap[dayName.substring(0, 3)] ?? 0;
   const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
 
   // Before market open: before 9:30 AM ET on a weekday
@@ -332,25 +365,32 @@ export function isAfterMarketClose(exchange: string, now: Date = new Date()): bo
   let hour = parseInt(hourStr);
   const minute = parseInt(minuteStr);
 
-  // Convert to 24-hour format
-  if (dayPeriod === 'PM' && hour !== 12) {
+  // Convert to 24-hour format (handle case variations)
+  const dp = dayPeriod.toUpperCase();
+  if ((dp === 'PM' || dp === 'P.M.') && hour !== 12) {
     hour += 12;
-  } else if (dayPeriod === 'AM' && hour === 12) {
+  } else if ((dp === 'AM' || dp === 'A.M.') && hour === 12) {
     hour = 0;
   }
 
   const timeDecimal = hour + minute / 60;
 
-  // Check if it's a weekday
+  // Check if it's a weekday (handle both short and long forms)
   const dayFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: hours.timezone,
     weekday: 'short',
   });
-  const dayName = dayFormatter.format(now);
+  const dayName = dayFormatter.format(now).toLowerCase();
   const dayMap: Record<string, number> = {
-    Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 0,
+    mon: 1, monday: 1,
+    tue: 2, tues: 2, tuesday: 2,
+    wed: 3, wednesday: 3,
+    thu: 4, thurs: 4, thursday: 4,
+    fri: 5, friday: 5,
+    sat: 6, saturday: 6,
+    sun: 0, sunday: 0,
   };
-  const dayOfWeek = dayMap[dayName];
+  const dayOfWeek = dayMap[dayName] ?? dayMap[dayName.substring(0, 3)] ?? 0;
   const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
 
   // After market close: at or after 4:00 PM ET on a weekday

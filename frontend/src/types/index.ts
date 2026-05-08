@@ -192,3 +192,33 @@ export interface EarningsEvent {
   revenueActual: number | null;
   hour: 'bmo' | 'amc' | null;
 }
+
+// Collection gap detection
+export interface CollectionGap {
+  start: number; // Raw timestamp: last candle before gap
+  end: number; // Raw timestamp: first candle after gap
+  durationMinutes: number; // Raw duration (may span overnight/weekend)
+  tradingStart: number; // First market open within the gap period
+  tradingEnd: number; // Last market-related time within the gap (data point or market close)
+  tradingDurationMinutes: number; // Actual missing trading minutes
+}
+
+export interface GapDetectionResult {
+  symbol: string;
+  rangeFrom: number;
+  rangeTo: number;
+  totalExpectedMinutes: number;
+  actualDataPoints: number;
+  coveragePercent: number;
+  gaps: CollectionGap[];
+  hasSignificantGaps: boolean;
+}
+
+export interface GapSummary {
+  totalSymbols: number;
+  symbolsWithGaps: number;
+  totalGaps: number;
+  largestGapMinutes: number;
+  averageCoveragePercent: number;
+  worstSymbols: string[];
+}

@@ -1,4 +1,4 @@
-import type { ApiResponse, StockQuote, StockProfile, RateLimitStatus, HistoryResponse, TimeRange, NextTradingDayInfo, EarningsEvent } from '../types';
+import type { ApiResponse, StockQuote, StockProfile, RateLimitStatus, HistoryResponse, TimeRange, NextTradingDayInfo, EarningsEvent, GapDetectionResult, GapSummary } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -122,6 +122,45 @@ class StockService {
 
     if (!data.success) {
       throw new Error(data.error || 'Failed to fetch earnings calendar');
+    }
+
+    return data.data;
+  }
+
+  async getGaps(range: TimeRange = '1d', threshold: number = 3): Promise<GapDetectionResult[]> {
+    const response = await fetch(
+      `${API_URL}/api/gaps?range=${range}&threshold=${threshold}`,
+    );
+    const data: ApiResponse<GapDetectionResult[]> = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch collection gaps');
+    }
+
+    return data.data;
+  }
+
+  async getGapSummary(range: TimeRange = '1d', threshold: number = 3): Promise<GapSummary> {
+    const response = await fetch(
+      `${API_URL}/api/gaps?range=${range}&threshold=${threshold}&summary=true`,
+    );
+    const data: ApiResponse<GapSummary> = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch gap summary');
+    }
+
+    return data.data;
+  }
+
+  async getSymbolGaps(symbol: string, range: TimeRange = '1d', threshold: number = 3): Promise<GapDetectionResult> {
+    const response = await fetch(
+      `${API_URL}/api/gaps/${symbol}?range=${range}&threshold=${threshold}`,
+    );
+    const data: ApiResponse<GapDetectionResult> = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || `Failed to fetch gaps for ${symbol}`);
     }
 
     return data.data;

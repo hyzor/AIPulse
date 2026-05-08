@@ -1,8 +1,8 @@
-import { Database } from 'lucide-react';
+import { AlertTriangle, Database } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { stockService } from '../services/stockService';
-import { TRACKED_STOCKS, STOCK_COUNTRIES } from '../types';
+import { TRACKED_STOCKS, STOCK_COUNTRIES, type GapSummary } from '../types';
 import { FlagIcon } from './FlagIcon';
 import { Tooltip } from './Tooltip';
 
@@ -17,6 +17,7 @@ interface DataStats {
 
 export function DataCollectionStatus() {
   const [stats, setStats] = useState<DataStats | null>(null);
+  const [gapSummary, setGapSummary] = useState<GapSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,10 +36,27 @@ export function DataCollectionStatus() {
       }
     };
 
+    const fetchGaps = async () => {
+      try {
+        const summary = await stockService.getGapSummary('1d', 3);
+        setGapSummary(summary);
+      } catch (_err) {
+        // Silently fail - gap detection is supplemental
+        console.log('[DataCollection] Gap summary unavailable');
+      }
+    };
+
     fetchStats();
+    fetchGaps();
+
     // Refresh every 30 seconds
-    const interval = setInterval(fetchStats, 30000);
-    return () => { clearInterval(interval); };
+    const statsInterval = setInterval(fetchStats, 30000);
+    const gapsInterval = setInterval(fetchGaps, 60000);
+
+    return () => {
+      clearInterval(statsInterval);
+      clearInterval(gapsInterval);
+    };
   }, []);
 
   if (loading) {
@@ -249,8 +267,8 @@ export function DataCollectionStatus() {
         </Tooltip>
       </div>
 
-      {/* Stats by resolution - centered */}
-      <div className="grid grid-cols-3 gap-2 text-sm mb-3">
+      {/* Stats by resolution */}
+      <div className="flex flex-row gap-2 text-sm mb-3">
         <Tooltip content="Raw 1-minute price ticks collected from Finnhub API. Used for real-time quotes and processed into hourly candles for charts." position="top">
           <div className={`flex flex-col p-2 rounded cursor-help border min-w-[100px] ${has1mData ? 'bg-dark-700/50 border-dark-600' : 'bg-dark-800/30 border-dark-700'}`}>
             <span className="text-xs text-gray-500">1-Minute Points</span>
@@ -279,6 +297,29 @@ export function DataCollectionStatus() {
           </div>
         </Tooltip>
       </div>
+
+      {/* Gap detection warning */}
+      {gapSummary && gapSummary.symbolsWithGaps > 0 && (
+        <div className="mb-3">
+          <Tooltip
+            content={`Detected ${gapSummary.totalGaps} data gap(s) across ${gapSummary.symbolsWithGaps} symbol(s). Largest gap: ${gapSummary.largestGapMinutes} minutes. Average coverage: ${gapSummary.averageCoveragePercent}%. Affected: ${gapSummary.worstSymbols.join(', ')}`}
+            position="bottom"
+            fullWidth
+          >
+            <div className="flex items-center gap-2 py-2 px-3 bg-yellow-500/10 border border-yellow-500/30 rounded cursor-help">
+              <AlertTriangle className="w-4 h-4 text-yellow-400 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-yellow-300 font-medium">
+                  {gapSummary.symbolsWithGaps} symbol{gapSummary.symbolsWithGaps === 1 ? '' : 's'} with data gaps
+                </p>
+                <p className="text-[10px] text-yellow-400/80">
+                  Largest gap: {gapSummary.largestGapMinutes} min • Coverage: {gapSummary.averageCoveragePercent}%
+                </p>
+              </div>
+            </div>
+          </Tooltip>
+        </div>
+      )}
 
       {/* No data warning */}
       {totalCandles1m === 0 && (

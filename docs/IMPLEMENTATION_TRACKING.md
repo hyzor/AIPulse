@@ -124,7 +124,7 @@ This document tracks the implementation status of features and enhancements for 
 | Stale data warning | ✅ | 2026-04-16 | Color-coded freshness indicator (green/yellow/red) |
 | Per-symbol status dots | ✅ | 2026-04-17 | Refactored to SymbolStatus component - user tested |
 | Last update timestamp | ✅ | 2026-04-16 | Exact time shown in tooltip on hover |
-| Collection gap detection | 📋 | Medium | Medium |
+| Collection gap detection | ✅ | 2026-05-08 | Backend service detects gaps during market hours only, excludes overnight/weekends/holidays. Range-aware thresholds (1D=3min, 7D=30min, 30D=60min). Compact banner in DataCollection widget + detailed tooltip in ExpandedChartModal showing trading-time bounds and human-readable durations. Fixed SymbolStatus timezone bug that showed INCOMPLETE on complete data.
 
 ### Phase 2: Market Context (Priority: High)
 
@@ -196,32 +196,33 @@ This document tracks the implementation status of features and enhancements for 
 ## Metrics
 
 - **Total Features**: 45+ tracked
-- **Complete**: 43 (96%)
+- **Complete**: 44 (98%)
 - **In Progress**: 0 (0%)
-- **Planned**: 1 (2%)
+- **Planned**: 0 (0%)
 - **Ideas**: ~20 in MONITORING_IDEAS.md
 
 ---
 
 ## Recent Completed (Last 7 Days)
 
-1. ✅ **Sector heatmap** - 15-stock treemap with 13-tier dramatic color scale. Alphabetical grid layout with subtle category accent bars (purple/blue/green/orange). Time range dropdown (1D/7D/30D), hover tooltips, click-to-expand charts, WebSocket flash animation. Positioned as primary overview visualization at top of page. User-tested on desktop and mobile.
-2. ✅ **Mobile responsive layout** - Responsive stat grids (grid-cols-3), single-line StatusBar on mobile with hidden non-essential elements, BMO/AMC abbreviations, flex-wrap card headers, hidden header subtitle. User-tested and confirmed.
-3. ✅ **Earnings calendar** - Widget shows upcoming earnings with countdown, estimates, and time-of-day. Post-reporting "Recent Results" section displays Beat/Miss with surprise %. StockCard badges show earnings alerts (upcoming) and Beat/Miss results (recent). User-tested widget; badges pending real-world validation (no near-term earnings data currently)
-2. ✅ **SymbolStatus component** - Reusable status indicator with 8 states (NO DATA, PRE-OPEN, DELAYED, CACHED, LIVE, CLOSED, INCOMPLETE)
-3. ✅ Refactored StockCard.tsx to use SymbolStatus component - cleaner code
-4. ✅ Stale data warning - Color-coded freshness indicator (green/yellow/red)
-5. ✅ Last update timestamp - Exact time shown in tooltip on hover
-6. ✅ Time range resolution (5m/10m/30m/4h/1h/1d)
-7. ✅ Progress checkpoint naming (Data → Today → 2 Days → 7 Days → 30 Days)
-8. ✅ Trading days calculation (1h-based, symbol-resistant)
-9. ✅ NO DATA indicator for missing trading day
-10. ✅ Data stat labels (1-Minute Points, Hourly Candles, Daily Candles)
-11. ✅ DST-aware market open calculation
-12. ✅ Warning positioning and messaging
-13. ✅ Data freshness indicator - "Updated 2m ago" per symbol with color coding
+1. ✅ **Collection gap detection** - Backend service queries DB+Redis 1m candles, merges and detects gaps. Only counts missing data during market hours (excludes overnight/weekends/holidays). Range-aware thresholds: 1D=3min, 7D=30min, 30D=60min. Compact yellow banner in DataCollection widget + detailed tooltip in ExpandedChartModal with human-readable durations and trading-time bounds. Fixed SymbolStatus timezone bug (isSameTradingDay now uses ET instead of local time). 24h time format everywhere.
+2. ✅ **Sector heatmap** - 15-stock treemap with 13-tier dramatic color scale. Alphabetical grid layout with subtle category accent bars (purple/blue/green/orange). Time range dropdown (1D/7D/30D), hover tooltips, click-to-expand charts, WebSocket flash animation. Positioned as primary overview visualization at top of page. User-tested on desktop and mobile.
+3. ✅ **Mobile responsive layout** - Responsive stat grids (grid-cols-3), single-line StatusBar on mobile with hidden non-essential elements, BMO/AMC abbreviations, flex-wrap card headers, hidden header subtitle. User-tested and confirmed.
+4. ✅ **Earnings calendar** - Widget shows upcoming earnings with countdown, estimates, and time-of-day. Post-reporting "Recent Results" section displays Beat/Miss with surprise %. StockCard badges show earnings alerts (upcoming) and Beat/Miss results (recent). User-tested widget; badges pending real-world validation (no near-term earnings data currently)
+5. ✅ **SymbolStatus component** - Reusable status indicator with 8 states (NO DATA, PRE-OPEN, DELAYED, CACHED, LIVE, CLOSED, INCOMPLETE)
+6. ✅ Refactored StockCard.tsx to use SymbolStatus component - cleaner code
+7. ✅ Stale data warning - Color-coded freshness indicator (green/yellow/red)
+8. ✅ Last update timestamp - Exact time shown in tooltip on hover
+9. ✅ Time range resolution (5m/10m/30m/4h/1h/1d)
+10. ✅ Progress checkpoint naming (Data → Today → 2 Days → 7 Days → 30 Days)
+11. ✅ Trading days calculation (1h-based, symbol-resistant)
+12. ✅ NO DATA indicator for missing trading day
+13. ✅ Data stat labels (1-Minute Points, Hourly Candles, Daily Candles)
+14. ✅ DST-aware market open calculation
+15. ✅ Warning positioning and messaging
+16. ✅ Data freshness indicator - "Updated 2m ago" per symbol with color coding
 
 ---
 
-*Last Updated: May 2, 2026 (Sector heatmap completed)*
+*Last Updated: May 8, 2026 (Collection gap detection completed)*
 *Next Review: Weekly or after major feature completion*

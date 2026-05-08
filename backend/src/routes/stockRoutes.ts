@@ -6,6 +6,7 @@ import { cacheService } from '../services/cacheService';
 import { candleBufferService } from '../services/candleBufferService';
 import { databaseService } from '../services/databaseService';
 import { finnhubService } from '../services/finnhubService';
+import { gapDetectionService } from '../services/gapDetectionService';
 import { redisService, type RedisCandle } from '../services/redisService';
 import { isMarketOpen, isTradingDay, getMarketStatus, getTradingDayBounds, getPreviousTradingDayBounds, getNextTradingDay } from '../utils/marketHours';
 
@@ -556,6 +557,66 @@ router.get('/earnings', async (_req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch earnings calendar',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Get collection gaps for all tracked symbols
+router.get('/gaps', async (req, res) => {
+  try {
+    const range = (req.query.range as '1d' | '7d' | '30d') || '1d';
+    const threshold = parseInt(req.query.threshold as string, 10) || 3;
+    const summaryOnly = req.query.summary === 'true';
+
+    if (summaryOnly) {
+      const summary = await gapDetectionService.getSummary(range, threshold);
+      res.json({
+        success: true,
+        data: summary,
+        timestamp: Date.now(),
+      });
+      return;
+    }
+
+    const results = await gapDetectionService.detectGapsForAll(range, threshold);
+
+    res.json({
+      success: true,
+      data: results,
+      count: results.length,
+      timestamp: Date.now(),
+    });
+  } catch (error) {
+    console.error('[API] Error detecting gaps:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to detect collection gaps',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Get collection gaps for a specific symbol
+router.get('/gaps/:symbol', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const uppercaseSymbol = symbol.toUpperCase();
+    const range = (req.query.range as '1d' | '7d' | '30d') || '1d';
+    const threshold = parseInt(req.query.threshold as string, 10) || 3;
+
+    const result = await gapDetectionService.detectGaps(uppercaseSymbol, range, threshold);
+
+    res.json({
+      success: true,
+      data: result,
+      timestamp: Date.now(),
+    });
+  } catch (error) {
+    console.error(`[API] Error detecting gaps for ${req.params.symbol}:`, error);
+    res.status(500).json({
+      success: false,
+      error: `Failed to detect collection gaps for ${req.params.symbol}`,
       message: error instanceof Error ? error.message : 'Unknown error',
     });
   }

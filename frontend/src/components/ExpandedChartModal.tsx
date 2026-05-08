@@ -1,5 +1,5 @@
-import { X, RefreshCw } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { AlertTriangle, X, RefreshCw } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AreaChart,
   Area,
@@ -10,13 +10,15 @@ import {
   CartesianGrid,
 } from 'recharts';
 
-import { useTimeRange } from '../contexts/TimeRangeContext';
-import { STOCK_DISPLAY_NAMES } from '../types';
 import { StatsPanel } from './StatsPanel';
 import { SymbolStatusIndicator } from './SymbolStatus';
+import { Tooltip as InfoTooltip } from './Tooltip';
+import { useTimeRange } from '../contexts/TimeRangeContext';
+import { stockService } from '../services/stockService';
+import { STOCK_DISPLAY_NAMES } from '../types';
 import { formatCurrency } from '../utils/format';
 
-import type { StockQuote } from '../types';
+import type { StockQuote, GapDetectionResult } from '../types';
 
 interface ExpandedChartModalProps {
   symbol: string | null;
@@ -39,12 +41,40 @@ export function ExpandedChartModal({ symbol, quote, onClose }: ExpandedChartModa
   const isLoading = historicalData?.loading ?? true;
   const hasError = !!historicalData?.error;
 
+  const [gapData, setGapData] = useState<GapDetectionResult | null>(null);
+
   // Refresh data when modal opens
   useEffect(() => {
     if (symbol && !historicalData) {
       fetchHistory(symbol);
     }
   }, [symbol, fetchHistory, historicalData]);
+
+  // Fetch gap data for this symbol with range-appropriate thresholds:
+  // - 1D (5m resolution): 3 min threshold catches real collection misses
+  // - 7D (30m resolution): 30 min threshold catches missed 30m buckets
+  // - 30D (1h resolution): 60 min threshold catches missed hourly buckets
+  // Small 4-5 min gaps are normal collection timing variance and are filtered out.
+  useEffect(() => {
+    if (!symbol) {
+      setGapData(null);
+      return;
+    }
+
+    const threshold = timeRange === '1d' ? 3 : timeRange === '7d' ? 30 : 60;
+
+    const fetchGaps = async () => {
+      try {
+        const result = await stockService.getSymbolGaps(symbol, timeRange, threshold);
+        setGapData(result);
+      } catch (_err) {
+        // Silently fail - gap detection is supplemental
+        setGapData(null);
+      }
+    };
+
+    fetchGaps();
+  }, [symbol, timeRange]);
 
   const chartData = useMemo<ChartPoint[]>(() => {
     if (!candles || candles.length === 0) { return []; }
@@ -76,6 +106,35 @@ export function ExpandedChartModal({ symbol, quote, onClose }: ExpandedChartModa
   if (!symbol || !quote) { return null; }
 
   const displayName = STOCK_DISPLAY_NAMES[symbol] || symbol;
+
+  // Format a gap timestamp to a readable time string (24-hour format, local timezone)
+  // Uses the browser's local timezone (e.g. CEST) for consistency with chart display
+  const formatGapTime = (timestamp: number): string => {
+    return new Date(timestamp).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  };
+
+  // Format duration in human-readable form (e.g. 1425 min → "23h 45m")
+  const formatDuration = (minutes: number): string => {
+    if (minutes < 60) { return `${minutes}m`; }
+    if (minutes < 24 * 60) {
+      const h = Math.floor(minutes / 60);
+      const m = minutes % 60;
+      return m > 0 ? `${h}h ${m}m` : `${h}h`;
+    }
+    const d = Math.floor(minutes / (24 * 60));
+    const h = Math.floor((minutes % (24 * 60)) / 60);
+    const m = minutes % 60;
+    if (h === 0 && m === 0) { return `${d}d`; }
+    if (m === 0) { return `${d}d ${h}h`; }
+    return `${d}d ${h}h ${m}m`;
+  };
+
   const isPositive = quote.change >= 0;
 
   return (
@@ -135,6 +194,50 @@ export function ExpandedChartModal({ symbol, quote, onClose }: ExpandedChartModa
 
         {/* Chart */}
         <div className="px-6 py-4">
+          {/* Gap warning */}
+          {gapData && gapData.hasSignificantGaps && gapData.gaps.length > 0 && (
+            <div className="mb-3">
+              <InfoTooltip
+                position="bottom"
+                maxWidth="420px"
+                content={(
+                  <div className="space-y-2">
+                    <p className="font-medium text-yellow-300">
+                      {gapData.gaps.length} data gap{gapData.gaps.length === 1 ? '' : 's'} detected
+                    </p>
+                    <p className="text-gray-400">
+                      Coverage: {gapData.coveragePercent}% • Expected: {gapData.totalExpectedMinutes} min
+                    </p>
+                    <div className="border-t border-dark-600 pt-2 space-y-1.5 max-h-48 overflow-y-auto">
+                      {gapData.gaps.map((gap, i) => (
+                        <div key={i} className="flex justify-between gap-3 text-xs">
+                          <span className="text-gray-300">
+                            {formatGapTime(gap.tradingStart)} – {formatGapTime(gap.tradingEnd)}
+                          </span>
+                          <span className="text-yellow-400 shrink-0 font-mono">
+                            {formatDuration(gap.tradingDurationMinutes)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                fullWidth
+              >
+                <div className="flex items-center gap-2 py-2 px-3 bg-yellow-500/10 border border-yellow-500/30 rounded cursor-help">
+                  <AlertTriangle className="w-4 h-4 text-yellow-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-yellow-300 font-medium">
+                      {gapData.gaps.length} data gap{gapData.gaps.length === 1 ? '' : 's'} detected
+                    </p>
+                    <p className="text-[10px] text-yellow-400/80">
+                      Coverage: {gapData.coveragePercent}% • Hover for details
+                    </p>
+                  </div>
+                </div>
+              </InfoTooltip>
+            </div>
+          )}
           <div className="h-80 md:h-96">
             {isLoading
               ? (

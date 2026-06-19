@@ -1,4 +1,4 @@
-import type { ApiResponse, StockQuote, StockProfile, RateLimitStatus, HistoryResponse, TimeRange, NextTradingDayInfo, EarningsEvent, GapDetectionResult, GapSummary } from '../types';
+import type { ApiResponse, StockQuote, StockProfile, RateLimitStatus, HistoryResponse, TimeRange, NextTradingDayInfo, TodayStatus, EarningsEvent, GapDetectionResult, GapSummary } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -111,6 +111,17 @@ class StockService {
 
     if (!data.success) {
       throw new Error(data.error || 'Failed to fetch next trading day');
+    }
+
+    return data.data;
+  }
+
+  async getTodayStatus(): Promise<TodayStatus> {
+    const response = await fetch(`${API_URL}/api/market/today-status`);
+    const data: ApiResponse<TodayStatus> = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch today market status');
     }
 
     return data.data;

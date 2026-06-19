@@ -273,6 +273,9 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className="inline-flex rounded-full h-2 w-2 bg-gray-500"></span>
                     <span className="text-sm text-gray-400 font-medium">Market Closed</span>
+                    {nextTradingDay?.reason === 'holiday' && nextTradingDay.holidayName && (
+                      <span className="text-yellow-400 text-sm hidden sm:inline">({nextTradingDay.holidayName})</span>
+                    )}
                   </div>
                 )}
 
@@ -301,9 +304,6 @@ export function StatusBar({ isConnected, apiConfigured, error, rateLimit }: Stat
                           <>
                             <Calendar className="w-3 h-3 inline mr-1 hidden sm:inline" />
                             Opens {nextTradingDay.dayOfWeek}
-                            {nextTradingDay.reason === 'holiday' && nextTradingDay.holidayName && (
-                              <span className="text-yellow-400 hidden sm:inline"> ({nextTradingDay.holidayName})</span>
-                            )}
                             {' '}<span className="text-gray-500">({nextTradingDay.daysUntil}d)</span>
                           </>
                         )

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 
 import { checkMarketOpen } from '../utils/format';
+import { isMarketHoliday, subscribe } from '../utils/marketHolidayCache';
 
 interface MarketStatusContextType {
   isMarketOpen: boolean;
@@ -99,7 +100,8 @@ function getNextTransitionTimestamp(): number | null {
   };
   const dayOfWeek = dayMap[dayName] ?? 0;
   const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
-  const currentlyOpen = isWeekday && timeDecimal >= openDecimal && timeDecimal < closeDecimal;
+  const isHoliday = isMarketHoliday();
+  const currentlyOpen = isWeekday && !isHoliday && timeDecimal >= openDecimal && timeDecimal < closeDecimal;
 
   let targetYear = year;
   let targetMonth = month;
@@ -111,38 +113,36 @@ function getNextTransitionTimestamp(): number | null {
     // Next transition: market close today
     targetHour = MARKET_CLOSE_HOUR;
     targetMinute = MARKET_CLOSE_MINUTE;
+  } else if (isWeekday && !isHoliday && timeDecimal < openDecimal) {
+    // Before open today
+    targetHour = MARKET_OPEN_HOUR;
+    targetMinute = MARKET_OPEN_MINUTE;
   } else {
-    if (isWeekday && timeDecimal < openDecimal) {
-      // Before open today
-      targetHour = MARKET_OPEN_HOUR;
-      targetMinute = MARKET_OPEN_MINUTE;
-    } else {
-      // After close or weekend — find next weekday
-      let daysToAdd = 1;
-      if (dayOfWeek === 5) {
-        daysToAdd = 3; // Friday -> Monday
-      } else if (dayOfWeek === 6) {
-        daysToAdd = 2; // Saturday -> Monday
-      }
-      // Sunday (0) -> +1 to Monday, weekdays after close -> +1 to next day
-
-      const nextDate = new Date(now);
-      nextDate.setDate(nextDate.getDate() + daysToAdd);
-
-      const nextDateFormatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: timezone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      });
-      const nextParts = nextDateFormatter.formatToParts(nextDate);
-      targetYear = parseInt(nextParts.find((p) => p.type === 'year')?.value || '0', 10);
-      targetMonth = parseInt(nextParts.find((p) => p.type === 'month')?.value || '0', 10);
-      targetDay = parseInt(nextParts.find((p) => p.type === 'day')?.value || '0', 10);
-
-      targetHour = MARKET_OPEN_HOUR;
-      targetMinute = MARKET_OPEN_MINUTE;
+    // After close or weekend — find next weekday
+    let daysToAdd = 1;
+    if (dayOfWeek === 5) {
+      daysToAdd = 3; // Friday -> Monday
+    } else if (dayOfWeek === 6) {
+      daysToAdd = 2; // Saturday -> Monday
     }
+    // Sunday (0) -> +1 to Monday, weekdays after close -> +1 to next day
+
+    const nextDate = new Date(now);
+    nextDate.setDate(nextDate.getDate() + daysToAdd);
+
+    const nextDateFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const nextParts = nextDateFormatter.formatToParts(nextDate);
+    targetYear = parseInt(nextParts.find((p) => p.type === 'year')?.value || '0', 10);
+    targetMonth = parseInt(nextParts.find((p) => p.type === 'month')?.value || '0', 10);
+    targetDay = parseInt(nextParts.find((p) => p.type === 'day')?.value || '0', 10);
+
+    targetHour = MARKET_OPEN_HOUR;
+    targetMinute = MARKET_OPEN_MINUTE;
   }
 
   return getTimestampForET(targetYear, targetMonth, targetDay, targetHour, targetMinute);
@@ -177,6 +177,14 @@ export function MarketStatusProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     scheduleNext();
 
+    const unsubscribe = subscribe(() => {
+      setIsOpen(checkMarketOpen('NASDAQ'));
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      scheduleNext();
+    });
+
     // Safety net: when tab becomes visible, re-check and reschedule
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -191,6 +199,7 @@ export function MarketStatusProvider({ children }: { children: React.ReactNode }
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      unsubscribe();
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }

@@ -8,7 +8,7 @@ import { databaseService } from '../services/databaseService';
 import { finnhubService } from '../services/finnhubService';
 import { gapDetectionService } from '../services/gapDetectionService';
 import { redisService, type RedisCandle } from '../services/redisService';
-import { isMarketOpen, isTradingDay, getMarketStatus, getTradingDayBounds, getPreviousTradingDayBounds, getNextTradingDay } from '../utils/marketHours';
+import { isMarketOpen, isTradingDay, getMarketStatus, getTradingDayBounds, getPreviousTradingDayBounds, getNextTradingDay, getHolidayName } from '../utils/marketHours';
 
 import type { HistoryResponse, CandleData, FlushResult } from '../types';
 
@@ -531,6 +531,22 @@ router.get('/market/next-trading-day', (_req, res) => {
   res.json({
     success: true,
     data: nextTradingDay,
+    timestamp: Date.now(),
+  });
+});
+
+// Get today's market status (holiday info, etc.)
+router.get('/market/today-status', (_req, res) => {
+  const now = new Date();
+  const holidayName = getHolidayName(now);
+
+  res.json({
+    success: true,
+    data: {
+      isHoliday: holidayName !== null,
+      holidayName,
+      isTradingDay: isTradingDay(now),
+    },
     timestamp: Date.now(),
   });
 });

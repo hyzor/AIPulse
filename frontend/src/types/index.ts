@@ -143,6 +143,15 @@ export interface NextTradingDayInfo {
   holidayName?: string; // Name of the holiday if applicable
 }
 
+/**
+ * Today's market status (fetched from backend, no local holiday data)
+ */
+export interface TodayStatus {
+  isHoliday: boolean;
+  holidayName: string | null;
+  isTradingDay: boolean;
+}
+
 // Historical candle data (OHLCV)
 export interface CandleData {
   t: number; // Unix timestamp in milliseconds

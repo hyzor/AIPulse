@@ -1,3 +1,5 @@
+import { isMarketHoliday } from './marketHolidayCache';
+
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -98,6 +100,7 @@ export function getFreshnessColor(timestamp: number): string {
   }
   return 'text-orange-400'; // Very stale: > 15 minutes
 }
+
 
 // Exchange market hours in Eastern Time (ET) - 9:30 AM to 4:00 PM
 // These times are in 24-hour format (9.5 = 9:30 AM, 16 = 4:00 PM)
@@ -228,11 +231,12 @@ export function checkMarketOpen(exchange: string, now: Date = new Date()): boole
   };
   const dayOfWeek = dayMap[dayName] ?? dayMap[dayName.substring(0, 3)] ?? 0;
 
-  // Check if it's a weekday (Mon-Fri) and within market hours
+  // Check if it's a weekday (Mon-Fri) and not a holiday, and within market hours
   const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+  const isHoliday = isMarketHoliday();
   const isWithinHours = timeDecimal >= hours.open && timeDecimal < hours.close;
 
-  return isWeekday && isWithinHours;
+  return isWeekday && !isHoliday && isWithinHours;
 }
 
 /**

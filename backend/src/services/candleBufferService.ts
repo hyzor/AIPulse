@@ -152,16 +152,26 @@ class CandleBufferService {
       const symbols = await redisService.getTrackedSymbols();
       let totalFlushed = 0;
 
+      // The in-progress minute must stay in Redis until it closes. Flushing it
+      // to the DB would persist partial OHLCV, and the history endpoint only
+      // overlays Redis candles strictly *newer* than the last DB candle - so a
+      // later completed bar with the same timestamp would never override the
+      // partial one until the next flush (up to a full interval later).
+      const currentMinute = Math.floor(Date.now() / 60000) * 60000;
+
       for (const symbol of symbols) {
         const candles = await redisService.getAllCandles(symbol);
 
         if (candles.length === 0) { continue; }
 
+        const closedCandles = candles.filter((c) => c.time < currentMinute);
+        if (closedCandles.length === 0) { continue; }
+
         // Store in pending first (for recovery safety)
-        await redisService.setPendingFlush(symbol, candles);
+        await redisService.setPendingFlush(symbol, closedCandles);
 
         // Convert to database format
-        const dbCandles: StockCandle[] = candles.map((c) => ({
+        const dbCandles: StockCandle[] = closedCandles.map((c) => ({
           time: new Date(c.time),
           symbol: c.symbol,
           open: c.open,
@@ -176,8 +186,9 @@ class CandleBufferService {
           const inserted = await databaseService.insertCandles1m(dbCandles);
           totalFlushed += inserted;
 
-          // Clear from Redis after successful insert
-          await redisService.clearCandles(symbol);
+          // Remove only the flushed (closed) candles, keeping the open minute
+          // in Redis until it finalizes.
+          await redisService.clearCandlesBefore(symbol, currentMinute);
           await redisService.clearPendingFlush(symbol);
 
           // Trim old candles (keep last 7 days in Redis)

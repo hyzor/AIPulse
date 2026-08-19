@@ -310,6 +310,15 @@ class RedisService {
     await this.client.del(key);
   }
 
+  // Remove candles with a timestamp strictly before `cutoff` (ms), keeping any
+  // candle at/after the cutoff (i.e. the still-open minute).
+  async clearCandlesBefore(symbol: string, cutoff: number): Promise<number> {
+    if (!this.client) { throw new Error('Redis not connected'); }
+
+    const key = `quotes:${symbol}`;
+    return this.client.zRemRangeByScore(key, 0, cutoff - 1);
+  }
+
   // Get all tracked symbols (any symbol with data in Redis)
   async getTrackedSymbols(): Promise<string[]> {
     if (!this.client) { throw new Error('Redis not connected'); }

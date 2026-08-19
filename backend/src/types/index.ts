@@ -94,6 +94,11 @@ export interface HealthStatus {
     database: { connected: boolean; latency: number };
     redis: { connected: boolean; latency: number };
     finnhub: { configured: boolean; rateLimitRemaining: number };
+    finnhubWebSocket: {
+      enabled: boolean;
+      connected: boolean;
+      lastMessageAgeSeconds: number | null;
+    };
   };
   dataStats: {
     total1mCandles: number;
@@ -131,6 +136,20 @@ export interface FinnhubEarningsCalendar {
   revenueEstimate: number | null;
   revenueActual: number | null;
   hour: string;
+}
+
+// Finnhub WebSocket real-time trade (wss://ws.finnhub.io)
+export interface FinnhubTrade {
+  s: string; // Symbol
+  p: number; // Last price
+  v: number; // Volume (shares in this trade)
+  t: number; // Unix timestamp in milliseconds
+}
+
+// Finnhub WebSocket message wrapper
+export interface FinnhubTradeMessage {
+  type: 'trade' | 'ping';
+  data?: FinnhubTrade[];
 }
 
 // Collection gap detection

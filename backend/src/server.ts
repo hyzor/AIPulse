@@ -15,6 +15,7 @@ import { getCachedQuote } from './services/cacheLookupService';
 import { candleBufferService } from './services/candleBufferService';
 import { databaseService } from './services/databaseService';
 import { finnhubService } from './services/finnhubService';
+import { finnhubWebSocketService } from './services/finnhubWebSocketService';
 import { redisService } from './services/redisService';
 
 
@@ -81,6 +82,11 @@ app.get('/api/health', async (_req, res) => {
       finnhub: {
         configured: finnhubService.isConfigured(),
         rateLimitRemaining: finnhubService.getRateLimitStatus().callsRemaining,
+      },
+      finnhubWebSocket: {
+        enabled: finnhubWebSocketService.isEnabled(),
+        connected: finnhubWebSocketService.isConnected(),
+        lastMessageAgeSeconds: finnhubWebSocketService.getLastMessageAgeSeconds(),
       },
     },
     dataStats: dbStats,
@@ -160,9 +166,6 @@ app.post('/api/stocks/:symbol/refresh', async (req, res) => {
         previousClose: freshQuote.previousClose,
         volume: freshQuote.volume,
       }, 'api', freshQuote.timestamp * 1000); // Convert seconds to ms for storage
-
-      // Broadcast to all WebSocket subscribers
-      broadcastToSymbol(upperSymbol, freshQuote);
 
       return res.json({
         success: true,
@@ -332,9 +335,6 @@ wss.on('connection', (ws) => {
                 volume: freshQuote.volume,
               }, 'api', freshQuote.timestamp * 1000); // Convert seconds to ms for storage
 
-              // Broadcast to all subscribers
-              broadcastToSymbol(symbol, freshQuote);
-
               // Confirm to requesting client
               ws.send(JSON.stringify({
                 type: 'refreshed',
@@ -392,37 +392,51 @@ wss.on('connection', (ws) => {
 // Maximizes API usage for historical data building
 console.log('[Server] Initializing background data collection service...');
 
-// Listen for new data from background collector and broadcast to clients
-// This hook will be called by the background collector after each collection
-const originalUpdatePrice = candleBufferService.updatePrice.bind(candleBufferService);
-candleBufferService.updatePrice = (symbol: string, price: number, volume?: number, timestamp?: number) => {
-  // Call original method
-  originalUpdatePrice(symbol, price, volume, timestamp);
+// Broadcast persisted latest-quote updates to WebSocket clients.
+// Hooked into updateLatestQuote (rather than updatePrice) so the broadcast is
+// throttled by the caller: the Finnhub WebSocket service persists at most every
+// 2s per symbol, while updatePrice fires on every single trade (which would
+// flood clients and spam Redis reads). This also broadcasts the exact quote
+// that was just persisted instead of re-reading it back from Redis.
+const originalUpdateLatestQuote = candleBufferService.updateLatestQuote.bind(candleBufferService);
+candleBufferService.updateLatestQuote = async (
+  symbol: string,
+  quote: {
+    currentPrice: number;
+    change: number;
+    changePercent: number;
+    high: number;
+    low: number;
+    open: number;
+    previousClose: number;
+    volume: number;
+  },
+  source: 'websocket' | 'api' | 'cache' = 'api',
+  timestamp: number = Date.now(),
+): Promise<void> => {
+  await originalUpdateLatestQuote(symbol, quote, source, timestamp);
 
-  // Broadcast to WebSocket clients if any are subscribed
-  // Get the latest quote from Redis (which was just updated)
-  redisService.getLatestQuote(symbol).then((redisQuote) => {
-    if (redisQuote) {
-      const quote: StockQuote = {
-        symbol,
-        currentPrice: redisQuote.currentPrice,
-        change: redisQuote.change,
-        changePercent: redisQuote.changePercent,
-        highPrice: redisQuote.high,
-        lowPrice: redisQuote.low,
-        openPrice: redisQuote.open,
-        previousClose: redisQuote.previousClose,
-        volume: redisQuote.volume,
-        timestamp: Math.floor(redisQuote.timestamp / 1000), // Convert ms to seconds
-      };
-      broadcastToSymbol(symbol, quote);
-    }
-  });
+  const stockQuote: StockQuote = {
+    symbol,
+    currentPrice: quote.currentPrice,
+    change: quote.change,
+    changePercent: quote.changePercent,
+    highPrice: quote.high,
+    lowPrice: quote.low,
+    openPrice: quote.open,
+    previousClose: quote.previousClose,
+    volume: quote.volume,
+    timestamp: Math.floor(timestamp / 1000), // Convert ms to seconds
+  };
+  broadcastToSymbol(symbol, stockQuote);
 };
 
 // Graceful shutdown handler
 async function gracefulShutdown(signal: string): Promise<void> {
   console.log(`\n[Shutdown] Received ${signal}. Starting graceful shutdown...`);
+
+  // Stop Finnhub WebSocket feed first - no new trades after this point
+  finnhubWebSocketService.stop();
 
   // Stop candle buffer timers
   console.log('[Shutdown] Stopping candle buffer timers...');
@@ -511,6 +525,17 @@ async function initializeServer(): Promise<void> {
   // Start background data collection service
   // This runs independently and maximizes API usage for historical data
   backgroundCollector.start();
+
+  // Start Finnhub WebSocket feed (real-time trades) if enabled.
+  // While connected, it feeds the candle buffer directly and the background
+  // collector pauses its REST polling. Fire-and-forget: the initial session
+  // seed is paced and non-blocking.
+  finnhubWebSocketService.setOnMinuteUpdate((symbol) => {
+    broadcastHistoricalUpdate(symbol);
+  });
+  finnhubWebSocketService.start().catch((error) => {
+    console.error('[FinnhubWS] Failed to start:', error);
+  });
 
   // Start HTTP server
   server.listen(PORT, () => {

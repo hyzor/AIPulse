@@ -14,13 +14,13 @@ export interface CandleBuffer {
   volume: number;
   startTime: number; // Unix timestamp in milliseconds
   updates: number;
+  source: 'websocket' | 'api' | 'cache'; // Origin of the ticks aggregated into this bar
 }
 
 class CandleBufferService {
   private buffers: Map<string, CandleBuffer> = new Map();
   private l1ToRedisInterval: number;
   private redisToDbInterval: number;
-  private maxBufferSize: number;
   private l1ToRedisTimer: NodeJS.Timeout | null = null;
   private redisToDbTimer: NodeJS.Timeout | null = null;
 
@@ -37,12 +37,7 @@ class CandleBufferService {
       10,
     ) * 1000;
 
-    this.maxBufferSize = parseInt(
-      process.env.MAX_BUFFER_SIZE || (isDev ? '10' : '100'),
-      10,
-    );
-
-    console.log(`[CandleBuffer] Initialized with L1→Redis: ${this.l1ToRedisInterval}ms, Redis→DB: ${this.redisToDbInterval}ms, Max buffer: ${this.maxBufferSize}`);
+    console.log(`[CandleBuffer] Initialized with L1→Redis: ${this.l1ToRedisInterval}ms, Redis→DB: ${this.redisToDbInterval}ms`);
   }
 
   // Start the persistence timers
@@ -77,6 +72,7 @@ class CandleBufferService {
     price: number,
     volume: number = 0,
     timestamp: number = Date.now(),
+    source: 'websocket' | 'api' | 'cache' = 'api',
   ): void {
     // Round timestamp to the minute (1m candles)
     const minuteTimestamp = Math.floor(timestamp / 60000) * 60000;
@@ -99,6 +95,7 @@ class CandleBufferService {
         volume,
         startTime: minuteTimestamp,
         updates: 1,
+        source,
       };
       this.buffers.set(symbol, buffer);
     } else {
@@ -108,11 +105,10 @@ class CandleBufferService {
       buffer.close = price;
       buffer.volume += volume;
       buffer.updates++;
-
-      // Check if we should flush due to buffer size
-      if (buffer.updates >= this.maxBufferSize) {
-        this.flushBufferToRedis(buffer);
-        this.buffers.delete(symbol);
+      // A real-time trade is the most authoritative source for a minute bar;
+      // upgrade the source if a REST fallback sample created the buffer first.
+      if (source === 'websocket') {
+        buffer.source = source;
       }
     }
   }
@@ -129,6 +125,7 @@ class CandleBufferService {
       low: buffer.low,
       close: buffer.close,
       volume: buffer.volume,
+      source: buffer.source,
     };
 
     try {
@@ -140,6 +137,10 @@ class CandleBufferService {
   }
 
   // Flush all L1 buffers to Redis (called on timer or shutdown)
+  // NOTE: buffers are NOT cleared here. With WebSocket mode, trades arrive
+  // continuously within a minute; clearing mid-minute would truncate the bar
+  // (Redis upserts per minute, so the last write would win with partial data).
+  // Buffers accumulate until the minute rolls over and are flushed complete.
   async flushL1ToRedis(): Promise<void> {
     const promises: Promise<void>[] = [];
 
@@ -151,8 +152,6 @@ class CandleBufferService {
 
     await Promise.all(promises);
 
-    // Clear buffers after flush
-    this.buffers.clear();
     console.log(`[CandleBuffer] Flushed ${promises.length} buffers to Redis`);
   }
 
@@ -162,16 +161,26 @@ class CandleBufferService {
       const symbols = await redisService.getTrackedSymbols();
       let totalFlushed = 0;
 
+      // The in-progress minute must stay in Redis until it closes. Flushing it
+      // to the DB would persist partial OHLCV, and the history endpoint only
+      // overlays Redis candles strictly *newer* than the last DB candle - so a
+      // later completed bar with the same timestamp would never override the
+      // partial one until the next flush (up to a full interval later).
+      const currentMinute = Math.floor(Date.now() / 60000) * 60000;
+
       for (const symbol of symbols) {
         const candles = await redisService.getAllCandles(symbol);
 
         if (candles.length === 0) { continue; }
 
+        const closedCandles = candles.filter((c) => c.time < currentMinute);
+        if (closedCandles.length === 0) { continue; }
+
         // Store in pending first (for recovery safety)
-        await redisService.setPendingFlush(symbol, candles);
+        await redisService.setPendingFlush(symbol, closedCandles);
 
         // Convert to database format
-        const dbCandles: StockCandle[] = candles.map((c) => ({
+        const dbCandles: StockCandle[] = closedCandles.map((c) => ({
           time: new Date(c.time),
           symbol: c.symbol,
           open: c.open,
@@ -179,15 +188,16 @@ class CandleBufferService {
           low: c.low,
           close: c.close,
           volume: c.volume,
-          source: 'cached',
+          source: c.source ?? 'cached',
         }));
 
         try {
           const inserted = await databaseService.insertCandles1m(dbCandles);
           totalFlushed += inserted;
 
-          // Clear from Redis after successful insert
-          await redisService.clearCandles(symbol);
+          // Remove only the flushed (closed) candles, keeping the open minute
+          // in Redis until it finalizes.
+          await redisService.clearCandlesBefore(symbol, currentMinute);
           await redisService.clearPendingFlush(symbol);
 
           // Trim old candles (keep last 7 days in Redis)

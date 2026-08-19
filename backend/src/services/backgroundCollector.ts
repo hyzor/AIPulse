@@ -1,6 +1,7 @@
 import { TRACKED_STOCKS } from '../constants';
 import { candleBufferService } from './candleBufferService';
 import { finnhubService } from './finnhubService';
+import { finnhubWebSocketService } from './finnhubWebSocketService';
 import { isMarketOpen, getMarketStatus, isMarketClosingSoon, isMarketOpeningSoon } from '../utils/marketHours';
 
 // Callback for notifying when historical data is updated
@@ -169,6 +170,13 @@ class BackgroundCollector {
    * Collect data for all tracked stocks
    */
   async collectAll(): Promise<number> {
+    // When the Finnhub WebSocket feed is live, REST polling is redundant -
+    // quotes and minute candles arrive via WS for free. Skipping preserves the
+    // 60 calls/min budget. The collector automatically resumes if the WS drops.
+    if (finnhubWebSocketService.isEnabled() && finnhubWebSocketService.isConnected()) {
+      return 0;
+    }
+
     const rateLimitStatus = finnhubService.getRateLimitStatus();
 
     // Check if we have enough API capacity

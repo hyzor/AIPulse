@@ -17,6 +17,7 @@ services:
       - FINNHUB_API_KEY=${FINNHUB_API_KEY}
       - FINNHUB_MAX_CALLS_PER_MINUTE=${FINNHUB_MAX_CALLS_PER_MINUTE:-58}
       - FINNHUB_WARNING_THRESHOLD=${FINNHUB_WARNING_THRESHOLD:-50}
+      - USE_FINNHUB_WS=${USE_FINNHUB_WS:-false}
       - CACHE_TTL_SECONDS=60
       - DATABASE_URL=postgresql://postgres:postgres@timescaledb:5432/aipulse
       - REDIS_URL=redis://redis:6379

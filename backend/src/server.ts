@@ -15,6 +15,7 @@ import { getCachedQuote } from './services/cacheLookupService';
 import { candleBufferService } from './services/candleBufferService';
 import { databaseService } from './services/databaseService';
 import { finnhubService } from './services/finnhubService';
+import { finnhubWebSocketService } from './services/finnhubWebSocketService';
 import { redisService } from './services/redisService';
 
 
@@ -81,6 +82,11 @@ app.get('/api/health', async (_req, res) => {
       finnhub: {
         configured: finnhubService.isConfigured(),
         rateLimitRemaining: finnhubService.getRateLimitStatus().callsRemaining,
+      },
+      finnhubWebSocket: {
+        enabled: finnhubWebSocketService.isEnabled(),
+        connected: finnhubWebSocketService.isConnected(),
+        lastMessageAgeSeconds: finnhubWebSocketService.getLastMessageAgeSeconds(),
       },
     },
     dataStats: dbStats,
@@ -424,6 +430,9 @@ candleBufferService.updatePrice = (symbol: string, price: number, volume?: numbe
 async function gracefulShutdown(signal: string): Promise<void> {
   console.log(`\n[Shutdown] Received ${signal}. Starting graceful shutdown...`);
 
+  // Stop Finnhub WebSocket feed first - no new trades after this point
+  finnhubWebSocketService.stop();
+
   // Stop candle buffer timers
   console.log('[Shutdown] Stopping candle buffer timers...');
   candleBufferService.stop();
@@ -511,6 +520,17 @@ async function initializeServer(): Promise<void> {
   // Start background data collection service
   // This runs independently and maximizes API usage for historical data
   backgroundCollector.start();
+
+  // Start Finnhub WebSocket feed (real-time trades) if enabled.
+  // While connected, it feeds the candle buffer directly and the background
+  // collector pauses its REST polling. Fire-and-forget: the initial session
+  // seed is paced and non-blocking.
+  finnhubWebSocketService.setOnMinuteUpdate((symbol) => {
+    broadcastHistoricalUpdate(symbol);
+  });
+  finnhubWebSocketService.start().catch((error) => {
+    console.error('[FinnhubWS] Failed to start:', error);
+  });
 
   // Start HTTP server
   server.listen(PORT, () => {

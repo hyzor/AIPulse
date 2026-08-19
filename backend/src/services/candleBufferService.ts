@@ -14,6 +14,7 @@ export interface CandleBuffer {
   volume: number;
   startTime: number; // Unix timestamp in milliseconds
   updates: number;
+  source: 'websocket' | 'api' | 'cache'; // Origin of the ticks aggregated into this bar
 }
 
 class CandleBufferService {
@@ -71,6 +72,7 @@ class CandleBufferService {
     price: number,
     volume: number = 0,
     timestamp: number = Date.now(),
+    source: 'websocket' | 'api' | 'cache' = 'api',
   ): void {
     // Round timestamp to the minute (1m candles)
     const minuteTimestamp = Math.floor(timestamp / 60000) * 60000;
@@ -93,6 +95,7 @@ class CandleBufferService {
         volume,
         startTime: minuteTimestamp,
         updates: 1,
+        source,
       };
       this.buffers.set(symbol, buffer);
     } else {
@@ -102,6 +105,11 @@ class CandleBufferService {
       buffer.close = price;
       buffer.volume += volume;
       buffer.updates++;
+      // A real-time trade is the most authoritative source for a minute bar;
+      // upgrade the source if a REST fallback sample created the buffer first.
+      if (source === 'websocket') {
+        buffer.source = source;
+      }
     }
   }
 
@@ -117,6 +125,7 @@ class CandleBufferService {
       low: buffer.low,
       close: buffer.close,
       volume: buffer.volume,
+      source: buffer.source,
     };
 
     try {
@@ -179,7 +188,7 @@ class CandleBufferService {
           low: c.low,
           close: c.close,
           volume: c.volume,
-          source: 'cached',
+          source: c.source ?? 'cached',
         }));
 
         try {

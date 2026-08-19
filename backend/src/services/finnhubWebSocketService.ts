@@ -394,7 +394,7 @@ class FinnhubWebSocketService {
 
     // Feed the minute-candle buffer (true trade aggregation; every storage layer
     // dedupes by (symbol, minute), so partial flushes are safe)
-    candleBufferService.updatePrice(trade.s, trade.p, trade.v, trade.t);
+    candleBufferService.updatePrice(trade.s, trade.p, trade.v, trade.t, 'websocket');
 
     // Notify chart subscribers once per minute per symbol (frontend refetch)
     if (minuteBucket !== stats.lastNotifiedMinute) {

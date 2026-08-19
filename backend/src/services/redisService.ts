@@ -10,6 +10,7 @@ export interface RedisCandle {
   low: number;
   close: number;
   volume: number;
+  source?: 'websocket' | 'api' | 'cache';
 }
 
 export interface RedisLatestQuote {
@@ -87,6 +88,7 @@ class RedisService {
       l: candle.low,
       c: candle.close,
       v: candle.volume,
+      source: candle.source,
     });
 
     // Remove any existing entries with the same timestamp first (UPSERT behavior)
@@ -116,6 +118,7 @@ class RedisService {
         l: candle.low,
         c: candle.close,
         v: candle.volume,
+        source: candle.source,
       }),
     }));
 
@@ -141,6 +144,7 @@ class RedisService {
         low: data.l,
         close: data.c,
         volume: data.v,
+        source: data.source,
       };
     });
   }
@@ -162,6 +166,7 @@ class RedisService {
         low: data.l,
         close: data.c,
         volume: data.v,
+        source: data.source,
       };
     });
   }
@@ -186,6 +191,7 @@ class RedisService {
       low: data.l,
       close: data.c,
       volume: data.v,
+      source: data.source,
     };
   }
 
@@ -206,6 +212,7 @@ class RedisService {
         low: data.l,
         close: data.c,
         volume: data.v,
+        source: data.source,
       };
     });
   }

@@ -63,6 +63,7 @@ class FinnhubWebSocketService {
   private lastBarMinute = new Map<string, number>(); // Last minute with a WS bar per symbol
   private lastFallbackFetch = new Map<string, number>(); // Cooldown for REST fallback per symbol
   private lastSeedRetryAt = 0; // Timestamp of the last re-seed attempt for symbols missing session stats
+  private isSeeding = false; // Guards against overlapping re-seed runs
 
   constructor() {
     this.enabled = process.env.USE_FINNHUB_WS === 'true';
@@ -88,16 +89,6 @@ class FinnhubWebSocketService {
       return null;
     }
     return Math.round((Date.now() - this.lastMessageAt) / 1000);
-  }
-
-  getStats() {
-    return {
-      enabled: this.enabled,
-      connected: this.connected,
-      reconnectAttempts: this.reconnectAttempts,
-      lastMessageAgeSeconds: this.getLastMessageAgeSeconds(),
-      symbolsTracked: TRACKED_STOCKS.length,
-    };
   }
 
   /**
@@ -177,7 +168,7 @@ class FinnhubWebSocketService {
         if (missingSymbols.length > 0 && now - this.lastSeedRetryAt >= SEED_RETRY_COOLDOWN_MS) {
           this.lastSeedRetryAt = now;
           console.warn(`[FinnhubWS] Re-seeding ${missingSymbols.length} symbols missing session stats: ${missingSymbols.join(', ')}`);
-          this.seedSessionStats(missingSymbols).catch((error) => {
+          this.reseedSessionStats(missingSymbols).catch((error) => {
             console.error('[FinnhubWS] Re-seed of missing symbols failed:', error instanceof Error ? error.message : error);
           });
         }
@@ -190,7 +181,7 @@ class FinnhubWebSocketService {
 
       if (dayChanged || marketOpened) {
         console.log(`[FinnhubWS] Re-seeding session stats (dayChanged=${dayChanged}, marketOpened=${marketOpened})`);
-        this.seedSessionStats().catch((error) => {
+        this.reseedSessionStats().catch((error) => {
           console.error('[FinnhubWS] Re-seed failed:', error instanceof Error ? error.message : error);
         });
       }
@@ -216,6 +207,24 @@ class FinnhubWebSocketService {
   // ---------------------------------------------------------------------------
   // Session seeding (daily stats baseline)
   // ---------------------------------------------------------------------------
+
+  // Re-seed with a concurrency guard. Re-seeds are fire-and-forget from the
+  // watchdog, and a day rollover and a missing-symbol check can coincide; a
+  // plain seedSessionStats call would let two seeds run at once and double-burn
+  // the API budget. The initial seed in start() is awaited and safe to call
+  // directly since nothing else is running yet.
+  private async reseedSessionStats(symbols?: readonly string[]): Promise<void> {
+    if (this.isSeeding) {
+      console.warn('[FinnhubWS] Seed already in progress - skipping re-seed');
+      return;
+    }
+    this.isSeeding = true;
+    try {
+      await this.seedSessionStats(symbols);
+    } finally {
+      this.isSeeding = false;
+    }
+  }
 
   private async seedSessionStats(symbols: readonly string[] = TRACKED_STOCKS): Promise<void> {
     const today = new Date().toISOString().slice(0, 10);
@@ -316,7 +325,9 @@ class FinnhubWebSocketService {
   /**
    * REST fallback for a symbol whose WS feed went quiet during market hours
    * (dropped subscription or genuinely thin tape). Samples one quote like the
-   * old background collector, keeping the 1m series continuous.
+   * old background collector, keeping the 1m series continuous. Because
+   * Finnhub's /quote endpoint has no per-trade volume, these bars are flat
+   * (O=H=L=C, volume 0) - true OHLCV resumes once the WS feed delivers trades.
    */
   private async fetchFallbackQuote(symbol: string): Promise<void> {
     const stats = this.sessionStats.get(symbol);

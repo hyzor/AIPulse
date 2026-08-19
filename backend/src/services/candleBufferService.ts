@@ -20,7 +20,6 @@ class CandleBufferService {
   private buffers: Map<string, CandleBuffer> = new Map();
   private l1ToRedisInterval: number;
   private redisToDbInterval: number;
-  private maxBufferSize: number;
   private l1ToRedisTimer: NodeJS.Timeout | null = null;
   private redisToDbTimer: NodeJS.Timeout | null = null;
 
@@ -37,12 +36,7 @@ class CandleBufferService {
       10,
     ) * 1000;
 
-    this.maxBufferSize = parseInt(
-      process.env.MAX_BUFFER_SIZE || (isDev ? '10' : '100'),
-      10,
-    );
-
-    console.log(`[CandleBuffer] Initialized with L1→Redis: ${this.l1ToRedisInterval}ms, Redis→DB: ${this.redisToDbInterval}ms, Max buffer: ${this.maxBufferSize}`);
+    console.log(`[CandleBuffer] Initialized with L1→Redis: ${this.l1ToRedisInterval}ms, Redis→DB: ${this.redisToDbInterval}ms`);
   }
 
   // Start the persistence timers
@@ -108,12 +102,6 @@ class CandleBufferService {
       buffer.close = price;
       buffer.volume += volume;
       buffer.updates++;
-
-      // Check if we should flush due to buffer size
-      if (buffer.updates >= this.maxBufferSize) {
-        this.flushBufferToRedis(buffer);
-        this.buffers.delete(symbol);
-      }
     }
   }
 
@@ -140,6 +128,10 @@ class CandleBufferService {
   }
 
   // Flush all L1 buffers to Redis (called on timer or shutdown)
+  // NOTE: buffers are NOT cleared here. With WebSocket mode, trades arrive
+  // continuously within a minute; clearing mid-minute would truncate the bar
+  // (Redis upserts per minute, so the last write would win with partial data).
+  // Buffers accumulate until the minute rolls over and are flushed complete.
   async flushL1ToRedis(): Promise<void> {
     const promises: Promise<void>[] = [];
 
@@ -151,8 +143,6 @@ class CandleBufferService {
 
     await Promise.all(promises);
 
-    // Clear buffers after flush
-    this.buffers.clear();
     console.log(`[CandleBuffer] Flushed ${promises.length} buffers to Redis`);
   }
 

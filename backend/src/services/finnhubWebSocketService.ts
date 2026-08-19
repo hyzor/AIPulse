@@ -35,6 +35,8 @@ const DEFAULT_PERSIST_INTERVAL_MS = 2000; // Throttle latest-quote DB writes per
 const DEFAULT_WATCHDOG_INTERVAL_MS = 30000;
 const DEFAULT_STALE_THRESHOLD_MS = 90000; // Force reconnect if silent this long during market hours
 const DEFAULT_RECONNECT_MAX_DELAY_MS = 30000; // Exponential backoff cap
+const DEFAULT_RESUBSCRIBE_INTERVAL_MS = 120000; // Re-send subscribes (heals dropped per-symbol subs)
+const FALLBACK_COOLDOWN_MS = 60000; // Min interval between REST fallback fetches per symbol
 
 class FinnhubWebSocketService {
   private ws: WebSocket | null = null;
@@ -54,6 +56,11 @@ class FinnhubWebSocketService {
   private readonly watchdogIntervalMs: number;
   private readonly staleThresholdMs: number;
   private readonly reconnectMaxDelayMs: number;
+  private readonly resubscribeIntervalMs: number;
+
+  // Per-symbol state for feed health
+  private lastBarMinute = new Map<string, number>(); // Last minute with a WS bar per symbol
+  private lastFallbackFetch = new Map<string, number>(); // Cooldown for REST fallback per symbol
 
   constructor() {
     this.enabled = process.env.USE_FINNHUB_WS === 'true';
@@ -61,6 +68,7 @@ class FinnhubWebSocketService {
     this.watchdogIntervalMs = parseInt(process.env.WS_WATCHDOG_INTERVAL_MS || String(DEFAULT_WATCHDOG_INTERVAL_MS), 10);
     this.staleThresholdMs = parseInt(process.env.WS_STALE_THRESHOLD_MS || String(DEFAULT_STALE_THRESHOLD_MS), 10);
     this.reconnectMaxDelayMs = parseInt(process.env.WS_RECONNECT_MAX_DELAY_MS || String(DEFAULT_RECONNECT_MAX_DELAY_MS), 10);
+    this.resubscribeIntervalMs = parseInt(process.env.WS_RESUBSCRIBE_INTERVAL_MS || String(DEFAULT_RESUBSCRIBE_INTERVAL_MS), 10);
 
     console.log(`[FinnhubWS] ${this.enabled ? 'Enabled' : 'Disabled'} (USE_FINNHUB_WS=${this.enabled})`);
   }
@@ -115,8 +123,11 @@ class FinnhubWebSocketService {
     this.connect();
 
     // Watchdog: force-reconnect silent drops (Finnhub is known to close without
-    // a close frame) and re-seed daily stats when the date rolls over or the
-    // market transitions closed -> open.
+    // a close frame), re-seed daily stats when the date rolls over or the
+    // market transitions closed -> open, re-send subscribes to heal dropped
+    // per-symbol subscriptions, and REST-fallback symbols gone quiet for a
+    // couple of minutes during market hours.
+    let lastResubscribeAt = 0;
     this.watchdogTimer = setInterval(() => {
       if (
         this.connected
@@ -126,6 +137,32 @@ class FinnhubWebSocketService {
       ) {
         console.warn(`[FinnhubWS] No message for ${Math.round(this.staleThresholdMs / 1000)}s during market hours - forcing reconnect`);
         this.ws?.terminate();
+      }
+
+      const now = Date.now();
+      if (this.connected && now - lastResubscribeAt >= this.resubscribeIntervalMs) {
+        lastResubscribeAt = now;
+        console.log(`[FinnhubWS] Re-sending subscriptions for ${TRACKED_STOCKS.length} symbols (feed health)`);
+        for (const symbol of TRACKED_STOCKS) {
+          this.ws?.send(JSON.stringify({ type: 'subscribe', symbol }));
+        }
+      }
+
+      // REST fallback for symbols with no WS bar for the current minute during
+      // market hours (dropped subscription or genuinely thin tape). Bounded by
+      // a 60s cooldown per symbol.
+      if (this.connected && isMarketOpen()) {
+        const currentMinute = Math.floor(now / 60000);
+        for (const symbol of TRACKED_STOCKS) {
+          const lastBar = this.lastBarMinute.get(symbol) ?? 0;
+          const lastFallback = this.lastFallbackFetch.get(symbol) ?? 0;
+          if (lastBar < currentMinute && now - lastFallback >= FALLBACK_COOLDOWN_MS) {
+            this.lastFallbackFetch.set(symbol, now);
+            this.fetchFallbackQuote(symbol).catch((error) => {
+              console.warn(`[FinnhubWS] Fallback fetch failed for ${symbol}:`, error instanceof Error ? error.message : error);
+            });
+          }
+        }
       }
 
       const today = new Date().toISOString().slice(0, 10);
@@ -258,6 +295,51 @@ class FinnhubWebSocketService {
   // Message handling
   // ---------------------------------------------------------------------------
 
+  /**
+   * REST fallback for a symbol whose WS feed went quiet during market hours
+   * (dropped subscription or genuinely thin tape). Samples one quote like the
+   * old background collector, keeping the 1m series continuous.
+   */
+  private async fetchFallbackQuote(symbol: string): Promise<void> {
+    const stats = this.sessionStats.get(symbol);
+    if (!stats) {
+      return;
+    }
+
+    const quote = await finnhubService.getQuote(symbol, true);
+    if (!quote) {
+      return;
+    }
+
+    const now = Date.now();
+    stats.high = Math.max(stats.high, quote.currentPrice);
+    stats.low = Math.min(stats.low, quote.currentPrice);
+    this.lastBarMinute.set(symbol, Math.floor(now / 60000));
+
+    // Volume is always 0 from /quote (Finnhub doesn't provide it there)
+    candleBufferService.updatePrice(symbol, quote.currentPrice, 0, now);
+
+    candleBufferService.updateLatestQuote(
+      symbol,
+      {
+        currentPrice: quote.currentPrice,
+        change: quote.change,
+        changePercent: quote.changePercent,
+        high: stats.high,
+        low: stats.low,
+        open: stats.open,
+        previousClose: stats.previousClose,
+        volume: stats.baseVolume + stats.tradeVolume,
+      },
+      'api',
+      now,
+    ).catch((error) => {
+      console.error(`[FinnhubWS] Fallback quote persist failed for ${symbol}:`, error);
+    });
+
+    console.log(`[FinnhubWS] REST fallback sampled ${symbol} at ${quote.currentPrice} (WS quiet)`);
+  }
+
   private handleMessage(raw: string): void {
     this.lastMessageAt = Date.now();
 
@@ -289,12 +371,14 @@ class FinnhubWebSocketService {
     stats.high = Math.max(stats.high, trade.p);
     stats.low = Math.min(stats.low, trade.p);
 
+    const minuteBucket = Math.floor(trade.t / 60000);
+    this.lastBarMinute.set(trade.s, minuteBucket);
+
     // Feed the minute-candle buffer (true trade aggregation; every storage layer
     // dedupes by (symbol, minute), so partial flushes are safe)
     candleBufferService.updatePrice(trade.s, trade.p, trade.v, trade.t);
 
     // Notify chart subscribers once per minute per symbol (frontend refetch)
-    const minuteBucket = Math.floor(trade.t / 60000);
     if (minuteBucket !== stats.lastNotifiedMinute) {
       stats.lastNotifiedMinute = minuteBucket;
       this.onMinuteUpdate?.(trade.s);

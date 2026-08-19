@@ -37,6 +37,7 @@ const DEFAULT_STALE_THRESHOLD_MS = 90000; // Force reconnect if silent this long
 const DEFAULT_RECONNECT_MAX_DELAY_MS = 30000; // Exponential backoff cap
 const DEFAULT_RESUBSCRIBE_INTERVAL_MS = 120000; // Re-send subscribes (heals dropped per-symbol subs)
 const FALLBACK_COOLDOWN_MS = 60000; // Min interval between REST fallback fetches per symbol
+const SEED_RETRY_COOLDOWN_MS = 60000; // Min interval between re-seed attempts for symbols missing session stats
 
 class FinnhubWebSocketService {
   private ws: WebSocket | null = null;
@@ -61,6 +62,7 @@ class FinnhubWebSocketService {
   // Per-symbol state for feed health
   private lastBarMinute = new Map<string, number>(); // Last minute with a WS bar per symbol
   private lastFallbackFetch = new Map<string, number>(); // Cooldown for REST fallback per symbol
+  private lastSeedRetryAt = 0; // Timestamp of the last re-seed attempt for symbols missing session stats
 
   constructor() {
     this.enabled = process.env.USE_FINNHUB_WS === 'true';
@@ -165,6 +167,22 @@ class FinnhubWebSocketService {
         }
       }
 
+      // Re-seed symbols that failed their initial seed (e.g. a transient API
+      // error). Without a sessionStats entry their trades are silently dropped
+      // by handleTrade, and the REST collector is paused while connected, so
+      // they'd otherwise stay dark until the next market transition. Bounded
+      // by a cooldown to avoid hammering the API.
+      if (this.connected) {
+        const missingSymbols = TRACKED_STOCKS.filter((s) => !this.sessionStats.has(s));
+        if (missingSymbols.length > 0 && now - this.lastSeedRetryAt >= SEED_RETRY_COOLDOWN_MS) {
+          this.lastSeedRetryAt = now;
+          console.warn(`[FinnhubWS] Re-seeding ${missingSymbols.length} symbols missing session stats: ${missingSymbols.join(', ')}`);
+          this.seedSessionStats(missingSymbols).catch((error) => {
+            console.error('[FinnhubWS] Re-seed of missing symbols failed:', error instanceof Error ? error.message : error);
+          });
+        }
+      }
+
       const today = new Date().toISOString().slice(0, 10);
       const dayChanged = [...this.sessionStats.values()].some((s) => s.seedDate !== today);
       const marketOpened = isMarketOpen() && !this.marketWasOpen;
@@ -199,11 +217,11 @@ class FinnhubWebSocketService {
   // Session seeding (daily stats baseline)
   // ---------------------------------------------------------------------------
 
-  private async seedSessionStats(): Promise<void> {
+  private async seedSessionStats(symbols: readonly string[] = TRACKED_STOCKS): Promise<void> {
     const today = new Date().toISOString().slice(0, 10);
     let seeded = 0;
 
-    for (const symbol of TRACKED_STOCKS) {
+    for (const symbol of symbols) {
       try {
         // skipCache=true ensures a live snapshot; the market-hours logic inside
         // getQuote still serves cache when the market is closed (no API burn).
@@ -229,7 +247,7 @@ class FinnhubWebSocketService {
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
 
-    console.log(`[FinnhubWS] Seeded session stats for ${seeded}/${TRACKED_STOCKS.length} symbols`);
+    console.log(`[FinnhubWS] Seeded session stats for ${seeded}/${symbols.length} symbols`);
   }
 
   // ---------------------------------------------------------------------------
